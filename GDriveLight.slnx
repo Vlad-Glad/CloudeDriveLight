@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/Client/">
+    <Project Path="Client/GDriveLight.Desktop/GDriveLight.Desktop.csproj" />
+  </Folder>
+  <Folder Name="/Server/">
+    <Project Path="Server/GDriveLight.Api/GDriveLight.Api.csproj" />
+    <Project Path="Server/GDriveLight.Application/GDriveLight.Application.csproj" />
+    <Project Path="Server/GDriveLight.Domain/GDriveLight.Domain.csproj" />
+    <Project Path="Server/GDriveLight.Infrastructure/GDriveLight.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/Shared/" />
+  <Folder Name="/Tests/" />
+</Solution>
