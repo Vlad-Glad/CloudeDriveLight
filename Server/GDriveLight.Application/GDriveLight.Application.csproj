@@ -6,4 +6,12 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Folder Include="Abstractions\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GDriveLight.Domain\GDriveLight.Domain.csproj" />
+  </ItemGroup>
+
 </Project>

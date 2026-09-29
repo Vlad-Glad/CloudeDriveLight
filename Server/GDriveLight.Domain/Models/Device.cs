@@ -1,11 +1,10 @@
-﻿public class Device
+public class Device
 {
     private const int MaxNameLength = 100;
 
     public Guid Id { get; private set; }
 
     public Guid UserId { get; private set; }
-    public ApplicationUser User { get; private set; } = null!;
 
     public string Name { get; private set; }
 

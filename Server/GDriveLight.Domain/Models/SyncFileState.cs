@@ -1,4 +1,4 @@
-﻿public class SyncFileState
+public class SyncFileState
 {
     private const int MaxRelativePathLength = 1024;
     private const int MaxHashLength = 128;
@@ -6,10 +6,8 @@
     public Guid Id { get; private set; }
 
     public Guid SyncFolderId { get; private set; }
-    public SyncFolder SyncFolder { get; private set; } = null!;
 
     public Guid? DriveFileId { get; private set; }
-    public DriveFile? DriveFile { get; private set; }
 
     public string RelativePath { get; private set; }
 

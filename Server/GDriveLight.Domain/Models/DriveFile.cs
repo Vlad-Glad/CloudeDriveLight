@@ -1,5 +1,3 @@
-﻿using Microsoft.VisualBasic.FileIO;
-
 public class DriveFile
 {
     private const int MaxNameLength = 255;
@@ -13,20 +11,16 @@ public class DriveFile
     public string FileUrl { get; private set; }
 
     public int FileTypeId { get; private set; }
-    public FileType FileType { get; private set; } = null!;
 
     public string ContentHash { get; private set; }
 
     public Guid? FolderId { get; private set; }
-    public DriveFolder? Folder { get; private set; }
 
     public Guid OwnerId { get; private set; }
-    public ApplicationUser Owner { get; private set; } = null!;
 
     public DateTime UploadedAtUtc { get; private set; }
 
     public Guid? EditedByUserId { get; private set; }
-    public ApplicationUser? EditedByUser { get; private set; }
 
     public DateTime? EditedAtUtc { get; private set; }
 

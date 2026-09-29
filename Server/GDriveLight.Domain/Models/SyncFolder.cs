@@ -1,4 +1,4 @@
-﻿public class SyncFolder
+public class SyncFolder
 {
     private const int MaxLocalPathLength = 1024;
 
@@ -7,10 +7,8 @@
     public string LocalPath { get; private set; }
 
     public Guid DriveFolderId { get; private set; }
-    public DriveFolder DriveFolder { get; private set; } = null!;
 
     public Guid DeviceId { get; private set; }
-    public Device Device { get; private set; } = null!;
 
     public DateTime? LastSyncedAtUtc { get; private set; }
 

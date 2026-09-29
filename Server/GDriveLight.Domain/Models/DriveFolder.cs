@@ -1,4 +1,4 @@
-﻿public class DriveFolder
+public class DriveFolder
 {
     private const int MaxNameLength = 255;
 
@@ -7,10 +7,8 @@
     public string Name { get; private set; }
 
     public Guid? ParentFolderId { get; private set; }
-    public DriveFolder? ParentFolder { get; private set; }
 
     public Guid OwnerId { get; private set; }
-    public ApplicationUser Owner { get; private set; } = null!;
 
 
     private DriveFolder() { }

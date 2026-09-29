@@ -6,4 +6,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\GDriveLight.Application\GDriveLight.Application.csproj" />
+    <ProjectReference Include="..\GDriveLight.Infrastructure\GDriveLight.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>
