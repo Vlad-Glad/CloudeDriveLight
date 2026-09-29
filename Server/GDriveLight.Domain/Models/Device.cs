@@ -9,9 +9,6 @@ public class Device
     public string Name { get; private set; }
 
 
-    private Device() { }
-
-
     public Device(
         Guid userId,
         string name)

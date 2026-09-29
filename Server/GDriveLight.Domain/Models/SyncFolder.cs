@@ -1,3 +1,5 @@
+using GDriveLight.Domain.Enums;
+
 public class SyncFolder
 {
     private const int MaxLocalPathLength = 1024;
@@ -13,9 +15,6 @@ public class SyncFolder
     public DateTime? LastSyncedAtUtc { get; private set; }
 
     public SyncMode SyncMode { get; private set; }
-
-
-    private SyncFolder() { }
 
 
     public SyncFolder(

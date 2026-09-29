@@ -1,3 +1,5 @@
+using GDriveLight.Domain.Enums;
+
 namespace GDriveLight.Infrastructure.Entities;
 
 public class SyncFolderEntity
@@ -13,5 +15,5 @@ public class SyncFolderEntity
     
     public DateTime? LastSyncedAtUtc { get; set; }
     
-    public int SyncMode { get; set; } // Mapping domain enum SyncMode to int
+    public SyncMode SyncMode { get; set; }
 }

@@ -1,3 +1,5 @@
+using GDriveLight.Domain.Enums;
+
 namespace GDriveLight.Infrastructure.Entities;
 
 public class SyncFileStateEntity
@@ -17,5 +19,5 @@ public class SyncFileStateEntity
     public DateTime? LastSyncedAtUtc { get; set; }
     public DateTime? LocalModifiedAtUtc { get; set; }
     
-    public int Status { get; set; } // Mapping domain enum SyncStatus to int
+    public SyncStatus Status { get; set; }
 }

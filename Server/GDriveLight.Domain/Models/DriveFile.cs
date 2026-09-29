@@ -25,9 +25,6 @@ public class DriveFile
     public DateTime? EditedAtUtc { get; private set; }
 
 
-    private DriveFile() { }
-
-
     public DriveFile(
         string name,
         string fileUrl,

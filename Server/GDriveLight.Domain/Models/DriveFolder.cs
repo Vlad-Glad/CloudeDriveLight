@@ -11,9 +11,6 @@ public class DriveFolder
     public Guid OwnerId { get; private set; }
 
 
-    private DriveFolder() { }
-
-
     public DriveFolder(
         string name,
         Guid ownerId,

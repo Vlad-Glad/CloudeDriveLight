@@ -1,3 +1,5 @@
+using GDriveLight.Domain.Enums;
+
 public class SyncFileState
 {
     private const int MaxRelativePathLength = 1024;
@@ -20,9 +22,6 @@ public class SyncFileState
     public DateTime? LocalModifiedAtUtc { get; private set; }
 
     public SyncStatus Status { get; private set; }
-
-
-    private SyncFileState() { }
 
 
     public SyncFileState(

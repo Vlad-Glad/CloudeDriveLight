@@ -13,9 +13,6 @@
     public string Extension { get; private set; }
 
 
-    private FileType() { }
-
-
     public FileType(
         string name,
         string mimeType,
