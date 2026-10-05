@@ -1,5 +1,7 @@
 using GDriveLight.Domain.Enums;
 
+namespace GDriveLight.Domain.Models;
+
 public class SyncFileState
 {
     private const int MaxRelativePathLength = 1024;

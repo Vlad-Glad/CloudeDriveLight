@@ -1,3 +1,5 @@
+namespace GDriveLight.Domain.Models;
+
 public class Device
 {
     private const int MaxNameLength = 100;

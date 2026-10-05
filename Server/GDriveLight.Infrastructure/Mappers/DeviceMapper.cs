@@ -19,7 +19,7 @@ internal static class DeviceMapper
     {
         var domain = new Device(entity.UserId, entity.Name);
         domain.SetPropertyValue(nameof(Device.Id), entity.Id);
-        
+
         return domain;
     }
 }

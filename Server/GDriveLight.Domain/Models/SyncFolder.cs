@@ -1,5 +1,7 @@
 using GDriveLight.Domain.Enums;
 
+namespace GDriveLight.Domain.Models;
+
 public class SyncFolder
 {
     private const int MaxLocalPathLength = 1024;

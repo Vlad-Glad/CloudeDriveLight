@@ -1,3 +1,5 @@
+namespace GDriveLight.Domain.Models;
+
 public class DriveFile
 {
     private const int MaxNameLength = 255;

@@ -1,4 +1,6 @@
-﻿public class FileType
+namespace GDriveLight.Domain.Models;
+
+public class FileType
 {
     private const int MaxNameLength = 100;
     private const int MaxMimeTypeLength = 100;

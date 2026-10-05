@@ -8,10 +8,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services)
     {
-        // Реєстрація Unit of Work
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-        // Реєстрація репозиторіїв
         services.AddScoped<IDriveFileRepository, DriveFileRepository>();
         services.AddScoped<IDriveFolderRepository, DriveFolderRepository>();
         services.AddScoped<IDeviceRepository, DeviceRepository>();
