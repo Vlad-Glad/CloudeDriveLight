@@ -13,11 +13,11 @@ public static class DependencyInjection
 
         // Реєстрація репозиторіїв
         services.AddScoped<IDriveFileRepository, DriveFileRepository>();
-        // services.AddScoped<IDriveFolderRepository, DriveFolderRepository>();
-        // services.AddScoped<IDeviceRepository, DeviceRepository>();
-        // services.AddScoped<IFileTypeRepository, FileTypeRepository>();
-        // services.AddScoped<ISyncFolderRepository, SyncFolderRepository>();
-        // services.AddScoped<ISyncFileStateRepository, SyncFileStateRepository>();
+        services.AddScoped<IDriveFolderRepository, DriveFolderRepository>();
+        services.AddScoped<IDeviceRepository, DeviceRepository>();
+        services.AddScoped<IFileTypeRepository, FileTypeRepository>();
+        services.AddScoped<ISyncFolderRepository, SyncFolderRepository>();
+        services.AddScoped<ISyncFileStateRepository, SyncFileStateRepository>();
 
         return services;
     }
