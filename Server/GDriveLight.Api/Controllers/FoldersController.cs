@@ -53,6 +53,24 @@ public class FoldersController : ControllerBase
         return Ok();
     }
 
+    [HttpPut("{id}/move")]
+    public async Task<IActionResult> MoveFolder(Guid id, [FromBody] MoveFolderRequest request)
+    {
+        //заглушка користувача   
+        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+        var command = new MoveFolderCommand(id, request.NewParentFolderId, stubUserId);
+
+        var result = await _mediator.Send(command);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(new { error = result.Error });
+        }
+
+        return Ok();
+    }
+
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteFolder(Guid id)
     {
