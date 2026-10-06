@@ -1,5 +1,6 @@
 using GDriveLight.Application.Abstractions.Repositories;
 using GDriveLight.Domain.Models;
+using GDriveLight.Infrastructure.Entities;
 using GDriveLight.Infrastructure.Mappers;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,7 +20,7 @@ public class DriveFolderRepository : IDriveFolderRepository
         var entity = await _dbContext.DriveFolders
             .AsNoTracking()
             .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
-            
+
         return entity?.ToDomain();
     }
 
@@ -29,7 +30,7 @@ public class DriveFolderRepository : IDriveFolderRepository
             .AsNoTracking()
             .Where(f => f.OwnerId == userId && f.ParentFolderId == null)
             .ToListAsync(cancellationToken);
-            
+
         return entities.Select(e => e.ToDomain());
     }
 
@@ -39,8 +40,14 @@ public class DriveFolderRepository : IDriveFolderRepository
             .AsNoTracking()
             .Where(f => f.ParentFolderId == parentFolderId)
             .ToListAsync(cancellationToken);
-            
+
         return entities.Select(e => e.ToDomain());
+    }
+
+    public async Task<bool> ExistsAsync(string name, Guid? parentFolderId, Guid ownerId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.DriveFolders
+            .AnyAsync(f => f.Name == name && f.ParentFolderId == parentFolderId && f.OwnerId == ownerId, cancellationToken);
     }
 
     public Task AddAsync(DriveFolder folder, CancellationToken cancellationToken = default)
@@ -57,5 +64,32 @@ public class DriveFolderRepository : IDriveFolderRepository
     public void Delete(DriveFolder folder)
     {
         _dbContext.DriveFolders.Remove(folder.ToEntity());
+    }
+
+    public async Task DeleteRecursivelyAsync(Guid folderId, CancellationToken cancellationToken = default)
+    {
+        var foldersToDelete = new List<DriveFolderEntity>();
+        await CollectFoldersRecursively(folderId, foldersToDelete, cancellationToken);
+
+        foldersToDelete.Reverse();
+        _dbContext.DriveFolders.RemoveRange(foldersToDelete);
+    }
+
+    private async Task CollectFoldersRecursively(Guid folderId, List<DriveFolderEntity> result, CancellationToken cancellationToken)
+    {
+        var folder = await _dbContext.DriveFolders.FirstOrDefaultAsync(f => f.Id == folderId, cancellationToken);
+        if (folder == null) return;
+
+        result.Add(folder);
+
+        var subFolderIds = await _dbContext.DriveFolders
+            .Where(f => f.ParentFolderId == folderId)
+            .Select(f => f.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var subId in subFolderIds)
+        {
+            await CollectFoldersRecursively(subId, result, cancellationToken);
+        }
     }
 }

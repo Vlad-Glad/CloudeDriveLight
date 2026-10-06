@@ -1,6 +1,6 @@
 using FluentValidation;
 
-namespace GDriveLight.Application.Folders.Commands.CreateFolder;
+namespace GDriveLight.Application.Folders.Commands;
 
 public class CreateFolderCommandValidator : AbstractValidator<CreateFolderCommand>
 {

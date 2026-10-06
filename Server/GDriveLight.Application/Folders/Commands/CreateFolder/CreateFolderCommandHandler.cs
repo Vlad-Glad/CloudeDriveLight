@@ -3,7 +3,7 @@ using GDriveLight.Application.Common.Models;
 using GDriveLight.Domain.Models;
 using MediatR;
 
-namespace GDriveLight.Application.Folders.Commands.CreateFolder;
+namespace GDriveLight.Application.Folders.Commands;
 
 public class CreateFolderCommandHandler : IRequestHandler<CreateFolderCommand, Result<Guid>>
 {
@@ -20,6 +20,12 @@ public class CreateFolderCommandHandler : IRequestHandler<CreateFolderCommand, R
 
     public async Task<Result<Guid>> Handle(CreateFolderCommand request, CancellationToken cancellationToken)
     {
+        bool exists = await _folderRepository.ExistsAsync(request.Name, request.ParentFolderId, request.OwnerId, cancellationToken);
+        if (exists)
+        {
+            return Result<Guid>.Failure($"A folder with the name '{request.Name}' already exists in this location.");
+        }
+
         var folder = new DriveFolder(request.Name, request.OwnerId, request.ParentFolderId);
 
         await _folderRepository.AddAsync(folder, cancellationToken);

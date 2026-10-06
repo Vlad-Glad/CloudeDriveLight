@@ -9,6 +9,7 @@ public interface IDriveFolderRepository
     Task<IEnumerable<DriveFolder>> GetRootFoldersForUserAsync(Guid userId, CancellationToken cancellationToken = default);
     
     Task<IEnumerable<DriveFolder>> GetSubFoldersAsync(Guid parentFolderId, CancellationToken cancellationToken = default);
+    Task<bool> ExistsAsync(string name, Guid? parentFolderId, Guid ownerId, CancellationToken cancellationToken = default);
     
     Task AddAsync(DriveFolder folder, CancellationToken cancellationToken = default);
     

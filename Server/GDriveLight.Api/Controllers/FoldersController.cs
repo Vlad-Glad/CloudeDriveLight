@@ -1,4 +1,5 @@
-using GDriveLight.Application.Folders.Commands.CreateFolder;
+using GDriveLight.Api.Contracts.Folders;
+using GDriveLight.Application.Folders.Commands;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,25 +19,36 @@ public class FoldersController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateFolder([FromBody] CreateFolderRequest request)
     {
-        // Створюємо заглушку користувача (ніби він зараз залогінений)
+        //заглушка користувача   
         var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
         var command = new CreateFolderCommand(request.Name, stubUserId, request.ParentFolderId);
-        
+
         var result = await _mediator.Send(command);
 
         if (result.IsFailure)
         {
-            // Це бізнес-помилка з Result Pattern (наприклад "Файл вже існує")
             return BadRequest(new { error = result.Error });
         }
 
         return Ok(new { folderId = result.Value });
     }
-}
 
-public class CreateFolderRequest
-{
-    public string Name { get; set; } = string.Empty;
-    public Guid? ParentFolderId { get; set; }
+    [HttpPut("{id}/rename")]
+    public async Task<IActionResult> RenameFolder(Guid id, [FromBody] RenameFolderRequest request)
+    {
+        //заглушка користувача   
+        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+        var command = new RenameFolderCommand(id, request.NewName, stubUserId);
+
+        var result = await _mediator.Send(command);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(new { error = result.Error });
+        }
+
+        return Ok();
+    }
 }
