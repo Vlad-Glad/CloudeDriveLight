@@ -61,4 +61,20 @@ public class DriveFileRepository : IDriveFileRepository
         var entity = file.ToEntity();
         _dbContext.DriveFiles.Remove(entity);
     }
+
+    public async Task<bool> ExistsAsync(string name, Guid? folderId, Guid ownerId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.DriveFiles
+            .AnyAsync(f => f.Name == name && f.FolderId == folderId && f.OwnerId == ownerId, cancellationToken);
+    }
+
+    public async Task<IEnumerable<DriveFile>> SearchByNameAsync(string name, Guid userId, CancellationToken cancellationToken = default)
+    {
+        var entities = await _dbContext.DriveFiles
+            .AsNoTracking()
+            .Where(f => f.OwnerId == userId && f.Name.Contains(name))
+            .ToListAsync(cancellationToken);
+
+        return entities.Select(e => e.ToDomain());
+    }
 }

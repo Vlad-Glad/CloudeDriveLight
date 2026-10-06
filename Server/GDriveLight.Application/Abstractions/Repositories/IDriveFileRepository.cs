@@ -15,4 +15,8 @@ public interface IDriveFileRepository
     void Update(DriveFile file);
     
     void Delete(DriveFile file);
+
+    Task<bool> ExistsAsync(string name, Guid? folderId, Guid ownerId, CancellationToken cancellationToken = default);
+
+    Task<IEnumerable<DriveFile>> SearchByNameAsync(string name, Guid userId, CancellationToken cancellationToken = default);
 }
