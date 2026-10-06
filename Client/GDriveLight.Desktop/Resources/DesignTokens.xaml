@@ -4,7 +4,11 @@
 
     <!-- Colors -->
     <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F0F4F9" />
+    <SolidColorBrush x:Key="BackgroundBrush" Color="#F0F4F9" />
     <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="AccentBrush" Color="#0B57D0" />
+    <SolidColorBrush x:Key="PrimaryBrandBrush" Color="#0B57D0" />
     
     <SolidColorBrush x:Key="SidebarSelectedBrush" Color="#D3E3FD" />
     <SolidColorBrush x:Key="SidebarSelectedTextBrush" Color="#0B57D0" />
@@ -30,6 +34,7 @@
     
     <system:Double x:Key="FontSizeSmall">12</system:Double>
     <system:Double x:Key="FontSizeNormal">14</system:Double>
+    <system:Double x:Key="FontSizeRegular">14</system:Double>
     <system:Double x:Key="FontSizeLarge">22</system:Double>
 
     <!-- Dimensions & Margins -->
@@ -38,5 +43,6 @@
     <CornerRadius x:Key="ContentCornerRadius">24</CornerRadius>
     <CornerRadius x:Key="ButtonCornerRadius">16</CornerRadius>
     <CornerRadius x:Key="SearchCornerRadius">24</CornerRadius>
+    <CornerRadius x:Key="RadiusLarge">24</CornerRadius>
 
 </ResourceDictionary>

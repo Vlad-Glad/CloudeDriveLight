@@ -1,5 +1,6 @@
 using System.Net.Http;
 using GDriveLight.Desktop.Services;
+using GDriveLight.Desktop.Services.Api;
 using GDriveLight.Desktop.ViewModels;
 using GDriveLight.Desktop.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,11 +11,23 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddDesktopServices(this IServiceCollection services)
     {
-        // One HTTP client per application; endpoint services will share its connection pool.
-        services.AddSingleton(_ => new HttpClient());
+        services.AddSingleton(sp => 
+        {
+            var handler = new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            };
+            return new HttpClient(handler);
+        });
+        
+        services.AddSingleton<IDriveApiService, DriveApiService>();
         services.AddSingleton<IFileDialogService, FileDialogService>();
-        services.AddSingleton<MainWindowViewModel>();
-        services.AddSingleton<MainWindow>();
+        
+        services.AddTransient<LoginViewModel>();
+        services.AddTransient<LoginWindow>();
+        
+        services.AddTransient<MainWindowViewModel>();
+        services.AddTransient<MainWindow>();
 
         return services;
     }

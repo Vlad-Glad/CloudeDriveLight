@@ -21,8 +21,23 @@ public partial class App : Application
             ValidateScopes = true
         });
 
-        MainWindow = _services.GetRequiredService<MainWindow>();
-        MainWindow.Show();
+        ShowLoginFlow();
+    }
+
+    public void ShowLoginFlow()
+    {
+        var loginWindow = _services!.GetRequiredService<LoginWindow>();
+        var result = loginWindow.ShowDialog();
+
+        if (result == true)
+        {
+            MainWindow = _services!.GetRequiredService<MainWindow>();
+            MainWindow.Show();
+        }
+        else
+        {
+            Current.Shutdown();
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)
