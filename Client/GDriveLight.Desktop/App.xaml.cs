@@ -1,14 +1,33 @@
-﻿using System.Configuration;
-using System.Data;
 using System.Windows;
+using GDriveLight.Desktop.Views;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace GDriveLight.Desktop
+namespace GDriveLight.Desktop;
+
+public partial class App : Application
 {
-    /// <summary>
-    /// Interaction logic for App.xaml
-    /// </summary>
-    public partial class App : Application
+    private ServiceProvider? _services;
+
+    protected override void OnStartup(StartupEventArgs e)
     {
+        base.OnStartup(e);
+
+        var services = new ServiceCollection();
+        services.AddDesktopServices();
+
+        _services = services.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateOnBuild = true,
+            ValidateScopes = true
+        });
+
+        MainWindow = _services.GetRequiredService<MainWindow>();
+        MainWindow.Show();
     }
 
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _services?.Dispose();
+        base.OnExit(e);
+    }
 }
