@@ -42,6 +42,24 @@ public class MoveFolderCommandHandler : IRequestHandler<MoveFolderCommand, Resul
                 return Result.Failure("You do not have permission to access the target parent folder.");
             }
 
+            var currentAncestor = newParent;
+            while (currentAncestor != null)
+            {
+                if (currentAncestor.Id == request.FolderId)
+                {
+                    return Result.Failure("Cannot move a folder into its own descendant.");
+                }
+
+                if (currentAncestor.ParentFolderId.HasValue)
+                {
+                    currentAncestor = await _folderRepository.GetByIdAsync(currentAncestor.ParentFolderId.Value, cancellationToken);
+                }
+                else
+                {
+                    currentAncestor = null;
+                }
+            }
+
             bool exists = await _folderRepository.ExistsAsync(folder.Name, request.NewParentFolderId.Value, request.UserId, cancellationToken);
             if (exists)
             {
