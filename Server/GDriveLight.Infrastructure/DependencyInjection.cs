@@ -22,6 +22,8 @@ public static class DependencyInjection
         services.AddScoped<ISyncFolderRepository, SyncFolderRepository>();
         services.AddScoped<ISyncFileStateRepository, SyncFileStateRepository>();
 
+        services.AddSingleton<GDriveLight.Application.Abstractions.Services.IFileStorageService, GDriveLight.Infrastructure.Services.LocalFileStorageService>();
+
         return services;
     }
 }
