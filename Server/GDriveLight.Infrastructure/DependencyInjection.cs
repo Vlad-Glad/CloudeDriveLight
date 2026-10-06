@@ -16,8 +16,14 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException("Connection string 'DefaultConnection' is required.");
+        }
+
         services.AddDbContext<AppDbContext>(options =>
-            options.UseInMemoryDatabase("GDriveLightDb"));
+            options.UseNpgsql(connectionString));
 
         services.AddIdentity<ApplicationUserEntity, IdentityRole<Guid>>()
             .AddEntityFrameworkStores<AppDbContext>()
