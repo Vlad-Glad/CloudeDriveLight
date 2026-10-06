@@ -34,12 +34,10 @@ public class DeleteFileCommandHandler : IRequestHandler<DeleteFileCommand, Resul
             return Result.Failure("You do not have permission to delete this file.");
         }
 
-        // Delete from physical storage
-        await _fileStorageService.DeleteAsync(file.FileUrl, cancellationToken);
-
-        // Delete from database
         _fileRepository.Delete(file);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        await _fileStorageService.DeleteAsync(file.FileUrl, cancellationToken);
 
         return Result.Success();
     }
