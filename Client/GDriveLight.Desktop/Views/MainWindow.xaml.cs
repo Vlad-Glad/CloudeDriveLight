@@ -10,5 +10,6 @@ public partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(viewModel);
         InitializeComponent();
         DataContext = viewModel;
+        Closed += (s, e) => Application.Current.Shutdown();
     }
 }

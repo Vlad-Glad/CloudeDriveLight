@@ -19,6 +19,7 @@
     
     <Window.Resources>
         <converters:StringToBrushConverter x:Key="StringToBrushConverter" />
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         
         <Style x:Key="CustomGridViewColumnHeader" TargetType="GridViewColumnHeader">
             <Setter Property="Background" Value="Transparent" />
@@ -43,6 +44,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             
             <!-- Logo -->
@@ -71,7 +73,7 @@
             </Button>
             
             <!-- Navigation -->
-            <ListBox Grid.Row="2" Background="Transparent" BorderThickness="0" SelectedIndex="0">
+            <ListBox Grid.Row="2" Background="Transparent" BorderThickness="0" SelectedIndex="{Binding SelectedSidebarIndex}">
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem">
                         <Setter Property="Background" Value="Transparent" />
@@ -116,6 +118,14 @@
                     </StackPanel>
                 </ListBoxItem>
             </ListBox>
+            
+            <!-- Logout Button -->
+            <Button Grid.Row="3" Command="{Binding LogoutCommand}" Background="Transparent" BorderThickness="0" Margin="16,0,16,24" Padding="16,12" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Cursor="Hand">
+                <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="SignOut24" FontSize="20" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,16,0" />
+                    <TextBlock Text="Log out" FontSize="{DynamicResource FontSizeNormal}" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
         </Grid>
         
         <!-- Main Content -->
@@ -141,7 +151,26 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     
-                    <TextBlock Text="Home" FontSize="{DynamicResource FontSizeLarge}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                    <!-- Breadcrumbs -->
+                    <ItemsControl ItemsSource="{Binding Breadcrumbs}" VerticalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Command="{Binding DataContext.NavigateBackCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                            CommandParameter="{Binding}"
+                                            Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand">
+                                        <TextBlock Text="{Binding Name}" FontSize="{DynamicResource FontSizeLarge}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    </Button>
+                                    <ui:SymbolIcon Symbol="ChevronRight24" FontSize="16" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="8,0" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                     
                     <ui:Button Icon="{ui:SymbolIcon Settings24}" Appearance="Transparent" Grid.Column="1" Margin="0,0,16,0" FontSize="20" Foreground="{DynamicResource TextSecondaryBrush}" />
                     
@@ -160,76 +189,110 @@
                     </StackPanel>
                 </Border>
                 
-                <!-- File List -->
-                <ListView Grid.Row="2" ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}" BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListView.ItemContainerStyle>
-                        <Style TargetType="ListViewItem">
-                            <Setter Property="Background" Value="Transparent" />
-                            <Setter Property="Padding" Value="16,12" />
-                            <Setter Property="Margin" Value="0,0,0,4" />
-                            <Setter Property="Cursor" Value="Hand" />
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="ListViewItem">
-                                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
-                                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource SidebarSelectedBrush}" />
-                                            </Trigger>
-                                            <MultiTrigger>
-                                                <MultiTrigger.Conditions>
-                                                    <Condition Property="IsMouseOver" Value="True" />
-                                                    <Condition Property="IsSelected" Value="False" />
-                                                </MultiTrigger.Conditions>
-                                                <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
-                                            </MultiTrigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </ListView.ItemContainerStyle>
-                    <ListView.View>
-                        <GridView ColumnHeaderContainerStyle="{StaticResource CustomGridViewColumnHeader}">
-                            <GridView.Columns>
-                                <GridViewColumn Width="400" Header="Name">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Orientation="Horizontal">
-                                                <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="24" Foreground="{Binding IconColorBrushKey, Converter={StaticResource StringToBrushConverter}}" />
-                                                <TextBlock Text="{Binding Name}" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="{DynamicResource FontSizeNormal}" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn Width="200" Header="Modified">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding DateModified}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{DynamicResource FontSizeNormal}" />
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn Width="100" Header="Size">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Size}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{DynamicResource FontSizeNormal}" />
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn Width="50">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <ui:Button Icon="{ui:SymbolIcon MoreVertical24}" Appearance="Transparent" Foreground="{DynamicResource TextSecondaryBrush}" Padding="4" HorizontalAlignment="Right" />
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                            </GridView.Columns>
-                        </GridView>
-                    </ListView.View>
-                </ListView>
+                <!-- Content Area -->
+                <Grid Grid.Row="2">
+                    
+                    <!-- File List -->
+                    <ListView ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}" 
+                              BorderThickness="0" Background="Transparent" 
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              Visibility="{Binding IsContentVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ListView.InputBindings>
+                            <MouseBinding Gesture="LeftDoubleClick" Command="{Binding OpenFolderCommand}" CommandParameter="{Binding SelectedFile}" />
+                        </ListView.InputBindings>
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="Padding" Value="16,12" />
+                                <Setter Property="Margin" Value="0,0,0,4" />
+                                <Setter Property="Cursor" Value="Hand" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListViewItem">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource SidebarSelectedBrush}" />
+                                                </Trigger>
+                                                <MultiTrigger>
+                                                    <MultiTrigger.Conditions>
+                                                        <Condition Property="IsMouseOver" Value="True" />
+                                                        <Condition Property="IsSelected" Value="False" />
+                                                    </MultiTrigger.Conditions>
+                                                    <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
+                                                </MultiTrigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.View>
+                            <GridView ColumnHeaderContainerStyle="{StaticResource CustomGridViewColumnHeader}">
+                                <GridView.Columns>
+                                    <GridViewColumn Width="400" Header="Name">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="24" Foreground="{Binding IconColorBrushKey, Converter={StaticResource StringToBrushConverter}}" />
+                                                    <TextBlock Text="{Binding Name}" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="{DynamicResource FontSizeNormal}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Width="200" Header="Modified">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding DateModified}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{DynamicResource FontSizeNormal}" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Width="100" Header="Size">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Size}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{DynamicResource FontSizeNormal}" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Width="50">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <ui:Button Icon="{ui:SymbolIcon MoreVertical24}" Appearance="Transparent" Foreground="{DynamicResource TextSecondaryBrush}" Padding="4" HorizontalAlignment="Right" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                </GridView.Columns>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+
+                    <!-- Loading State -->
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" 
+                                Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ui:ProgressRing IsIndeterminate="True" Width="48" Height="48" Foreground="{DynamicResource PrimaryBrandBrush}" />
+                    </StackPanel>
+
+                    <!-- Empty State -->
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" 
+                                Visibility="{Binding IsEmpty, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ui:SymbolIcon Symbol="FolderOpen24" FontSize="80" Foreground="{DynamicResource BorderBrush}" Margin="0,0,0,16" />
+                        <TextBlock Text="Nothing here yet" FontSize="{DynamicResource FontSizeLarge}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" />
+                        <TextBlock Text="Folders you create or sync will appear here." Margin="0,8,0,0" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                    </StackPanel>
+
+                    <!-- Error State -->
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" 
+                                Visibility="{Binding IsError, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ui:SymbolIcon Symbol="Warning24" FontSize="80" Foreground="{DynamicResource PdfIconBrush}" Margin="0,0,0,16" />
+                        <TextBlock Text="Oops, something went wrong" FontSize="{DynamicResource FontSizeLarge}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding ErrorMessage}" Margin="0,8,0,0" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="400" TextAlignment="Center" />
+                        <Button Content="Retry" Command="{Binding RetryCommand}" Margin="0,24,0,0" HorizontalAlignment="Center" Padding="24,8" Cursor="Hand" />
+                    </StackPanel>
+
+                </Grid>
             </Grid>
         </Border>
     </Grid>
