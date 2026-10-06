@@ -10,7 +10,7 @@ public sealed class FileDialogService : IFileDialogService
     {
         var dialog = new OpenFileDialog
         {
-            Title = "Виберіть файли",
+            Title = "Select files",
             Multiselect = true,
             CheckFileExists = true
         };
@@ -24,7 +24,7 @@ public sealed class FileDialogService : IFileDialogService
 
         var dialog = new SaveFileDialog
         {
-            Title = "Зберегти файл",
+            Title = "Save file",
             FileName = Path.GetFileName(suggestedFileName),
             OverwritePrompt = true
         };

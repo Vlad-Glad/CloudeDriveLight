@@ -1,0 +1,42 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=mscorlib">
+
+    <!-- Colors -->
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F0F4F9" />
+    <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#FFFFFF" />
+    
+    <SolidColorBrush x:Key="SidebarSelectedBrush" Color="#D3E3FD" />
+    <SolidColorBrush x:Key="SidebarSelectedTextBrush" Color="#0B57D0" />
+    <SolidColorBrush x:Key="SidebarHoverBrush" Color="#E5E7EB" />
+    
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#1F1F1F" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#5E5E5E" />
+    
+    <SolidColorBrush x:Key="BorderBrush" Color="#E0E0E0" />
+    <SolidColorBrush x:Key="SearchBarBackgroundBrush" Color="#F0F4F9" />
+    
+    <!-- Icon Colors -->
+    <SolidColorBrush x:Key="FolderIconBrush" Color="#5F6368" />
+    <SolidColorBrush x:Key="WordIconBrush" Color="#185ABD" />
+    <SolidColorBrush x:Key="ExcelIconBrush" Color="#107C41" />
+    <SolidColorBrush x:Key="PdfIconBrush" Color="#EA4335" />
+    <SolidColorBrush x:Key="ImageIconBrush" Color="#A142F4" />
+    <SolidColorBrush x:Key="VideoIconBrush" Color="#EA4335" />
+    <SolidColorBrush x:Key="TextIconBrush" Color="#5F6368" />
+
+    <!-- Fonts -->
+    <FontFamily x:Key="AppFontFamily">Segoe UI Variable Display, Segoe UI, Arial</FontFamily>
+    
+    <system:Double x:Key="FontSizeSmall">12</system:Double>
+    <system:Double x:Key="FontSizeNormal">14</system:Double>
+    <system:Double x:Key="FontSizeLarge">22</system:Double>
+
+    <!-- Dimensions & Margins -->
+    <Thickness x:Key="ContentMargin">0,16,16,16</Thickness>
+    <Thickness x:Key="SidebarMargin">16</Thickness>
+    <CornerRadius x:Key="ContentCornerRadius">24</CornerRadius>
+    <CornerRadius x:Key="ButtonCornerRadius">16</CornerRadius>
+    <CornerRadius x:Key="SearchCornerRadius">24</CornerRadius>
+
+</ResourceDictionary>
