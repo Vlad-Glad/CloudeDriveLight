@@ -18,5 +18,5 @@ public interface IDriveFolderRepository
 
     void Delete(DriveFolder folder);
 
-    Task DeleteRecursivelyAsync(Guid folderId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<string>> DeleteRecursivelyAsync(Guid folderId, CancellationToken cancellationToken = default);
 }
