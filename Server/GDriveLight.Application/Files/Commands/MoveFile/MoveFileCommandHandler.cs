@@ -38,7 +38,6 @@ public class MoveFileCommandHandler : IRequestHandler<MoveFileCommand, Result>
             return Result.Success();
         }
 
-        // Validate new folder if it's not root
         if (request.NewFolderId.HasValue)
         {
             var folder = await _folderRepository.GetByIdAsync(request.NewFolderId.Value, cancellationToken);
@@ -60,7 +59,7 @@ public class MoveFileCommandHandler : IRequestHandler<MoveFileCommand, Result>
         }
 
         file.MoveTo(request.NewFolderId);
-        
+
         _fileRepository.Update(file);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

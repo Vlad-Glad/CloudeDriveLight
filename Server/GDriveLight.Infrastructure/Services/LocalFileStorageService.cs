@@ -8,7 +8,7 @@ public class LocalFileStorageService : IFileStorageService
 
     public LocalFileStorageService()
     {
-        // For development, we store files in an 'uploads' directory relative to the current working directory (usually the Api project root)
+        // For development, we store files in an 'uploads' directory relative to the current working directory
         _storageDirectory = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
 
         if (!Directory.Exists(_storageDirectory))

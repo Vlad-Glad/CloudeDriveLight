@@ -31,7 +31,6 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
 
     public async Task<Result<Guid>> Handle(UploadFileCommand request, CancellationToken cancellationToken)
     {
-        // 1. Verify folder exists and belongs to user (if folderId is provided)
         if (request.FolderId.HasValue)
         {
             var folder = await _folderRepository.GetByIdAsync(request.FolderId.Value, cancellationToken);
@@ -46,29 +45,26 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
             }
         }
 
-        // 2. Determine FileType
         var extension = Path.GetExtension(request.FileName).ToLowerInvariant();
         var fileType = await _fileTypeRepository.GetByExtensionAsync(extension, cancellationToken);
-        
+
         if (fileType == null)
         {
             return Result<Guid>.Failure($"File type '{extension}' is not supported.");
         }
 
-        // 3. Check for name collisions
         bool exists = await _fileRepository.ExistsAsync(request.FileName, request.FolderId, request.UserId, cancellationToken);
         if (exists)
         {
             return Result<Guid>.Failure($"A file with the name '{request.FileName}' already exists in this location.");
         }
 
-        // 4. Calculate Content Hash
-        // Ensure stream is at the beginning
+
         if (request.FileStream.CanSeek)
         {
             request.FileStream.Position = 0;
         }
-        
+
         string contentHash;
         using (var sha256 = SHA256.Create())
         {
@@ -76,16 +72,13 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
             contentHash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
         }
 
-        // Reset stream position for saving
         if (request.FileStream.CanSeek)
         {
             request.FileStream.Position = 0;
         }
 
-        // 5. Save the file
         var fileUrl = await _fileStorageService.SaveAsync(request.FileStream, request.FileName, cancellationToken);
 
-        // 6. Create domain entity and save to DB
         var driveFile = new DriveFile(
             request.FileName,
             fileUrl,

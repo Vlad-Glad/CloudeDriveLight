@@ -36,13 +36,12 @@ public class MoveFolderCommandHandler : IRequestHandler<MoveFolderCommand, Resul
             {
                 return Result.Failure($"Target parent folder with ID '{request.NewParentFolderId.Value}' was not found.");
             }
-            
+
             if (newParent.OwnerId != request.UserId)
             {
                 return Result.Failure("You do not have permission to access the target parent folder.");
             }
 
-            // check if folder name already exists in target location
             bool exists = await _folderRepository.ExistsAsync(folder.Name, request.NewParentFolderId.Value, request.UserId, cancellationToken);
             if (exists)
             {
@@ -51,12 +50,11 @@ public class MoveFolderCommandHandler : IRequestHandler<MoveFolderCommand, Resul
         }
         else
         {
-             // Moving to root
-             bool exists = await _folderRepository.ExistsAsync(folder.Name, null, request.UserId, cancellationToken);
-             if (exists)
-             {
-                 return Result.Failure($"A folder with the name '{folder.Name}' already exists in the root location.");
-             }
+            bool exists = await _folderRepository.ExistsAsync(folder.Name, null, request.UserId, cancellationToken);
+            if (exists)
+            {
+                return Result.Failure($"A folder with the name '{folder.Name}' already exists in the root location.");
+            }
         }
 
         try
@@ -64,7 +62,7 @@ public class MoveFolderCommandHandler : IRequestHandler<MoveFolderCommand, Resul
             folder.MoveTo(request.NewParentFolderId);
             _folderRepository.Update(folder);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-            
+
             return Result.Success();
         }
         catch (ArgumentException ex)

@@ -29,14 +29,13 @@ public class GetFolderPathQueryHandler : IRequestHandler<GetFolderPathQuery, Res
         var path = new List<FolderQuery>();
         var current = folder;
 
-        // Traverse upwards to build the path
         int maxDepth = 50;
         int depth = 0;
 
         while (current != null && depth < maxDepth)
         {
             path.Add(new FolderQuery(current.Id, current.Name, current.ParentFolderId, current.OwnerId));
-            
+
             if (current.ParentFolderId.HasValue)
             {
                 current = await _folderRepository.GetByIdAsync(current.ParentFolderId.Value, cancellationToken);
@@ -48,7 +47,6 @@ public class GetFolderPathQueryHandler : IRequestHandler<GetFolderPathQuery, Res
             depth++;
         }
 
-        // Reverse to get order from root down to the target folder
         path.Reverse();
 
         return Result<IEnumerable<FolderQuery>>.Success(path);
