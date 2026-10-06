@@ -50,6 +50,16 @@ public class DriveFolderRepository : IDriveFolderRepository
             .AnyAsync(f => f.Name == name && f.ParentFolderId == parentFolderId && f.OwnerId == ownerId, cancellationToken);
     }
 
+    public async Task<IEnumerable<DriveFolder>> SearchByNameAsync(string name, Guid userId, CancellationToken cancellationToken = default)
+    {
+        var entities = await _dbContext.DriveFolders
+            .AsNoTracking()
+            .Where(f => f.OwnerId == userId && f.Name.Contains(name))
+            .ToListAsync(cancellationToken);
+
+        return entities.Select(e => e.ToDomain());
+    }
+
     public Task AddAsync(DriveFolder folder, CancellationToken cancellationToken = default)
     {
         _dbContext.DriveFolders.Add(folder.ToEntity());

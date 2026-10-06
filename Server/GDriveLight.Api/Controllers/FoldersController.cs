@@ -124,4 +124,40 @@ public class FoldersController : ControllerBase
         var response = result.Value.Select(f => new FolderResponse(f.Id, f.Name, f.ParentFolderId, f.OwnerId));
         return Ok(response);
     }
+
+    [HttpGet("{id}/path")]
+    public async Task<IActionResult> GetFolderPath(Guid id)
+    {
+        //заглушка користувача   
+        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+        var query = new GetFolderPathQuery(id, stubUserId);
+        var result = await _mediator.Send(query);
+
+        if (result.IsFailure)
+        {
+            return NotFound(new { error = result.Error });
+        }
+
+        var response = result.Value.Select(f => new FolderResponse(f.Id, f.Name, f.ParentFolderId, f.OwnerId));
+        return Ok(response);
+    }
+
+    [HttpGet("search")]
+    public async Task<IActionResult> SearchFolders([FromQuery] string name)
+    {
+        //заглушка користувача   
+        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+        var query = new GetFoldersByNameQuery(name, stubUserId);
+        var result = await _mediator.Send(query);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(new { error = result.Error });
+        }
+
+        var response = result.Value.Select(f => new FolderResponse(f.Id, f.Name, f.ParentFolderId, f.OwnerId));
+        return Ok(response);
+    }
 }
