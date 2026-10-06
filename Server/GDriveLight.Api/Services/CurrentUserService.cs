@@ -17,7 +17,7 @@ public class CurrentUserService : ICurrentUserService
         get
         {
             var userIdString = _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
-            
+
             // In case standard NameIdentifier is not mapped, check "sub"
             if (string.IsNullOrEmpty(userIdString))
             {
