@@ -4,26 +4,31 @@ using GDriveLight.Application.Folders.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
+using GDriveLight.Application.Abstractions.Services;
+using Microsoft.AspNetCore.Authorization;
+
 namespace GDriveLight.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class FoldersController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly ICurrentUserService _currentUserService;
 
-    public FoldersController(IMediator mediator)
+    public FoldersController(IMediator mediator, ICurrentUserService currentUserService)
     {
         _mediator = mediator;
+        _currentUserService = currentUserService;
     }
 
     [HttpPost]
     public async Task<IActionResult> CreateFolder([FromBody] CreateFolderRequest request)
     {
-        //заглушка користувача   
-        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var userId = _currentUserService.UserId;
 
-        var command = new CreateFolderCommand(request.Name, stubUserId, request.ParentFolderId);
+        var command = new CreateFolderCommand(request.Name, userId, request.ParentFolderId);
 
         var result = await _mediator.Send(command);
 
@@ -38,10 +43,9 @@ public class FoldersController : ControllerBase
     [HttpPut("{id}/rename")]
     public async Task<IActionResult> RenameFolder(Guid id, [FromBody] RenameFolderRequest request)
     {
-        //заглушка користувача   
-        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var userId = _currentUserService.UserId;
 
-        var command = new RenameFolderCommand(id, request.NewName, stubUserId);
+        var command = new RenameFolderCommand(id, request.NewName, userId);
 
         var result = await _mediator.Send(command);
 
@@ -56,10 +60,9 @@ public class FoldersController : ControllerBase
     [HttpPut("{id}/move")]
     public async Task<IActionResult> MoveFolder(Guid id, [FromBody] MoveFolderRequest request)
     {
-        //заглушка користувача   
-        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var userId = _currentUserService.UserId;
 
-        var command = new MoveFolderCommand(id, request.NewParentFolderId, stubUserId);
+        var command = new MoveFolderCommand(id, request.NewParentFolderId, userId);
 
         var result = await _mediator.Send(command);
 
@@ -74,10 +77,9 @@ public class FoldersController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteFolder(Guid id)
     {
-        //заглушка користувача   
-        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var userId = _currentUserService.UserId;
 
-        var command = new DeleteFolderCommand(id, stubUserId);
+        var command = new DeleteFolderCommand(id, userId);
 
         var result = await _mediator.Send(command);
 
@@ -92,10 +94,9 @@ public class FoldersController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetFolder(Guid id)
     {
-        //заглушка користувача   
-        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var userId = _currentUserService.UserId;
 
-        var query = new GetFolderByIdQuery(id, stubUserId);
+        var query = new GetFolderByIdQuery(id, userId);
         var result = await _mediator.Send(query);
 
         if (result.IsFailure)
@@ -110,10 +111,9 @@ public class FoldersController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetFolderContent([FromQuery] Guid? parentFolderId)
     {
-        //заглушка користувача   
-        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var userId = _currentUserService.UserId;
 
-        var query = new GetFolderContentQuery(parentFolderId, stubUserId);
+        var query = new GetFolderContentQuery(parentFolderId, userId);
         var result = await _mediator.Send(query);
 
         if (result.IsFailure)
@@ -128,10 +128,9 @@ public class FoldersController : ControllerBase
     [HttpGet("{id}/path")]
     public async Task<IActionResult> GetFolderPath(Guid id)
     {
-        //заглушка користувача   
-        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var userId = _currentUserService.UserId;
 
-        var query = new GetFolderPathQuery(id, stubUserId);
+        var query = new GetFolderPathQuery(id, userId);
         var result = await _mediator.Send(query);
 
         if (result.IsFailure)
@@ -146,10 +145,9 @@ public class FoldersController : ControllerBase
     [HttpGet("search")]
     public async Task<IActionResult> SearchFolders([FromQuery] string name)
     {
-        //заглушка користувача   
-        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var userId = _currentUserService.UserId;
 
-        var query = new GetFoldersByNameQuery(name, stubUserId);
+        var query = new GetFoldersByNameQuery(name, userId);
         var result = await _mediator.Send(query);
 
         if (result.IsFailure)

@@ -4,17 +4,23 @@ using GDriveLight.Application.Files.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
+using GDriveLight.Application.Abstractions.Services;
+using Microsoft.AspNetCore.Authorization;
+
 namespace GDriveLight.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/files")]
 public class FilesController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly ICurrentUserService _currentUserService;
 
-    public FilesController(IMediator mediator)
+    public FilesController(IMediator mediator, ICurrentUserService currentUserService)
     {
         _mediator = mediator;
+        _currentUserService = currentUserService;
     }
 
     [HttpPost]
@@ -28,11 +34,10 @@ public class FilesController : ControllerBase
             return BadRequest(new { error = "File is empty or not provided." });
         }
 
-        // Stub user id
-        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var userId = _currentUserService.UserId;
 
         using var stream = file.OpenReadStream();
-        var command = new UploadFileCommand(file.FileName, stream, stubUserId, folderId);
+        var command = new UploadFileCommand(file.FileName, stream, userId, folderId);
         
         var result = await _mediator.Send(command);
 
@@ -47,9 +52,9 @@ public class FilesController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetFile(Guid id)
     {
-        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var userId = _currentUserService.UserId;
         
-        var query = new GetFileByIdQuery(id, stubUserId);
+        var query = new GetFileByIdQuery(id, userId);
         var result = await _mediator.Send(query);
 
         if (result.IsFailure)
@@ -68,9 +73,9 @@ public class FilesController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetFiles([FromQuery] Guid? folderId)
     {
-        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var userId = _currentUserService.UserId;
 
-        var query = new GetFilesByFolderQuery(folderId, stubUserId);
+        var query = new GetFilesByFolderQuery(folderId, userId);
         var result = await _mediator.Send(query);
 
         if (result.IsFailure)
@@ -88,9 +93,9 @@ public class FilesController : ControllerBase
     [HttpGet("{id}/download")]
     public async Task<IActionResult> DownloadFile(Guid id)
     {
-        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var userId = _currentUserService.UserId;
 
-        var query = new DownloadFileQuery(id, stubUserId);
+        var query = new DownloadFileQuery(id, userId);
         var result = await _mediator.Send(query);
 
         if (result.IsFailure)
@@ -105,9 +110,9 @@ public class FilesController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteFile(Guid id)
     {
-        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var userId = _currentUserService.UserId;
 
-        var command = new DeleteFileCommand(id, stubUserId);
+        var command = new DeleteFileCommand(id, userId);
         var result = await _mediator.Send(command);
 
         if (result.IsFailure)
@@ -121,9 +126,9 @@ public class FilesController : ControllerBase
     [HttpPut("{id}/rename")]
     public async Task<IActionResult> RenameFile(Guid id, [FromBody] RenameFileRequest request)
     {
-        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var userId = _currentUserService.UserId;
 
-        var command = new RenameFileCommand(id, request.NewName, stubUserId);
+        var command = new RenameFileCommand(id, request.NewName, userId);
         var result = await _mediator.Send(command);
 
         if (result.IsFailure)
@@ -137,9 +142,9 @@ public class FilesController : ControllerBase
     [HttpPut("{id}/move")]
     public async Task<IActionResult> MoveFile(Guid id, [FromBody] MoveFileRequest request)
     {
-        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var userId = _currentUserService.UserId;
 
-        var command = new MoveFileCommand(id, request.NewFolderId, stubUserId);
+        var command = new MoveFileCommand(id, request.NewFolderId, userId);
         var result = await _mediator.Send(command);
 
         if (result.IsFailure)
@@ -153,9 +158,9 @@ public class FilesController : ControllerBase
     [HttpGet("search")]
     public async Task<IActionResult> SearchFiles([FromQuery] string name)
     {
-        var stubUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var userId = _currentUserService.UserId;
 
-        var query = new SearchFilesQuery(name, stubUserId);
+        var query = new SearchFilesQuery(name, userId);
         var result = await _mediator.Send(query);
 
         if (result.IsFailure)
