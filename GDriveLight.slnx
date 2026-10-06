@@ -9,5 +9,7 @@
     <Project Path="Server/GDriveLight.Infrastructure/GDriveLight.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/Shared/" />
-  <Folder Name="/Tests/" />
+  <Folder Name="/Tests/">
+    <Project Path="Tests/GDriveLight.Tests/GDriveLight.Tests.csproj" />
+  </Folder>
 </Solution>
