@@ -79,18 +79,26 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
 
         var fileUrl = await _fileStorageService.SaveAsync(request.FileStream, request.FileName, cancellationToken);
 
-        var driveFile = new DriveFile(
-            request.FileName,
-            fileUrl,
-            fileType.Id,
-            contentHash,
-            request.UserId,
-            request.FolderId
-        );
+        try
+        {
+            var driveFile = new DriveFile(
+                request.FileName,
+                fileUrl,
+                fileType.Id,
+                contentHash,
+                request.UserId,
+                request.FolderId
+            );
 
-        await _fileRepository.AddAsync(driveFile, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _fileRepository.AddAsync(driveFile, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<Guid>.Success(driveFile.Id);
+            return Result<Guid>.Success(driveFile.Id);
+        }
+        catch
+        {
+            await _fileStorageService.DeleteAsync(fileUrl, cancellationToken);
+            throw;
+        }
     }
 }

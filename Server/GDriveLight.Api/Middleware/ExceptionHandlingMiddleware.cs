@@ -2,6 +2,7 @@ using System.Text.Json;
 using GDriveLight.Application.Common.Exceptions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
 
 namespace GDriveLight.Api.Middleware;
 
@@ -9,11 +10,13 @@ public class ExceptionHandlingMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+    private readonly IHostEnvironment _env;
 
-    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
+    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger, IHostEnvironment env)
     {
         _next = next;
         _logger = logger;
+        _env = env;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -47,7 +50,7 @@ public class ExceptionHandlingMiddleware
             var response = new
             {
                 Error = "Internal Server Error",
-                Message = ex.Message // Detailed message for development purposes
+                Message = _env.IsDevelopment() ? ex.Message : "An unexpected error occurred."
             };
 
             await context.Response.WriteAsync(JsonSerializer.Serialize(response));
