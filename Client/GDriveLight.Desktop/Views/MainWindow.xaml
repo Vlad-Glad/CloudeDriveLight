@@ -76,6 +76,8 @@
                         <MenuItem Header="Download" Command="{Binding DownloadCommand}"
                                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                         <Separator />
+                        <MenuItem Header="Move to..." Command="{Binding MoveCommand}"
+                                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                         <MenuItem Header="Rename" Command="{Binding RenameCommand}"
                                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                         <MenuItem Header="Delete" Command="{Binding DeleteCommand}"
@@ -284,6 +286,9 @@
                         <DataGrid.InputBindings>
                             <MouseBinding Gesture="LeftDoubleClick" Command="{Binding OpenFolderCommand}" CommandParameter="{Binding SelectedFile}" />
                             <KeyBinding Key="Enter" Command="{Binding OpenFolderCommand}" CommandParameter="{Binding SelectedFile}" />
+                            <KeyBinding Key="F2" Command="{Binding RenameCommand}" CommandParameter="{Binding SelectedFile}" />
+                            <KeyBinding Key="Delete" Command="{Binding DeleteCommand}" CommandParameter="{Binding SelectedFile}" />
+                            <KeyBinding Key="M" Modifiers="Control" Command="{Binding MoveCommand}" CommandParameter="{Binding SelectedFile}" />
                         </DataGrid.InputBindings>
                         <DataGrid.Columns>
                             <DataGridTemplateColumn Header="Name" Width="*" MinWidth="120">

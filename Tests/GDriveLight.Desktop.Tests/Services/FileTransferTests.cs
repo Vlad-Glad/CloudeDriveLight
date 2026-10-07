@@ -2,6 +2,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using GDriveLight.Desktop.Services.Api;
 
 namespace GDriveLight.Desktop.Tests.Services;
@@ -104,6 +105,37 @@ public sealed class FileTransferTests
 
         var resource = isFolder ? "folders" : "files";
         Assert.Equal(new[] { $"PUT /api/{resource}/{id}/rename", $"DELETE /api/{resource}/{id}" }, paths);
+    }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public async Task MoveSendsTheResourceSpecificDestinationIncludingHome(bool isFolder, bool toHome)
+    {
+        var id = Guid.NewGuid();
+        Guid? destinationId = toHome ? null : Guid.NewGuid();
+        using var client = new HttpClient(new Handler(async (request, _) =>
+        {
+            Assert.Equal(HttpMethod.Put, request.Method);
+            Assert.Equal($"/api/{(isFolder ? "folders" : "files")}/{id}/move", request.RequestUri!.AbsolutePath);
+            using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
+            var property = Assert.Single(body.RootElement.EnumerateObject());
+            Assert.Equal(isFolder ? "newParentFolderId" : "newFolderId", property.Name);
+            if (destinationId.HasValue)
+            {
+                Assert.Equal(destinationId, property.Value.GetGuid());
+            }
+            else
+            {
+                Assert.Equal(JsonValueKind.Null, property.Value.ValueKind);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
+        }));
+
+        await new DriveApiService(client).MoveAsync(id, isFolder, destinationId);
     }
 
     private static string CreateDirectory()

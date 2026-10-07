@@ -53,6 +53,7 @@ public sealed partial class MainWindowViewModel
     public AsyncRelayCommand<FileItemViewModel> DownloadCommand { get; private set; } = null!;
     public AsyncRelayCommand<FileItemViewModel> RenameCommand { get; private set; } = null!;
     public AsyncRelayCommand<FileItemViewModel> DeleteCommand { get; private set; } = null!;
+    public AsyncRelayCommand<FileItemViewModel> MoveCommand { get; private set; } = null!;
     public RelayCommand DismissNotificationCommand { get; private set; } = null!;
     public RelayCommand CancelOperationCommand { get; private set; } = null!;
 
@@ -64,6 +65,7 @@ public sealed partial class MainWindowViewModel
             file => CanActOn(file) && file?.IsFolder == false);
         RenameCommand = new AsyncRelayCommand<FileItemViewModel>(RenameAsync, HandleOperationError, CanActOn);
         DeleteCommand = new AsyncRelayCommand<FileItemViewModel>(DeleteAsync, HandleOperationError, CanActOn);
+        MoveCommand = new AsyncRelayCommand<FileItemViewModel>(MoveAsync, HandleOperationError, CanActOn);
         DismissNotificationCommand = new RelayCommand(() => NotificationMessage = string.Empty);
         CancelOperationCommand = new RelayCommand(() => _activeOperation?.Cancel(), () => IsOperating);
     }
@@ -173,6 +175,28 @@ public sealed partial class MainWindowViewModel
         {
             await _apiService.DeleteAsync(item.Id, item.IsFolder, token);
             return $"Deleted '{item.Name}'.";
+        });
+    }
+
+    private async Task MoveAsync(FileItemViewModel? item)
+    {
+        if (item is null)
+        {
+            return;
+        }
+
+        var currentFolderId = Breadcrumbs.Last().Id;
+        var destination = _dialogs.SelectDestination(currentFolderId, item.IsFolder ? item.Id : null);
+        if (destination is null || destination.Id == currentFolderId ||
+            (item.IsFolder && destination.Id == item.Id))
+        {
+            return;
+        }
+
+        await RunOperationAsync("Moving...", async token =>
+        {
+            await _apiService.MoveAsync(item.Id, item.IsFolder, destination.Id, token);
+            return $"Moved '{item.Name}' to '{destination.Name}'.";
         });
     }
 

@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Input;
 using GDriveLight.Desktop.Models.Api;
 using GDriveLight.Desktop.Services.Api;
 using GDriveLight.Desktop.Services;
@@ -52,6 +53,18 @@ public sealed class WindowSmokeTests
                 Assert.Equal("Modified", grid.Columns[1].Header);
                 Assert.Equal("Size", grid.Columns[2].Header);
                 Assert.IsAssignableFrom<Brush>(main.FindResource("SurfaceBackgroundBrush"));
+                Assert.Contains(grid.InputBindings.OfType<KeyBinding>(), binding => binding.Key == Key.F2);
+                Assert.Contains(grid.InputBindings.OfType<KeyBinding>(), binding => binding.Key == Key.Delete);
+                Assert.Contains(grid.InputBindings.OfType<KeyBinding>(), binding => binding.Key == Key.M && binding.Modifiers == ModifierKeys.Control);
+                using var pickerViewModel = new FolderPickerViewModel(api.Object, Guid.NewGuid(), null);
+                var picker = new FolderPickerWindow(pickerViewModel);
+                Assert.IsType<ListBox>(picker.FindName("FolderList"));
+                var moveButton = (Button)picker.FindName("MoveHereButton");
+                Assert.Equal("ConfirmCommand", moveButton.GetBindingExpression(Button.CommandProperty)?.ParentBinding.Path.Path);
+                var nameDialog = new NameDialogWindow("Rename", "New name", "notes.txt");
+                Assert.Equal("notes.txt", ((TextBox)nameDialog.FindName("NameInput")).Text);
+                nameDialog.Close();
+                picker.Close();
                 stage = "creating login window";
 
                 using var loginViewModel = new LoginViewModel(api.Object) { IsRegisterMode = true };

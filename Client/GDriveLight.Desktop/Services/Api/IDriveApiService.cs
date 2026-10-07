@@ -13,6 +13,7 @@ public interface IDriveApiService
     Task DownloadFileAsync(Guid fileId, string destination, CancellationToken cancellationToken = default);
     Task RenameAsync(Guid id, bool isFolder, string name, CancellationToken cancellationToken = default);
     Task DeleteAsync(Guid id, bool isFolder, CancellationToken cancellationToken = default);
+    Task MoveAsync(Guid id, bool isFolder, Guid? destinationFolderId, CancellationToken cancellationToken = default);
 
     void SetAuthToken(string? token);
     void SetServerUrl(string url);

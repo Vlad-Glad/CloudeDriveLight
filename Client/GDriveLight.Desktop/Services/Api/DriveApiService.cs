@@ -184,6 +184,15 @@ public sealed class DriveApiService : IDriveApiService
         using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task MoveAsync(Guid id, bool isFolder, Guid? destinationFolderId, CancellationToken cancellationToken = default)
+    {
+        using var request = CreateRequest(HttpMethod.Put, $"api/{(isFolder ? "folders" : "files")}/{id}/move");
+        request.Content = isFolder
+            ? JsonContent.Create(new { NewParentFolderId = destinationFolderId })
+            : JsonContent.Create(new { NewFolderId = destinationFolderId });
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
     private sealed record CreatedFolderResponse(Guid FolderId);
     private sealed record CreatedFileResponse(Guid Id);
 

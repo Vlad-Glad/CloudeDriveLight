@@ -1,10 +1,26 @@
 using System.Windows;
+using GDriveLight.Desktop.Models;
+using GDriveLight.Desktop.Services.Api;
+using GDriveLight.Desktop.ViewModels;
 using GDriveLight.Desktop.Views;
 
 namespace GDriveLight.Desktop.Services;
 
-public sealed class UserDialogService : IUserDialogService
+public sealed class UserDialogService(IDriveApiService apiService) : IUserDialogService
 {
+    public FolderDestination? SelectDestination(Guid? currentFolderId, Guid? excludedFolderId)
+    {
+        using var model = new FolderPickerViewModel(apiService, currentFolderId, excludedFolderId);
+        var window = new FolderPickerWindow(model) { Owner = Application.Current?.MainWindow };
+        var confirmed = window.ShowDialog() == true;
+        if (model.SessionError is not null)
+        {
+            throw model.SessionError;
+        }
+
+        return confirmed ? model.Destination : null;
+    }
+
     public string? RequestName(string title, string prompt, string initialName = "")
     {
         var window = new NameDialogWindow(title, prompt, initialName)

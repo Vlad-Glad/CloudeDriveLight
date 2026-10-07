@@ -298,6 +298,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         DownloadCommand?.NotifyCanExecuteChanged();
         RenameCommand?.NotifyCanExecuteChanged();
         DeleteCommand?.NotifyCanExecuteChanged();
+        MoveCommand?.NotifyCanExecuteChanged();
         CancelOperationCommand?.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(IsBusy));
         OnPropertyChanged(nameof(CanNavigate));
