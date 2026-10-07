@@ -20,7 +20,5 @@ public interface IDriveApiService
     Task MoveAsync(Guid id, bool isFolder, Guid? destinationFolderId, CancellationToken cancellationToken = default);
 
     void SetAuthToken(string? token);
-    void SetServerUrl(string url);
-    string GetServerUrl();
     void Logout();
 }

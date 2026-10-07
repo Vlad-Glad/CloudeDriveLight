@@ -21,35 +21,6 @@ public sealed class DriveApiService : IDriveApiService
         _httpClient = httpClient;
     }
 
-    public void SetServerUrl(string url)
-    {
-        if (!Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
-            !string.IsNullOrEmpty(uri.UserInfo) || !string.IsNullOrEmpty(uri.Query) ||
-            !string.IsNullOrEmpty(uri.Fragment))
-        {
-            throw new ArgumentException("Enter an absolute HTTP or HTTPS server address without credentials, query or fragment.", nameof(url));
-        }
-
-        var normalized = new Uri(uri.AbsoluteUri.TrimEnd('/') + "/");
-        lock (_sessionLock)
-        {
-            if (_serverUri != normalized)
-            {
-                _authToken = null;
-                _serverUri = normalized;
-            }
-        }
-    }
-
-    public string GetServerUrl()
-    {
-        lock (_sessionLock)
-        {
-            return _serverUri.AbsoluteUri.TrimEnd('/');
-        }
-    }
-
     public void SetAuthToken(string? token)
     {
         lock (_sessionLock)

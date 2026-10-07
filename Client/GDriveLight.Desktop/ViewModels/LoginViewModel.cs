@@ -10,7 +10,6 @@ public sealed class LoginViewModel : ViewModelBase, IDisposable
     private readonly IDriveApiService _apiService;
     private readonly CancellationTokenSource _lifetime = new();
     private bool _disposed;
-    private string _serverUrl;
     private string _email = string.Empty;
     private string _password = string.Empty;
     private string _firstName = string.Empty;
@@ -21,7 +20,6 @@ public sealed class LoginViewModel : ViewModelBase, IDisposable
     public LoginViewModel(IDriveApiService apiService)
     {
         _apiService = apiService;
-        _serverUrl = apiService.GetServerUrl();
         ToggleModeCommand = new RelayCommand(() =>
         {
             IsRegisterMode = !IsRegisterMode;
@@ -30,7 +28,6 @@ public sealed class LoginViewModel : ViewModelBase, IDisposable
         SubmitCommand = new AsyncRelayCommand(SubmitAsync, HandleError, () => !_disposed && !IsLoading);
     }
 
-    public string ServerUrl { get => _serverUrl; set => SetProperty(ref _serverUrl, value); }
     public string Email { get => _email; set => SetProperty(ref _email, value); }
     public string Password { get => _password; set => SetProperty(ref _password, value); }
     public string FirstName { get => _firstName; set => SetProperty(ref _firstName, value); }
@@ -96,7 +93,6 @@ public sealed class LoginViewModel : ViewModelBase, IDisposable
         ErrorMessage = string.Empty;
         try
         {
-            _apiService.SetServerUrl(ServerUrl);
             var token = IsRegisterMode
                 ? await _apiService.RegisterAsync(Email.Trim(), Password, FirstName.Trim(), _lifetime.Token)
                 : await _apiService.LoginAsync(Email.Trim(), Password, _lifetime.Token);
