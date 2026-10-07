@@ -13,4 +13,5 @@ public sealed class FileItemViewModel : ViewModelBase
     public string IconColorBrushKey { get; init; } = "TextPrimaryBrush";
     
     public bool IsFolder { get; init; }
+    public Guid? FolderId { get; init; }
 }

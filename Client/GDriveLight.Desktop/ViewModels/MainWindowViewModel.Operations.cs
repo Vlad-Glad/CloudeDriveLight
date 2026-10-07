@@ -191,8 +191,7 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
-        var currentFolderId = Breadcrumbs.Last().Id;
-        var destination = _dialogs.SelectDestination(currentFolderId, item.IsFolder ? item.Id : null);
+        var destination = _dialogs.SelectDestination(item.FolderId, item.IsFolder ? item.Id : null);
         if (destination is not null)
         {
             await MoveItemToAsync(new ItemMoveRequest(item, destination));
@@ -200,7 +199,7 @@ public sealed partial class MainWindowViewModel
     }
 
     public bool CanMoveTo(FileItemViewModel item, FolderDestination destination) =>
-        CanActOn(item) && destination.Id != Breadcrumbs.Last().Id &&
+        CanActOn(item) && destination.Id != item.FolderId &&
         (!item.IsFolder || destination.Id != item.Id);
 
     private async Task MoveItemToAsync(ItemMoveRequest? request)

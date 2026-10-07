@@ -193,7 +193,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 Files.Add(new FileItemViewModel
                 {
                     Id = folder.Id, Name = folder.Name, IsFolder = true, DateModified = "—", Size = "—",
-                    Icon = SymbolRegular.Folder24, IconColorBrushKey = "#5F6368"
+                    Icon = SymbolRegular.Folder24, IconColorBrushKey = "#5F6368", FolderId = folder.ParentFolderId
                 });
             }
 
@@ -203,7 +203,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 Files.Add(new FileItemViewModel
                 {
                     Id = file.Id, Name = file.Name, DateModified = (file.EditedAtUtc ?? file.UploadedAtUtc).ToLocalTime().ToString("d"),
-                    Size = "—", Icon = icon, IconColorBrushKey = color
+                    Size = "—", Icon = icon, IconColorBrushKey = color, FolderId = file.FolderId
                 });
             }
 
