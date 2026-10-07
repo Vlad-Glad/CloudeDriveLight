@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using GDriveLight.Desktop.Commands;
 using GDriveLight.Desktop.ViewModels;
@@ -11,18 +12,34 @@ public partial class LoginWindow : Window
 
     public LoginWindow(LoginViewModel viewModel)
     {
+        ArgumentNullException.ThrowIfNull(viewModel);
+        CloseCommand = new RelayCommand(Close);
         InitializeComponent();
         DataContext = viewModel;
-
-        CloseCommand = new RelayCommand(Close);
-
-        viewModel.OnLoginSuccess = () =>
+        viewModel.LoginSucceeded += OnLoginSucceeded;
+        Closed += (_, _) =>
         {
-            DialogResult = true;
-            Close();
+            viewModel.LoginSucceeded -= OnLoginSucceeded;
+            viewModel.Dispose();
+            PasswordInput.Clear();
         };
+    }
 
-        // Enable dragging
-        MouseLeftButtonDown += (s, e) => { if (e.ButtonState == MouseButtonState.Pressed) DragMove(); };
+    private void OnLoginSucceeded(object? sender, EventArgs e) => DialogResult = true;
+
+    private void PasswordChanged(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is LoginViewModel viewModel)
+        {
+            viewModel.Password = ((PasswordBox)sender).Password;
+        }
+    }
+
+    private void TitleBarMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ButtonState == MouseButtonState.Pressed)
+        {
+            DragMove();
+        }
     }
 }

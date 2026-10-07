@@ -11,24 +11,14 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddDesktopServices(this IServiceCollection services)
     {
-        services.AddSingleton(sp => 
-        {
-            var handler = new HttpClientHandler
-            {
-                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-            };
-            return new HttpClient(handler);
-        });
-        
+        // HTTPS uses the normal platform trust store, including trusted development certificates.
+        services.AddSingleton(_ => new HttpClient());
         services.AddSingleton<IDriveApiService, DriveApiService>();
         services.AddSingleton<IFileDialogService, FileDialogService>();
-        
-        services.AddTransient<LoginViewModel>();
-        services.AddTransient<LoginWindow>();
-        
-        services.AddTransient<MainWindowViewModel>();
-        services.AddTransient<MainWindow>();
-
+        services.AddScoped<LoginViewModel>();
+        services.AddScoped<LoginWindow>();
+        services.AddScoped<MainWindowViewModel>();
+        services.AddScoped<MainWindow>();
         return services;
     }
 }

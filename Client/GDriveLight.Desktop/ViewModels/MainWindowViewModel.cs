@@ -1,5 +1,8 @@
 using System.Collections.ObjectModel;
-using System.Windows.Input;
+using System.IO;
+using System.Net;
+using System.Net.Http;
+using System.Text.Json;
 using GDriveLight.Desktop.Commands;
 using GDriveLight.Desktop.Services.Api;
 using Wpf.Ui.Controls;
@@ -8,213 +11,278 @@ namespace GDriveLight.Desktop.ViewModels;
 
 public record BreadcrumbItem(Guid? Id, string Name);
 
-public sealed class MainWindowViewModel : ViewModelBase
+public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private readonly IDriveApiService _apiService;
+    private CancellationTokenSource? _activeLoad;
+    private long _loadVersion;
+    private bool _disposed;
+    private int _selectedSidebarIndex;
+    private bool _isLoading;
+    private bool _isError;
+    private string _errorMessage = string.Empty;
+    private FileItemViewModel? _selectedFile;
+
+    public MainWindowViewModel(IDriveApiService apiService)
+    {
+        _apiService = apiService;
+        Breadcrumbs.Add(new BreadcrumbItem(null, "Home"));
+        RetryCommand = new AsyncRelayCommand(RefreshAsync, HandleError);
+        OpenFolderCommand = new AsyncRelayCommand<FileItemViewModel>(OpenFolderAsync, HandleError,
+            file => !_disposed && !IsLoading && IsHomeView && file?.IsFolder == true);
+        NavigateBackCommand = new AsyncRelayCommand<BreadcrumbItem>(NavigateBackAsync, HandleError,
+            crumb => !_disposed && !IsLoading && IsHomeView && crumb is not null &&
+                Breadcrumbs.Contains(crumb) && !ReferenceEquals(crumb, Breadcrumbs.LastOrDefault()));
+        LogoutCommand = new RelayCommand(Logout, () => !_disposed);
+    }
 
     public string Title => "GDriveLight";
+    public ObservableCollection<BreadcrumbItem> Breadcrumbs { get; } = new();
+    public ObservableCollection<FileItemViewModel> Files { get; } = new();
 
-    // --- Sidebar Navigation ---
-    private int _selectedSidebarIndex = 0;
     public int SelectedSidebarIndex
     {
         get => _selectedSidebarIndex;
-        set 
-        { 
-            if (SetProperty(ref _selectedSidebarIndex, value))
+        set
+        {
+            if (value is < 0 or > 1 || !SetProperty(ref _selectedSidebarIndex, value))
             {
-                OnPropertyChanged(nameof(IsHomeView));
-                OnPropertyChanged(nameof(IsSyncedFoldersView));
-                _ = LoadCurrentViewAsync();
+                return;
+            }
+
+            CancelLoad();
+            Breadcrumbs.Clear();
+            Breadcrumbs.Add(new BreadcrumbItem(null, value == 0 ? "Home" : "Synced folders"));
+            Files.Clear();
+            SelectedFile = null;
+            IsError = false;
+            IsLoading = false;
+            NotifyState();
+            if (IsHomeView)
+            {
+                // RefreshAsync handles errors and discards cancelled or superseded results.
+                _ = RefreshAsync();
             }
         }
     }
 
     public bool IsHomeView => SelectedSidebarIndex == 0;
     public bool IsSyncedFoldersView => SelectedSidebarIndex == 1;
+    public bool IsLoading
+    {
+        get => _isLoading;
+        private set
+        {
+            if (SetProperty(ref _isLoading, value))
+            {
+                NotifyState();
+            }
+        }
+    }
 
-    // --- States ---
-    private bool _isLoading;
-    public bool IsLoading { get => _isLoading; set { SetProperty(ref _isLoading, value); UpdateVisibility(); } }
+    public bool IsError
+    {
+        get => _isError;
+        private set
+        {
+            if (SetProperty(ref _isError, value))
+            {
+                NotifyState();
+            }
+        }
+    }
 
-    private bool _isError;
-    public bool IsError { get => _isError; set { SetProperty(ref _isError, value); UpdateVisibility(); } }
+    public string ErrorMessage { get => _errorMessage; private set => SetProperty(ref _errorMessage, value); }
+    public bool IsEmpty => !IsLoading && !IsError && Files.Count == 0;
+    public bool IsContentVisible => !IsLoading && !IsError && Files.Count > 0;
+    public string EmptyTitle => IsSyncedFoldersView ? "Synced folders" : "This folder is empty";
+    public string EmptyDescription => IsSyncedFoldersView
+        ? "Devices and synced folders will appear here in a later version."
+        : "Use New to add folders and files.";
 
-    private string _errorMessage = string.Empty;
-    public string ErrorMessage { get => _errorMessage; set => SetProperty(ref _errorMessage, value); }
-
-    private bool _isEmpty;
-    public bool IsEmpty { get => _isEmpty; set { SetProperty(ref _isEmpty, value); UpdateVisibility(); } }
-
-    public bool IsContentVisible => !IsLoading && !IsError && !IsEmpty;
-
-    private void UpdateVisibility() => OnPropertyChanged(nameof(IsContentVisible));
-
-    // --- Breadcrumbs ---
-    public ObservableCollection<BreadcrumbItem> Breadcrumbs { get; } = new();
-
-    // --- Files ---
-    public ObservableCollection<FileItemViewModel> Files { get; } = new();
-    private FileItemViewModel? _selectedFile;
     public FileItemViewModel? SelectedFile
     {
         get => _selectedFile;
         set => SetProperty(ref _selectedFile, value);
     }
 
-    // --- Commands ---
-    public ICommand RetryCommand { get; }
-    public ICommand OpenFolderCommand { get; }
-    public ICommand NavigateBackCommand { get; }
-    public ICommand LogoutCommand { get; }
+    public AsyncRelayCommand RetryCommand { get; }
+    public AsyncRelayCommand<FileItemViewModel> OpenFolderCommand { get; }
+    public AsyncRelayCommand<BreadcrumbItem> NavigateBackCommand { get; }
+    public RelayCommand LogoutCommand { get; }
+    public event EventHandler? SessionEnded;
 
-    public MainWindowViewModel(IDriveApiService apiService)
+    public Task InitializeAsync() => RefreshAsync();
+
+    public async Task RefreshAsync()
     {
-        _apiService = apiService;
-        
-        RetryCommand = new RelayCommand(async () => await LoadCurrentViewAsync());
-        OpenFolderCommand = new RelayCommand<FileItemViewModel>(OpenFile);
-        NavigateBackCommand = new RelayCommand<BreadcrumbItem>(NavigateBack);
-        LogoutCommand = new RelayCommand(Logout);
-
-        _ = InitializeAndLoadAsync();
-    }
-
-    private void Logout()
-    {
-        _apiService.Logout();
-        
-        if (System.Windows.Application.Current is App app)
+        if (_disposed || !IsHomeView)
         {
-            var oldWindow = app.MainWindow;
-            app.ShowLoginFlow();
-            oldWindow?.Close();
-        }
-    }
-
-    private async Task InitializeAndLoadAsync()
-    {
-        await LoadCurrentViewAsync();
-    }
-
-    private async Task LoadCurrentViewAsync()
-    {
-        if (IsSyncedFoldersView)
-        {
-            Breadcrumbs.Clear();
-            Breadcrumbs.Add(new BreadcrumbItem(null, "Synced folders"));
-            Files.Clear();
-            IsLoading = false;
-            IsError = false;
-            IsEmpty = true;
             return;
         }
 
-        Breadcrumbs.Clear();
-        Breadcrumbs.Add(new BreadcrumbItem(null, "Home"));
-        await LoadFolderDataAsync();
-    }
-
-    private async Task LoadFolderDataAsync()
-    {
+        CancelLoad();
+        var version = _loadVersion;
+        using var cancellation = new CancellationTokenSource();
+        _activeLoad = cancellation;
+        var folderId = Breadcrumbs.Last().Id;
         IsLoading = true;
         IsError = false;
-        IsEmpty = false;
-        Files.Clear();
+        ErrorMessage = string.Empty;
+        SelectedFile = null;
 
         try
         {
-            var currentFolderId = Breadcrumbs.Last().Id;
-            
-            var folders = await _apiService.GetFolderContentAsync(currentFolderId);
-            var files = await _apiService.GetFilesAsync(currentFolderId);
-
-            foreach (var f in folders.OrderBy(x => x.Name))
+            var foldersTask = _apiService.GetFolderContentAsync(folderId, cancellation.Token);
+            var filesTask = _apiService.GetFilesAsync(folderId, cancellation.Token);
+            await Task.WhenAll(foldersTask, filesTask);
+            if (_disposed || version != _loadVersion || !IsHomeView)
             {
-                Files.Add(new FileItemViewModel 
-                { 
-                    Id = f.Id, 
-                    Name = f.Name, 
-                    DateModified = "—", 
-                    Size = "—", 
-                    Icon = SymbolRegular.Folder24, 
-                    IconColorBrushKey = "#5F6368", 
-                    IsFolder = true 
+                return;
+            }
+
+            Files.Clear();
+            foreach (var folder in (await foldersTask).OrderBy(folder => folder.Name, StringComparer.CurrentCultureIgnoreCase))
+            {
+                Files.Add(new FileItemViewModel
+                {
+                    Id = folder.Id, Name = folder.Name, IsFolder = true, DateModified = "—", Size = "—",
+                    Icon = SymbolRegular.Folder24, IconColorBrushKey = "#5F6368"
                 });
             }
 
-            foreach (var f in files.OrderBy(x => x.Name))
+            foreach (var file in (await filesTask).OrderBy(file => file.Name, StringComparer.CurrentCultureIgnoreCase))
             {
-                Files.Add(new FileItemViewModel 
-                { 
-                    Id = f.Id, 
-                    Name = f.Name, 
-                    DateModified = f.UploadedAtUtc.ToLocalTime().ToString("d"), 
-                    Size = "—", // Size needs to be returned by API or handled otherwise
-                    Icon = GetIconForFileType(f.FileTypeId), 
-                    IconColorBrushKey = GetColorForFileType(f.FileTypeId), 
-                    IsFolder = false 
+                var (icon, color) = GetFileAppearance(file.Name);
+                Files.Add(new FileItemViewModel
+                {
+                    Id = file.Id, Name = file.Name, DateModified = (file.EditedAtUtc ?? file.UploadedAtUtc).ToLocalTime().ToString("d"),
+                    Size = "—", Icon = icon, IconColorBrushKey = color
                 });
             }
-
-            IsEmpty = Files.Count == 0;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
-            IsError = true;
-            ErrorMessage = ex.Message;
+        }
+        catch (Exception exception)
+        {
+            if (!_disposed && version == _loadVersion)
+            {
+                HandleError(exception);
+            }
         }
         finally
         {
-            IsLoading = false;
+            if (ReferenceEquals(_activeLoad, cancellation))
+            {
+                _activeLoad = null;
+                IsLoading = false;
+                NotifyState();
+            }
         }
     }
 
-    private SymbolRegular GetIconForFileType(int fileTypeId)
+    private async Task OpenFolderAsync(FileItemViewModel? file)
     {
-        // 1=Document, 2=Image, 3=Video, etc. Map accordingly.
-        return fileTypeId switch
+        if (file is null || !file.IsFolder || !Files.Contains(file))
         {
-            1 => SymbolRegular.Document24,
-            2 => SymbolRegular.Image24,
-            3 => SymbolRegular.Video24,
-            4 => SymbolRegular.Table24,
-            _ => SymbolRegular.Document24
-        };
-    }
-
-    private string GetColorForFileType(int fileTypeId)
-    {
-        return fileTypeId switch
-        {
-            1 => "#185ABD", // Blue for docs
-            2 => "#A142F4", // Purple for images
-            3 => "#EA4335", // Red for video
-            4 => "#107C41", // Green for sheets
-            _ => "#5F6368"
-        };
-    }
-
-    private async void OpenFile(FileItemViewModel? file)
-    {
-        if (file == null || !file.IsFolder) return;
+            return;
+        }
 
         Breadcrumbs.Add(new BreadcrumbItem(file.Id, file.Name));
-        await LoadFolderDataAsync();
+        await RefreshAsync();
     }
 
-    private async void NavigateBack(BreadcrumbItem? targetBreadcrumb)
+    private async Task NavigateBackAsync(BreadcrumbItem? target)
     {
-        if (targetBreadcrumb == null) return;
+        if (target is null)
+        {
+            return;
+        }
 
-        var index = Breadcrumbs.IndexOf(targetBreadcrumb);
-        if (index == -1 || index == Breadcrumbs.Count - 1) return;
+        var index = Breadcrumbs.IndexOf(target);
+        if (index < 0)
+        {
+            return;
+        }
 
         while (Breadcrumbs.Count > index + 1)
         {
             Breadcrumbs.RemoveAt(Breadcrumbs.Count - 1);
         }
 
-        await LoadFolderDataAsync();
+        await RefreshAsync();
+    }
+
+    private void Logout()
+    {
+        CancelLoad();
+        _apiService.Logout();
+        SessionEnded?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void HandleError(Exception exception)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (exception is DriveApiException { StatusCode: HttpStatusCode.Unauthorized })
+        {
+            Logout();
+            return;
+        }
+
+        IsError = true;
+        ErrorMessage = exception switch
+        {
+            DriveApiException => exception.Message,
+            OperationCanceledException => "The request timed out. Please retry.",
+            HttpRequestException => "Could not connect to the server. Check the connection and retry.",
+            JsonException => "The server returned an invalid response.",
+            _ => "The folder could not be loaded. Please retry."
+        };
+    }
+
+    private void CancelLoad()
+    {
+        _loadVersion++;
+        _activeLoad?.Cancel();
+        _activeLoad = null;
+    }
+
+    private void NotifyState()
+    {
+        OnPropertyChanged(nameof(IsHomeView));
+        OnPropertyChanged(nameof(IsSyncedFoldersView));
+        OnPropertyChanged(nameof(IsEmpty));
+        OnPropertyChanged(nameof(IsContentVisible));
+        OnPropertyChanged(nameof(EmptyTitle));
+        OnPropertyChanged(nameof(EmptyDescription));
+        OpenFolderCommand?.NotifyCanExecuteChanged();
+        NavigateBackCommand?.NotifyCanExecuteChanged();
+    }
+
+    private static (SymbolRegular Icon, string Color) GetFileAppearance(string name) =>
+        Path.GetExtension(name).ToLowerInvariant() switch
+        {
+            ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" => (SymbolRegular.Image24, "#A142F4"),
+            ".mp4" or ".mov" or ".avi" => (SymbolRegular.Video24, "#EA4335"),
+            ".xlsx" or ".xls" or ".csv" => (SymbolRegular.Table24, "#107C41"),
+            ".pdf" => (SymbolRegular.Document24, "#EA4335"),
+            ".doc" or ".docx" => (SymbolRegular.Document24, "#185ABD"),
+            _ => (SymbolRegular.Document24, "#5F6368")
+        };
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        CancelLoad();
     }
 }
