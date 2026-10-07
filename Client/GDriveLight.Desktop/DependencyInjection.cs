@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddSingleton(_ => new HttpClient());
         services.AddSingleton<IDriveApiService, DriveApiService>();
         services.AddSingleton<IFileDialogService, FileDialogService>();
+        services.AddSingleton<IUserDialogService, UserDialogService>();
         services.AddScoped<LoginViewModel>();
         services.AddScoped<LoginWindow>();
         services.AddScoped<MainWindowViewModel>();

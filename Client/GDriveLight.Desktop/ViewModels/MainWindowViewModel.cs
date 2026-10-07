@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using GDriveLight.Desktop.Commands;
+using GDriveLight.Desktop.Services;
 using GDriveLight.Desktop.Services.Api;
 using Wpf.Ui.Controls;
 
@@ -11,7 +12,7 @@ namespace GDriveLight.Desktop.ViewModels;
 
 public record BreadcrumbItem(Guid? Id, string Name);
 
-public sealed class MainWindowViewModel : ViewModelBase, IDisposable
+public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private readonly IDriveApiService _apiService;
     private CancellationTokenSource? _activeLoad;
@@ -22,30 +23,49 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _isError;
     private string _errorMessage = string.Empty;
     private FileItemViewModel? _selectedFile;
+    private string _searchText = string.Empty;
 
-    public MainWindowViewModel(IDriveApiService apiService)
+    public MainWindowViewModel(IDriveApiService apiService, IFileDialogService fileDialogs, IUserDialogService dialogs)
     {
         _apiService = apiService;
+        _fileDialogs = fileDialogs;
+        _dialogs = dialogs;
         Breadcrumbs.Add(new BreadcrumbItem(null, "Home"));
-        RetryCommand = new AsyncRelayCommand(RefreshAsync, HandleError);
+        RetryCommand = new AsyncRelayCommand(RefreshAsync, HandleError, () => !_disposed && IsHomeView && !IsBusy);
         OpenFolderCommand = new AsyncRelayCommand<FileItemViewModel>(OpenFolderAsync, HandleError,
-            file => !_disposed && !IsLoading && IsHomeView && file?.IsFolder == true);
+            file => CanManageFiles && file?.IsFolder == true);
         NavigateBackCommand = new AsyncRelayCommand<BreadcrumbItem>(NavigateBackAsync, HandleError,
-            crumb => !_disposed && !IsLoading && IsHomeView && crumb is not null &&
+            crumb => !_disposed && IsHomeView && !IsBusy && crumb is not null &&
                 Breadcrumbs.Contains(crumb) && !ReferenceEquals(crumb, Breadcrumbs.LastOrDefault()));
         LogoutCommand = new RelayCommand(Logout, () => !_disposed);
+        InitializeOperationCommands();
     }
 
     public string Title => "GDriveLight";
     public ObservableCollection<BreadcrumbItem> Breadcrumbs { get; } = new();
+    public IEnumerable<BreadcrumbItem> BreadcrumbTrail => Breadcrumbs.Take(Math.Max(0, Breadcrumbs.Count - 1));
+    public string CurrentFolderName => Breadcrumbs.LastOrDefault()?.Name ?? "Home";
     public ObservableCollection<FileItemViewModel> Files { get; } = new();
+    public ObservableCollection<FileItemViewModel> VisibleFiles { get; } = new();
+
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (SetProperty(ref _searchText, value))
+            {
+                ApplySearch();
+            }
+        }
+    }
 
     public int SelectedSidebarIndex
     {
         get => _selectedSidebarIndex;
         set
         {
-            if (value is < 0 or > 1 || !SetProperty(ref _selectedSidebarIndex, value))
+            if (!CanNavigate || value is < 0 or > 1 || !SetProperty(ref _selectedSidebarIndex, value))
             {
                 return;
             }
@@ -54,6 +74,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
             Breadcrumbs.Clear();
             Breadcrumbs.Add(new BreadcrumbItem(null, value == 0 ? "Home" : "Synced folders"));
             Files.Clear();
+            SearchText = string.Empty;
+            ApplySearch();
             SelectedFile = null;
             IsError = false;
             IsLoading = false;
@@ -93,12 +115,12 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     public string ErrorMessage { get => _errorMessage; private set => SetProperty(ref _errorMessage, value); }
-    public bool IsEmpty => !IsLoading && !IsError && Files.Count == 0;
-    public bool IsContentVisible => !IsLoading && !IsError && Files.Count > 0;
-    public string EmptyTitle => IsSyncedFoldersView ? "Synced folders" : "This folder is empty";
+    public bool IsEmpty => !IsLoading && !IsError && VisibleFiles.Count == 0;
+    public bool IsContentVisible => !IsLoading && !IsError && VisibleFiles.Count > 0;
+    public string EmptyTitle => IsSyncedFoldersView ? "Synced folders" : string.IsNullOrWhiteSpace(SearchText) ? "This folder is empty" : "No matching files";
     public string EmptyDescription => IsSyncedFoldersView
         ? "Devices and synced folders will appear here in a later version."
-        : "Use New to add folders and files.";
+        : string.IsNullOrWhiteSpace(SearchText) ? "Use New to add folders and files." : "Try another name or clear the search.";
 
     public FileItemViewModel? SelectedFile
     {
@@ -160,6 +182,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
                     Size = "—", Icon = icon, IconColorBrushKey = color
                 });
             }
+
+            ApplySearch();
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
@@ -190,6 +214,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         Breadcrumbs.Add(new BreadcrumbItem(file.Id, file.Name));
+        SearchText = string.Empty;
         await RefreshAsync();
     }
 
@@ -211,12 +236,15 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
             Breadcrumbs.RemoveAt(Breadcrumbs.Count - 1);
         }
 
+        SearchText = string.Empty;
+
         await RefreshAsync();
     }
 
     private void Logout()
     {
         CancelLoad();
+        _activeOperation?.Cancel();
         _apiService.Logout();
         SessionEnded?.Invoke(this, EventArgs.Empty);
     }
@@ -254,6 +282,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void NotifyState()
     {
+        OnPropertyChanged(nameof(BreadcrumbTrail));
+        OnPropertyChanged(nameof(CurrentFolderName));
         OnPropertyChanged(nameof(IsHomeView));
         OnPropertyChanged(nameof(IsSyncedFoldersView));
         OnPropertyChanged(nameof(IsEmpty));
@@ -262,6 +292,33 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(EmptyDescription));
         OpenFolderCommand?.NotifyCanExecuteChanged();
         NavigateBackCommand?.NotifyCanExecuteChanged();
+        RetryCommand?.NotifyCanExecuteChanged();
+        CreateFolderCommand?.NotifyCanExecuteChanged();
+        UploadCommand?.NotifyCanExecuteChanged();
+        DownloadCommand?.NotifyCanExecuteChanged();
+        RenameCommand?.NotifyCanExecuteChanged();
+        DeleteCommand?.NotifyCanExecuteChanged();
+        CancelOperationCommand?.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(IsBusy));
+        OnPropertyChanged(nameof(CanNavigate));
+        OnPropertyChanged(nameof(CanManageFiles));
+    }
+
+    private void ApplySearch()
+    {
+        VisibleFiles.Clear();
+        var query = SearchText.Trim();
+        foreach (var file in Files.Where(file => file.Name.Contains(query, StringComparison.OrdinalIgnoreCase)))
+        {
+            VisibleFiles.Add(file);
+        }
+
+        if (SelectedFile is not null && !VisibleFiles.Contains(SelectedFile))
+        {
+            SelectedFile = null;
+        }
+
+        NotifyState();
     }
 
     private static (SymbolRegular Icon, string Color) GetFileAppearance(string name) =>
@@ -284,5 +341,6 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
         _disposed = true;
         CancelLoad();
+        _activeOperation?.Cancel();
     }
 }

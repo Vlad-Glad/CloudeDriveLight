@@ -1,6 +1,7 @@
 using System.Net;
 using GDriveLight.Desktop.Models.Api;
 using GDriveLight.Desktop.Services.Api;
+using GDriveLight.Desktop.Services;
 using GDriveLight.Desktop.ViewModels;
 using Moq;
 using Wpf.Ui.Controls;
@@ -19,7 +20,8 @@ public sealed class MainWindowViewModelTests
         api.Setup(service => service.GetFolderContentAsync(null, It.IsAny<CancellationToken>()))
             .Callback<Guid?, CancellationToken>((_, token) => loadToken = token).Returns(folders.Task);
         api.Setup(service => service.GetFilesAsync(null, It.IsAny<CancellationToken>())).Returns(files.Task);
-        using var viewModel = new MainWindowViewModel(api.Object);
+        using var viewModel = new MainWindowViewModel(api.Object,
+            new Mock<IFileDialogService>().Object, new Mock<IUserDialogService>().Object);
 
         var load = viewModel.InitializeAsync();
         viewModel.SelectedSidebarIndex = 1;
@@ -44,7 +46,8 @@ public sealed class MainWindowViewModelTests
             .ReturnsAsync(new[] { new FolderResponse(Guid.NewGuid(), "New folder", null, Guid.NewGuid()) });
         api.Setup(service => service.GetFilesAsync(null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<FileResponse>());
-        using var viewModel = new MainWindowViewModel(api.Object);
+        using var viewModel = new MainWindowViewModel(api.Object,
+            new Mock<IFileDialogService>().Object, new Mock<IUserDialogService>().Object);
 
         var oldLoad = viewModel.InitializeAsync();
         await viewModel.RefreshAsync();
@@ -66,7 +69,8 @@ public sealed class MainWindowViewModelTests
         api.SetupSequence(service => service.GetFolderContentAsync(folder.Id, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new DriveApiException(HttpStatusCode.InternalServerError, "Try again."))
             .ReturnsAsync(Array.Empty<FolderResponse>());
-        using var viewModel = new MainWindowViewModel(api.Object);
+        using var viewModel = new MainWindowViewModel(api.Object,
+            new Mock<IFileDialogService>().Object, new Mock<IUserDialogService>().Object);
         await viewModel.InitializeAsync();
 
         await viewModel.OpenFolderCommand.ExecuteAsync(Assert.Single(viewModel.Files));
@@ -88,7 +92,8 @@ public sealed class MainWindowViewModelTests
             .ThrowsAsync(new DriveApiException(HttpStatusCode.Unauthorized, "Sign in."));
         api.Setup(service => service.GetFilesAsync(null, It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<FileResponse>());
         api.Setup(service => service.Logout());
-        using var viewModel = new MainWindowViewModel(api.Object);
+        using var viewModel = new MainWindowViewModel(api.Object,
+            new Mock<IFileDialogService>().Object, new Mock<IUserDialogService>().Object);
         var sessionEnded = false;
         viewModel.SessionEnded += (_, _) => sessionEnded = true;
 
@@ -107,7 +112,8 @@ public sealed class MainWindowViewModelTests
         var api = new Mock<IDriveApiService>(MockBehavior.Strict);
         api.Setup(service => service.GetFolderContentAsync(null, It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<FolderResponse>());
         api.Setup(service => service.GetFilesAsync(null, It.IsAny<CancellationToken>())).ReturnsAsync(new[] { file });
-        using var viewModel = new MainWindowViewModel(api.Object);
+        using var viewModel = new MainWindowViewModel(api.Object,
+            new Mock<IFileDialogService>().Object, new Mock<IUserDialogService>().Object);
 
         await viewModel.InitializeAsync();
 

@@ -3,14 +3,14 @@
                     xmlns:system="clr-namespace:System;assembly=mscorlib">
 
     <!-- Colors -->
-    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F0F4F9" />
-    <SolidColorBrush x:Key="BackgroundBrush" Color="#F0F4F9" />
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F8FAFD" />
+    <SolidColorBrush x:Key="BackgroundBrush" Color="#F8FAFD" />
     <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="AccentBrush" Color="#0B57D0" />
     <SolidColorBrush x:Key="PrimaryBrandBrush" Color="#0B57D0" />
     
-    <SolidColorBrush x:Key="SidebarSelectedBrush" Color="#D3E3FD" />
+    <SolidColorBrush x:Key="SidebarSelectedBrush" Color="#C2E7FF" />
     <SolidColorBrush x:Key="SidebarSelectedTextBrush" Color="#0B57D0" />
     <SolidColorBrush x:Key="SidebarHoverBrush" Color="#E5E7EB" />
     
@@ -18,7 +18,7 @@
     <SolidColorBrush x:Key="TextSecondaryBrush" Color="#5E5E5E" />
     
     <SolidColorBrush x:Key="BorderBrush" Color="#E0E0E0" />
-    <SolidColorBrush x:Key="SearchBarBackgroundBrush" Color="#F0F4F9" />
+    <SolidColorBrush x:Key="SearchBarBackgroundBrush" Color="#E9EEF6" />
     
     <!-- Icon Colors -->
     <SolidColorBrush x:Key="FolderIconBrush" Color="#5F6368" />

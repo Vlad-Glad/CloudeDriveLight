@@ -1,4 +1,5 @@
 using System.Net;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -108,6 +109,83 @@ public sealed class DriveApiService : IDriveApiService
             return request;
         }
     }
+
+    public async Task<Guid> CreateFolderAsync(string name, Guid? parentFolderId, CancellationToken cancellationToken = default)
+    {
+        using var request = CreateRequest(HttpMethod.Post, "api/folders");
+        request.Content = JsonContent.Create(new { Name = name, ParentFolderId = parentFolderId });
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+        var result = await response.Content.ReadFromJsonAsync<CreatedFolderResponse>(cancellationToken).ConfigureAwait(false);
+        return result is { FolderId: var id } && id != Guid.Empty
+            ? id : throw new JsonException("The server returned an invalid folder ID.");
+    }
+
+    public async Task<Guid> UploadFileAsync(string filePath, Guid? folderId, CancellationToken cancellationToken = default)
+    {
+        await using var file = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read,
+            65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        if (file.Length == 0)
+        {
+            throw new ArgumentException("Empty files cannot be uploaded.", nameof(filePath));
+        }
+
+        using var request = CreateRequest(HttpMethod.Post, "api/files");
+        var content = new MultipartFormDataContent();
+        request.Content = content;
+        content.Add(new StreamContent(file), "file", Path.GetFileName(filePath));
+        if (folderId.HasValue)
+        {
+            content.Add(new StringContent(folderId.Value.ToString()), "folderId");
+        }
+
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+        var result = await response.Content.ReadFromJsonAsync<CreatedFileResponse>(cancellationToken).ConfigureAwait(false);
+        return result is { Id: var id } && id != Guid.Empty
+            ? id : throw new JsonException("The server returned an invalid file ID.");
+    }
+
+    public async Task DownloadFileAsync(Guid fileId, string destination, CancellationToken cancellationToken = default)
+    {
+        var targetPath = Path.GetFullPath(destination);
+        var temporaryPath = Path.Combine(Path.GetDirectoryName(targetPath)!, $".gdrivelight-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            using var request = CreateRequest(HttpMethod.Get, $"api/files/{fileId}/download");
+            using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+            await using (var output = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                65536, FileOptions.Asynchronous | FileOptions.SequentialScan))
+            {
+                await response.Content.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
+                await output.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            File.Move(temporaryPath, targetPath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+        }
+    }
+
+    public async Task RenameAsync(Guid id, bool isFolder, string name, CancellationToken cancellationToken = default)
+    {
+        using var request = CreateRequest(HttpMethod.Put, $"api/{(isFolder ? "folders" : "files")}/{id}/rename");
+        request.Content = JsonContent.Create(new { NewName = name });
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task DeleteAsync(Guid id, bool isFolder, CancellationToken cancellationToken = default)
+    {
+        using var request = CreateRequest(HttpMethod.Delete, $"api/{(isFolder ? "folders" : "files")}/{id}");
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    private sealed record CreatedFolderResponse(Guid FolderId);
+    private sealed record CreatedFileResponse(Guid Id);
 
     private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {

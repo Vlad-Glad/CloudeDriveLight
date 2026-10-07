@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using GDriveLight.Desktop.Models.Api;
 using GDriveLight.Desktop.Services.Api;
+using GDriveLight.Desktop.Services;
 using GDriveLight.Desktop.ViewModels;
 using GDriveLight.Desktop.Views;
 using Moq;
@@ -33,7 +34,8 @@ public sealed class WindowSmokeTests
                         new FileResponse(Guid.NewGuid(), "notes.txt", 2, "hash", null, Guid.NewGuid(),
                             new DateTime(2026, 10, 7, 12, 0, 0, DateTimeKind.Utc), null, "internal-path")
                     });
-                using var mainViewModel = new MainWindowViewModel(api.Object);
+                using var mainViewModel = new MainWindowViewModel(api.Object,
+                    new Mock<IFileDialogService>().Object, new Mock<IUserDialogService>().Object);
                 stage = "loading folder data";
                 mainViewModel.InitializeAsync().GetAwaiter().GetResult();
                 stage = "creating main window";
@@ -45,7 +47,7 @@ public sealed class WindowSmokeTests
                 grid.GetBindingExpression(ItemsControl.ItemsSourceProperty)?.UpdateTarget();
                 grid.GetBindingExpression(UIElement.VisibilityProperty)?.UpdateTarget();
                 Assert.Equal(4, grid.Columns.Count);
-                Assert.Equal("Files", grid.GetBindingExpression(ItemsControl.ItemsSourceProperty)?.ParentBinding.Path.Path);
+                Assert.Equal("VisibleFiles", grid.GetBindingExpression(ItemsControl.ItemsSourceProperty)?.ParentBinding.Path.Path);
                 Assert.Equal("Name", grid.Columns[0].Header);
                 Assert.Equal("Modified", grid.Columns[1].Header);
                 Assert.Equal("Size", grid.Columns[2].Header);
