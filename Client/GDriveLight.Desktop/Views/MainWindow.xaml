@@ -207,12 +207,12 @@
                         <TextBox x:Name="SearchInput" IsEnabled="{Binding CanManageFiles}"
                                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                     Background="Transparent" BorderThickness="0" Padding="0"
-                                    Foreground="{DynamicResource TextPrimaryBrush}" AutomationProperties.Name="Search this folder">
+                                    Foreground="{DynamicResource TextPrimaryBrush}" AutomationProperties.Name="Search files and folders">
                             <TextBox.Template>
                                 <ControlTemplate TargetType="TextBox">
                                     <Grid>
                                         <ScrollViewer x:Name="PART_ContentHost" />
-                                        <TextBlock x:Name="Placeholder" Text="Search this folder" IsHitTestVisible="False"
+                                        <TextBlock x:Name="Placeholder" Text="Search files and folders" IsHitTestVisible="False"
                                                    Foreground="{DynamicResource TextSecondaryBrush}" Visibility="Collapsed" />
                                     </Grid>
                                     <ControlTemplate.Triggers>

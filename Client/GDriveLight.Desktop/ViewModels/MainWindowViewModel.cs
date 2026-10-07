@@ -48,6 +48,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public ObservableCollection<FileItemViewModel> Files { get; } = new();
     public ObservableCollection<FileItemViewModel> VisibleFiles { get; } = new();
 
+    private CancellationTokenSource? _searchDebounce;
+
     public string SearchText
     {
         get => _searchText;
@@ -55,9 +57,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             if (SetProperty(ref _searchText, value))
             {
-                ApplySearch();
+                DebounceSearch();
             }
         }
+    }
+
+    private async void DebounceSearch()
+    {
+        _searchDebounce?.Cancel();
+        var cts = new CancellationTokenSource();
+        _searchDebounce = cts;
+        try { await Task.Delay(400, cts.Token); }
+        catch (TaskCanceledException) { return; }
+        _ = RefreshAsync();
     }
 
     public int SelectedSidebarIndex
@@ -74,8 +86,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             Breadcrumbs.Clear();
             Breadcrumbs.Add(new BreadcrumbItem(null, value == 0 ? "Home" : "Synced folders"));
             Files.Clear();
-            SearchText = string.Empty;
-            ApplySearch();
+            _searchText = string.Empty;
+            OnPropertyChanged(nameof(SearchText));
+            VisibleFiles.Clear();
             SelectedFile = null;
             IsError = false;
             IsLoading = false;
@@ -155,8 +168,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         try
         {
-            var foldersTask = _apiService.GetFolderContentAsync(folderId, cancellation.Token);
-            var filesTask = _apiService.GetFilesAsync(folderId, cancellation.Token);
+            Task<IEnumerable<GDriveLight.Desktop.Models.Api.FolderResponse>> foldersTask;
+            Task<IEnumerable<GDriveLight.Desktop.Models.Api.FileResponse>> filesTask;
+            if (string.IsNullOrWhiteSpace(SearchText))
+            {
+                foldersTask = _apiService.GetFolderContentAsync(folderId, cancellation.Token);
+                filesTask = _apiService.GetFilesAsync(folderId, cancellation.Token);
+            }
+            else
+            {
+                var query = SearchText.Trim();
+                foldersTask = _apiService.SearchFoldersAsync(query, cancellation.Token);
+                filesTask = _apiService.SearchFilesAsync(query, cancellation.Token);
+            }
             await Task.WhenAll(foldersTask, filesTask);
             if (_disposed || version != _loadVersion || !IsHomeView)
             {
@@ -183,7 +207,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 });
             }
 
-            ApplySearch();
+            VisibleFiles.Clear();
+            foreach (var file in Files)
+            {
+                VisibleFiles.Add(file);
+            }
+            NotifyState();
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
@@ -208,13 +237,41 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private async Task OpenFolderAsync(FileItemViewModel? file)
     {
-        if (file is null || !file.IsFolder || !Files.Contains(file))
+        if (file is null || !file.IsFolder || !VisibleFiles.Contains(file))
         {
             return;
         }
 
-        Breadcrumbs.Add(new BreadcrumbItem(file.Id, file.Name));
-        SearchText = string.Empty;
+        if (!string.IsNullOrWhiteSpace(SearchText))
+        {
+            try
+            {
+                var path = await _apiService.GetFolderPathAsync(file.Id);
+                Breadcrumbs.Clear();
+                Breadcrumbs.Add(new BreadcrumbItem(null, "Home"));
+                foreach (var folder in path)
+                {
+                    Breadcrumbs.Add(new BreadcrumbItem(folder.Id, folder.Name));
+                }
+                if (Breadcrumbs.LastOrDefault()?.Id != file.Id)
+                {
+                    Breadcrumbs.Add(new BreadcrumbItem(file.Id, file.Name));
+                }
+            }
+            catch (Exception ex)
+            {
+                HandleError(ex);
+                return;
+            }
+
+            _searchText = string.Empty;
+            OnPropertyChanged(nameof(SearchText));
+        }
+        else
+        {
+            Breadcrumbs.Add(new BreadcrumbItem(file.Id, file.Name));
+        }
+
         await RefreshAsync();
     }
 
@@ -306,22 +363,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(CanManageFiles));
     }
 
-    private void ApplySearch()
-    {
-        VisibleFiles.Clear();
-        var query = SearchText.Trim();
-        foreach (var file in Files.Where(file => file.Name.Contains(query, StringComparison.OrdinalIgnoreCase)))
-        {
-            VisibleFiles.Add(file);
-        }
 
-        if (SelectedFile is not null && !VisibleFiles.Contains(SelectedFile))
-        {
-            SelectedFile = null;
-        }
-
-        NotifyState();
-    }
 
     private static (SymbolRegular Icon, string Color) GetFileAppearance(string name) =>
         Path.GetExtension(name).ToLowerInvariant() switch

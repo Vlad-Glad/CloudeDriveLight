@@ -11,6 +11,10 @@ public interface IDriveApiService
     Task<Guid> CreateFolderAsync(string name, Guid? parentFolderId, CancellationToken cancellationToken = default);
     Task<Guid> UploadFileAsync(string filePath, Guid? folderId, CancellationToken cancellationToken = default);
     Task DownloadFileAsync(Guid fileId, string destination, CancellationToken cancellationToken = default);
+    Task<IEnumerable<FolderResponse>> GetFolderPathAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IEnumerable<FolderResponse>> SearchFoldersAsync(string name, CancellationToken cancellationToken = default);
+    Task<IEnumerable<FileResponse>> SearchFilesAsync(string name, CancellationToken cancellationToken = default);
+
     Task RenameAsync(Guid id, bool isFolder, string name, CancellationToken cancellationToken = default);
     Task DeleteAsync(Guid id, bool isFolder, CancellationToken cancellationToken = default);
     Task MoveAsync(Guid id, bool isFolder, Guid? destinationFolderId, CancellationToken cancellationToken = default);
