@@ -29,7 +29,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SidebarHoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
                                 <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
@@ -43,7 +43,7 @@
             </Setter>
         </Style>
         <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="White" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
             <Setter Property="FontWeight" Value="Normal" />
             <Setter Property="Padding" Value="12,12" />
@@ -67,7 +67,7 @@
             </Setter>
         </Style>
         <Style TargetType="DataGridRow">
-            <Setter Property="Background" Value="White" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
@@ -106,7 +106,7 @@
             </ui:Button>
             <ListBox Grid.Row="2" Background="Transparent" BorderThickness="0"
                      IsEnabled="{Binding CanNavigate}"
-                     SelectedIndex="{Binding SelectedSidebarIndex}">
+                     SelectedIndex="{Binding SelectedSidebarIndex, Mode=TwoWay}">
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem">
                         <Setter Property="Padding" Value="14,12" />
@@ -226,30 +226,70 @@
                     </DockPanel>
                 </Border>
                 <StackPanel Grid.Row="2">
-                    <DockPanel Visibility="{Binding IsOperating, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,12">
-                        <Button DockPanel.Dock="Right" Content="Cancel" Command="{Binding CancelOperationCommand}" Style="{StaticResource QuietButton}" />
-                        <TextBlock Text="{Binding OperationStatus}" VerticalAlignment="Center" />
-                    </DockPanel>
-                    <Border Background="{DynamicResource AppBackgroundBrush}" CornerRadius="10" Padding="12" Margin="0,0,0,12"
-                            Visibility="{Binding HasNotification, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <!-- Operation progress bar -->
+                    <Border Visibility="{Binding IsOperating, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            Background="{DynamicResource AppBackgroundBrush}" CornerRadius="10" Padding="12,10" Margin="0,0,0,10">
                         <DockPanel>
-                            <Button DockPanel.Dock="Right" Command="{Binding DismissNotificationCommand}"
-                                    Style="{StaticResource QuietButton}" AutomationProperties.Name="Dismiss notification">
-                                <ui:SymbolIcon Symbol="Dismiss24" FontSize="16" />
-                            </Button>
-                            <TextBlock Text="{Binding NotificationMessage}" TextWrapping="Wrap" VerticalAlignment="Center">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                            <Button DockPanel.Dock="Right" Content="Cancel" Command="{Binding CancelOperationCommand}"
+                                    Style="{StaticResource QuietButton}" Padding="10,4" />
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <ui:ProgressRing IsIndeterminate="True" Width="18" Height="18" Margin="0,0,10,0" />
+                                <TextBlock Text="{Binding OperationStatus}" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                    <!-- Notification banner -->
+                    <Border Margin="0,0,0,10" CornerRadius="10" ClipToBounds="True"
+                            Visibility="{Binding HasNotification, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="#EBF5FB" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsNotificationError}" Value="True">
+                                        <Setter Property="Background" Value="#FDECEA" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="4" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <!-- Colored accent bar -->
+                            <Border Grid.Column="0" CornerRadius="10,0,0,10">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsNotificationError}" Value="True">
-                                                <Setter Property="Foreground" Value="{DynamicResource PdfIconBrush}" />
+                                                <Setter Property="Background" Value="{DynamicResource PdfIconBrush}" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </DockPanel>
+                                </Border.Style>
+                            </Border>
+                            <DockPanel Grid.Column="1" Margin="12,10">
+                                <Button DockPanel.Dock="Right" Command="{Binding DismissNotificationCommand}"
+                                        Style="{StaticResource QuietButton}" Padding="4"
+                                        AutomationProperties.Name="Dismiss notification">
+                                    <ui:SymbolIcon Symbol="Dismiss24" FontSize="14" />
+                                </Button>
+                                <TextBlock Text="{Binding NotificationMessage}" TextWrapping="Wrap" VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#0A3D5E" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsNotificationError}" Value="True">
+                                                    <Setter Property="Foreground" Value="#8B1A10" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DockPanel>
+                        </Grid>
                     </Border>
                 </StackPanel>
                 <Grid Grid.Row="3">
@@ -258,7 +298,7 @@
                               CanUserDeleteRows="False" CanUserSortColumns="False" CanUserResizeRows="False"
                               SelectionMode="Single" SelectionUnit="FullRow" HeadersVisibility="Column"
                               GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource BorderBrush}"
-                              RowHeight="50" BorderThickness="0" Background="White"
+                              RowHeight="50" BorderThickness="0" Background="{DynamicResource SurfaceBrush}"
                               AllowDrop="True" PreviewMouseLeftButtonDown="FileGridMouseDown" PreviewMouseMove="FileGridMouseMove"
                               PreviewMouseRightButtonUp="FileGridRightClick" PreviewKeyDown="FileGridKeyDown"
                               MouseDoubleClick="FileGridDoubleClick" PreviewDragOver="ItemDragOver"

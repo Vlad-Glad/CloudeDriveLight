@@ -4,12 +4,14 @@
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         Title="Move to" Width="560" Height="520" MinWidth="460" MinHeight="420"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
-        Background="{DynamicResource AppBackgroundBrush}" FontFamily="{DynamicResource AppFontFamily}"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        FontFamily="{DynamicResource AppFontFamily}"
         FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     </Window.Resources>
     <Border Background="White" CornerRadius="16" Margin="16" Padding="24">
+        <Border.Effect><DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.12" /></Border.Effect>
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -17,7 +19,17 @@
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <TextBlock Text="Move to" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,20" />
+            <!-- Custom titlebar for drag support -->
+            <Border Grid.Row="0" MouseLeftButtonDown="TitleBarMouseDown" Padding="0,0,0,16">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Command="{Binding CancelCommand}"
+                            Background="Transparent" BorderThickness="0" Padding="6"
+                            HorizontalAlignment="Right" ToolTip="Close" AutomationProperties.Name="Close">
+                        <ui:SymbolIcon Symbol="Dismiss24" FontSize="18" />
+                    </Button>
+                    <TextBlock Text="Move to" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </DockPanel>
+            </Border>
             <StackPanel Grid.Row="1" Margin="0,0,0,16">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                     <StackPanel Orientation="Horizontal">
@@ -44,7 +56,7 @@
             </StackPanel>
             <Grid Grid.Row="2">
                 <ListBox x:Name="FolderList" ItemsSource="{Binding Folders}" SelectedItem="{Binding SelectedFolder}"
-                         BorderThickness="0" Background="White" HorizontalContentAlignment="Stretch"
+                         BorderThickness="0" Background="{DynamicResource SurfaceBrush}" HorizontalContentAlignment="Stretch"
                          AutomationProperties.Name="Destination folders"
                          Visibility="{Binding IsContentVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <ListBox.InputBindings>

@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Input;
 using GDriveLight.Desktop.ViewModels;
 
 namespace GDriveLight.Desktop.Views;
@@ -22,4 +23,13 @@ public partial class FolderPickerWindow : Window
     {
         DialogResult = ((FolderPickerViewModel)DataContext).Destination is not null;
     }
+
+    private void TitleBarMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ButtonState == MouseButtonState.Pressed)
+        {
+            DragMove();
+        }
+    }
 }
+
