@@ -3,10 +3,13 @@ using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using GDriveLight.Desktop.Commands;
+using GDriveLight.Desktop.Models;
 using GDriveLight.Desktop.Services;
 using GDriveLight.Desktop.Services.Api;
 
 namespace GDriveLight.Desktop.ViewModels;
+
+public sealed record ItemMoveRequest(FileItemViewModel Item, FolderDestination Destination);
 
 public sealed partial class MainWindowViewModel
 {
@@ -54,6 +57,7 @@ public sealed partial class MainWindowViewModel
     public AsyncRelayCommand<FileItemViewModel> RenameCommand { get; private set; } = null!;
     public AsyncRelayCommand<FileItemViewModel> DeleteCommand { get; private set; } = null!;
     public AsyncRelayCommand<FileItemViewModel> MoveCommand { get; private set; } = null!;
+    public AsyncRelayCommand<ItemMoveRequest> MoveToCommand { get; private set; } = null!;
     public RelayCommand DismissNotificationCommand { get; private set; } = null!;
     public RelayCommand CancelOperationCommand { get; private set; } = null!;
 
@@ -66,6 +70,8 @@ public sealed partial class MainWindowViewModel
         RenameCommand = new AsyncRelayCommand<FileItemViewModel>(RenameAsync, HandleOperationError, CanActOn);
         DeleteCommand = new AsyncRelayCommand<FileItemViewModel>(DeleteAsync, HandleOperationError, CanActOn);
         MoveCommand = new AsyncRelayCommand<FileItemViewModel>(MoveAsync, HandleOperationError, CanActOn);
+        MoveToCommand = new AsyncRelayCommand<ItemMoveRequest>(MoveItemToAsync, HandleOperationError,
+            request => request is not null && CanMoveTo(request.Item, request.Destination));
         DismissNotificationCommand = new RelayCommand(() => NotificationMessage = string.Empty);
         CancelOperationCommand = new RelayCommand(() => _activeOperation?.Cancel(), () => IsOperating);
     }
@@ -187,16 +193,27 @@ public sealed partial class MainWindowViewModel
 
         var currentFolderId = Breadcrumbs.Last().Id;
         var destination = _dialogs.SelectDestination(currentFolderId, item.IsFolder ? item.Id : null);
-        if (destination is null || destination.Id == currentFolderId ||
-            (item.IsFolder && destination.Id == item.Id))
+        if (destination is not null)
+        {
+            await MoveItemToAsync(new ItemMoveRequest(item, destination));
+        }
+    }
+
+    public bool CanMoveTo(FileItemViewModel item, FolderDestination destination) =>
+        CanActOn(item) && destination.Id != Breadcrumbs.Last().Id &&
+        (!item.IsFolder || destination.Id != item.Id);
+
+    private async Task MoveItemToAsync(ItemMoveRequest? request)
+    {
+        if (request is null || !CanMoveTo(request.Item, request.Destination))
         {
             return;
         }
 
         await RunOperationAsync("Moving...", async token =>
         {
-            await _apiService.MoveAsync(item.Id, item.IsFolder, destination.Id, token);
-            return $"Moved '{item.Name}' to '{destination.Name}'.";
+            await _apiService.MoveAsync(request.Item.Id, request.Item.IsFolder, request.Destination.Id, token);
+            return $"Moved '{request.Item.Name}' to '{request.Destination.Name}'.";
         });
     }
 
