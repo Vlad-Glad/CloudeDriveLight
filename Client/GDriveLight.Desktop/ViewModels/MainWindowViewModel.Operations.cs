@@ -157,8 +157,22 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
-        var name = _dialogs.RequestName("Rename", "New name", item.Name);
-        if (name is null || name == item.Name)
+        var originalExtension = item.IsFolder ? string.Empty : Path.GetExtension(item.Name);
+        var initialName = item.IsFolder ? item.Name : Path.GetFileNameWithoutExtension(item.Name);
+        var name = _dialogs.RequestName("Rename", "New name", initialName);
+        if (name is null)
+        {
+            return;
+        }
+
+        // Preserve the original extension if the user did not provide one.
+        if (!item.IsFolder && !string.IsNullOrEmpty(originalExtension) &&
+            !Path.HasExtension(name))
+        {
+            name = name + originalExtension;
+        }
+
+        if (name == item.Name)
         {
             return;
         }
