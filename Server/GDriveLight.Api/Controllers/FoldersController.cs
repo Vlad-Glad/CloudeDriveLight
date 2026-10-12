@@ -28,7 +28,7 @@ public class FoldersController : ControllerBase
     {
         var userId = _currentUserService.UserId;
 
-        var command = new CreateFolderCommand(request.Name, userId, request.ParentFolderId);
+        var command = new CreateFolderCommand(request.Name, userId, request.ParentFolderId, _currentUserService.DeviceId);
 
         var result = await _mediator.Send(command);
 
@@ -45,7 +45,7 @@ public class FoldersController : ControllerBase
     {
         var userId = _currentUserService.UserId;
 
-        var command = new RenameFolderCommand(id, request.NewName, userId);
+        var command = new RenameFolderCommand(id, request.NewName, userId, _currentUserService.DeviceId);
 
         var result = await _mediator.Send(command);
 
@@ -62,7 +62,7 @@ public class FoldersController : ControllerBase
     {
         var userId = _currentUserService.UserId;
 
-        var command = new MoveFolderCommand(id, request.NewParentFolderId, userId);
+        var command = new MoveFolderCommand(id, request.NewParentFolderId, userId, _currentUserService.DeviceId);
 
         var result = await _mediator.Send(command);
 
@@ -79,7 +79,7 @@ public class FoldersController : ControllerBase
     {
         var userId = _currentUserService.UserId;
 
-        var command = new DeleteFolderCommand(id, userId);
+        var command = new DeleteFolderCommand(id, userId, _currentUserService.DeviceId);
 
         var result = await _mediator.Send(command);
 

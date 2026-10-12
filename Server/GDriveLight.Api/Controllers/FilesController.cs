@@ -37,7 +37,7 @@ public class FilesController : ControllerBase
         var userId = _currentUserService.UserId;
 
         using var stream = file.OpenReadStream();
-        var command = new UploadFileCommand(file.FileName, stream, userId, folderId);
+        var command = new UploadFileCommand(file.FileName, stream, userId, folderId, _currentUserService.DeviceId);
         
         var result = await _mediator.Send(command);
 
@@ -112,7 +112,31 @@ public class FilesController : ControllerBase
     {
         var userId = _currentUserService.UserId;
 
-        var command = new DeleteFileCommand(id, userId);
+        var command = new DeleteFileCommand(id, userId, _currentUserService.DeviceId);
+        var result = await _mediator.Send(command);
+
+        if (result.IsFailure)
+        {
+            return BadRequest(new { error = result.Error });
+        }
+
+        return NoContent();
+    }
+
+    [HttpPut("{id}/content")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UpdateContent(Guid id, IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new { error = "File is empty or not provided." });
+        }
+
+        var userId = _currentUserService.UserId;
+
+        using var stream = file.OpenReadStream();
+        var command = new UpdateFileContentCommand(id, stream, userId, _currentUserService.DeviceId);
+
         var result = await _mediator.Send(command);
 
         if (result.IsFailure)
@@ -128,7 +152,7 @@ public class FilesController : ControllerBase
     {
         var userId = _currentUserService.UserId;
 
-        var command = new RenameFileCommand(id, request.NewName, userId);
+        var command = new RenameFileCommand(id, request.NewName, userId, _currentUserService.DeviceId);
         var result = await _mediator.Send(command);
 
         if (result.IsFailure)
@@ -144,7 +168,7 @@ public class FilesController : ControllerBase
     {
         var userId = _currentUserService.UserId;
 
-        var command = new MoveFileCommand(id, request.NewFolderId, userId);
+        var command = new MoveFileCommand(id, request.NewFolderId, userId, _currentUserService.DeviceId);
         var result = await _mediator.Send(command);
 
         if (result.IsFailure)

@@ -34,4 +34,19 @@ public class CurrentUserService : ICurrentUserService
     }
 
     public bool IsAuthenticated => _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated ?? false;
+
+    public Guid? DeviceId
+    {
+        get
+        {
+            var headerValue = _httpContextAccessor.HttpContext?.Request.Headers["X-Device-Id"].FirstOrDefault();
+            if (Guid.TryParse(headerValue, out var deviceId))
+            {
+                return deviceId;
+            }
+
+            return null;
+        }
+    }
 }
+
