@@ -14,6 +14,7 @@ internal static class DriveFileMapper
             FileUrl = domain.FileUrl,
             FileTypeId = domain.FileTypeId,
             ContentHash = domain.ContentHash,
+            SizeBytes = domain.SizeBytes,
             FolderId = domain.FolderId,
             OwnerId = domain.OwnerId,
             UploadedAtUtc = domain.UploadedAtUtc,
@@ -29,6 +30,7 @@ internal static class DriveFileMapper
             entity.FileUrl, 
             entity.FileTypeId, 
             entity.ContentHash, 
+            entity.SizeBytes,
             entity.OwnerId, 
             entity.FolderId);
             

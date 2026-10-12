@@ -91,6 +91,57 @@ namespace GDriveLight.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("GDriveLight.Infrastructure.Entities.ChangeLogEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ContentHash")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("EventType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid?>("OriginDeviceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ParentFolderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ResourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ResourceType")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("TimestampUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OriginDeviceId");
+
+                    b.HasIndex("ResourceId");
+
+                    b.HasIndex("UserId", "Id");
+
+                    b.ToTable("ChangeLogs", (string)null);
+                });
+
             modelBuilder.Entity("GDriveLight.Infrastructure.Entities.DeviceEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -147,6 +198,11 @@ namespace GDriveLight.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("OwnerId")
                         .HasColumnType("uuid");
+
+                    b.Property<long>("SizeBytes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
 
                     b.Property<DateTime>("UploadedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -304,49 +360,6 @@ namespace GDriveLight.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("GDriveLight.Infrastructure.Entities.SyncFileStateEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("DriveFileId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("LastSyncedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastSyncedHash")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("LocalHash")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTime?>("LocalModifiedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RelativePath")
-                        .IsRequired()
-                        .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("SyncFolderId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DriveFileId");
-
-                    b.HasIndex("SyncFolderId");
-
-                    b.ToTable("SyncFileStates", (string)null);
-                });
-
             modelBuilder.Entity("GDriveLight.Infrastructure.Entities.SyncFolderEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -361,11 +374,6 @@ namespace GDriveLight.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime?>("LastSyncedAtUtc")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LocalPath")
-                        .IsRequired()
-                        .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)");
 
                     b.Property<int>("SyncMode")
                         .HasColumnType("integer");
@@ -509,6 +517,24 @@ namespace GDriveLight.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("GDriveLight.Infrastructure.Entities.ChangeLogEntity", b =>
+                {
+                    b.HasOne("GDriveLight.Infrastructure.Entities.DeviceEntity", "OriginDevice")
+                        .WithMany()
+                        .HasForeignKey("OriginDeviceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("GDriveLight.Infrastructure.Entities.ApplicationUserEntity", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OriginDevice");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("GDriveLight.Infrastructure.Entities.DeviceEntity", b =>
                 {
                     b.HasOne("GDriveLight.Infrastructure.Entities.ApplicationUserEntity", "User")
@@ -569,24 +595,6 @@ namespace GDriveLight.Infrastructure.Persistence.Migrations
                     b.Navigation("Owner");
 
                     b.Navigation("ParentFolder");
-                });
-
-            modelBuilder.Entity("GDriveLight.Infrastructure.Entities.SyncFileStateEntity", b =>
-                {
-                    b.HasOne("GDriveLight.Infrastructure.Entities.DriveFileEntity", "DriveFile")
-                        .WithMany()
-                        .HasForeignKey("DriveFileId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("GDriveLight.Infrastructure.Entities.SyncFolderEntity", "SyncFolder")
-                        .WithMany()
-                        .HasForeignKey("SyncFolderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("DriveFile");
-
-                    b.Navigation("SyncFolder");
                 });
 
             modelBuilder.Entity("GDriveLight.Infrastructure.Entities.SyncFolderEntity", b =>

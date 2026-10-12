@@ -34,7 +34,7 @@ public class DeleteFileCommandHandlerTests
     {
         var ownerId = Guid.NewGuid();
         var otherUserId = Guid.NewGuid();
-        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), ownerId);
+        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), 1024L, ownerId);
 
         _fileRepository.Setup(r => r.GetByIdAsync(file.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(file);
@@ -51,7 +51,7 @@ public class DeleteFileCommandHandlerTests
     public async Task Handle_WhenValid_DeletesFromDbAndStorage()
     {
         var ownerId = Guid.NewGuid();
-        var file = new DriveFile("doc.txt", "storage/doc.txt", 1, new string('0', 64), ownerId);
+        var file = new DriveFile("doc.txt", "storage/doc.txt", 1, new string('0', 64), 1024L, ownerId);
 
         _fileRepository.Setup(r => r.GetByIdAsync(file.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(file);

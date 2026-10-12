@@ -98,5 +98,5 @@ public class DownloadFileQueryHandlerTests
         _fileRepository.Object, _fileTypeRepository.Object, _fileStorageService.Object);
 
     private static DriveFile CreateFile(Guid ownerId) => new(
-        "report.txt", "stored-report.txt", 2, new string('a', 64), ownerId);
+        "report.txt", "stored-report.txt", 2, new string('a', 64), 1024L, ownerId);
 }

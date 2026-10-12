@@ -32,7 +32,7 @@ public class MoveFileCommandHandlerTests
     {
         var ownerId = Guid.NewGuid();
         var otherUserId = Guid.NewGuid();
-        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), ownerId);
+        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), 1024L, ownerId);
 
         _fileRepository.Setup(r => r.GetByIdAsync(file.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(file);
@@ -49,7 +49,7 @@ public class MoveFileCommandHandlerTests
     {
         var ownerId = Guid.NewGuid();
         var folderId = Guid.NewGuid();
-        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), ownerId, folderId);
+        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), 1024L, ownerId, folderId);
 
         _fileRepository.Setup(r => r.GetByIdAsync(file.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(file);
@@ -66,7 +66,7 @@ public class MoveFileCommandHandlerTests
     public async Task Handle_WhenDestinationFolderNotFound_ReturnsFailure()
     {
         var ownerId = Guid.NewGuid();
-        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), ownerId);
+        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), 1024L, ownerId);
         var targetFolderId = Guid.NewGuid();
 
         _fileRepository.Setup(r => r.GetByIdAsync(file.Id, It.IsAny<CancellationToken>()))
@@ -86,7 +86,7 @@ public class MoveFileCommandHandlerTests
     {
         var ownerId = Guid.NewGuid();
         var otherUserId = Guid.NewGuid();
-        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), ownerId);
+        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), 1024L, ownerId);
         var foreignFolder = new DriveFolder("Foreign", otherUserId);
 
         _fileRepository.Setup(r => r.GetByIdAsync(file.Id, It.IsAny<CancellationToken>()))
@@ -105,7 +105,7 @@ public class MoveFileCommandHandlerTests
     public async Task Handle_WhenNameConflictInDestinationFolder_ReturnsFailure()
     {
         var ownerId = Guid.NewGuid();
-        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), ownerId);
+        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), 1024L, ownerId);
         var targetFolder = new DriveFolder("Target", ownerId);
 
         _fileRepository.Setup(r => r.GetByIdAsync(file.Id, It.IsAny<CancellationToken>()))
@@ -126,7 +126,7 @@ public class MoveFileCommandHandlerTests
     public async Task Handle_WhenValidMoveToFolder_UpdatesFileAndSavesChanges()
     {
         var ownerId = Guid.NewGuid();
-        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), ownerId);
+        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), 1024L, ownerId);
         var targetFolder = new DriveFolder("Target", ownerId);
 
         _fileRepository.Setup(r => r.GetByIdAsync(file.Id, It.IsAny<CancellationToken>()))

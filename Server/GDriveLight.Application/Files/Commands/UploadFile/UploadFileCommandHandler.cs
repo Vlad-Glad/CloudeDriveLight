@@ -77,6 +77,7 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
             request.FileStream.Position = 0;
         }
 
+        var sizeBytes = request.FileStream.CanSeek ? request.FileStream.Length : 0L;
         var fileUrl = await _fileStorageService.SaveAsync(request.FileStream, request.FileName, cancellationToken);
 
         try
@@ -86,6 +87,7 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
                 fileUrl,
                 fileType.Id,
                 contentHash,
+                sizeBytes,
                 request.UserId,
                 request.FolderId
             );

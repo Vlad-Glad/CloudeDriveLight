@@ -10,6 +10,7 @@ public class DriveFileEntity
     public FileTypeEntity FileType { get; set; } = null!;
     
     public string ContentHash { get; set; } = string.Empty;
+    public long SizeBytes { get; set; }
     
     public Guid? FolderId { get; set; }
     public DriveFolderEntity? Folder { get; set; }

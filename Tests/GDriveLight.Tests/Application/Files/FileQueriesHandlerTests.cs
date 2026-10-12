@@ -33,7 +33,7 @@ public class FileQueriesHandlerTests
     {
         var ownerId = Guid.NewGuid();
         var otherUserId = Guid.NewGuid();
-        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), ownerId);
+        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), 1024L, ownerId);
 
         _fileRepository.Setup(r => r.GetByIdAsync(file.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(file);
@@ -49,7 +49,7 @@ public class FileQueriesHandlerTests
     public async Task GetFileById_WhenValid_ReturnsFileDto()
     {
         var userId = Guid.NewGuid();
-        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), userId);
+        var file = new DriveFile("doc.txt", "url", 1, new string('0', 64), 1024L, userId);
 
         _fileRepository.Setup(r => r.GetByIdAsync(file.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(file);
@@ -109,7 +109,7 @@ public class FileQueriesHandlerTests
         var folder = new DriveFolder("Folder", userId);
         var files = new List<DriveFile>
         {
-            new("file1.txt", "url1", 1, new string('0', 64), userId, folder.Id)
+            new("file1.txt", "url1", 1, new string('0', 64), 1024L, userId, folder.Id)
         };
 
         _folderRepository.Setup(r => r.GetByIdAsync(folder.Id, It.IsAny<CancellationToken>()))
@@ -131,8 +131,8 @@ public class FileQueriesHandlerTests
         var userId = Guid.NewGuid();
         var files = new List<DriveFile>
         {
-            new("root1.txt", "url1", 1, new string('0', 64), userId, null),
-            new("root2.txt", "url2", 1, new string('0', 64), userId, null)
+            new("root1.txt", "url1", 1, new string('0', 64), 1024L, userId, null),
+            new("root2.txt", "url2", 1, new string('0', 64), 1024L, userId, null)
         };
 
         _fileRepository.Setup(r => r.GetRootFilesForUserAsync(userId, It.IsAny<CancellationToken>()))
@@ -168,8 +168,8 @@ public class FileQueriesHandlerTests
         var userId = Guid.NewGuid();
         var files = new List<DriveFile>
         {
-            new("project_specs.docx", "url1", 1, new string('0', 64), userId),
-            new("project_budget.xlsx", "url2", 1, new string('0', 64), userId)
+            new("project_specs.docx", "url1", 1, new string('0', 64), 1024L, userId),
+            new("project_budget.xlsx", "url2", 1, new string('0', 64), 1024L, userId)
         };
 
         _fileRepository.Setup(r => r.SearchByNameAsync("project", userId, It.IsAny<CancellationToken>()))

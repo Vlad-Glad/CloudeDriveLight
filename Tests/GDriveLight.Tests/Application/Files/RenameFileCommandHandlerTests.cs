@@ -31,7 +31,7 @@ public class RenameFileCommandHandlerTests
     {
         var ownerId = Guid.NewGuid();
         var otherUserId = Guid.NewGuid();
-        var file = new DriveFile("old.txt", "url", 1, new string('0', 64), ownerId);
+        var file = new DriveFile("old.txt", "url", 1, new string('0', 64), 1024L, ownerId);
 
         _fileRepository.Setup(r => r.GetByIdAsync(file.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(file);
@@ -47,7 +47,7 @@ public class RenameFileCommandHandlerTests
     public async Task Handle_WhenNameUnchanged_ReturnsSuccessImmediately()
     {
         var ownerId = Guid.NewGuid();
-        var file = new DriveFile("same.txt", "url", 1, new string('0', 64), ownerId);
+        var file = new DriveFile("same.txt", "url", 1, new string('0', 64), 1024L, ownerId);
 
         _fileRepository.Setup(r => r.GetByIdAsync(file.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(file);
@@ -64,7 +64,7 @@ public class RenameFileCommandHandlerTests
     public async Task Handle_WhenFileNameConflictInSameFolder_ReturnsFailure()
     {
         var ownerId = Guid.NewGuid();
-        var file = new DriveFile("old.txt", "url", 1, new string('0', 64), ownerId);
+        var file = new DriveFile("old.txt", "url", 1, new string('0', 64), 1024L, ownerId);
 
         _fileRepository.Setup(r => r.GetByIdAsync(file.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(file);
@@ -82,7 +82,7 @@ public class RenameFileCommandHandlerTests
     public async Task Handle_WhenValidNewName_RenamesFileAndSavesChanges()
     {
         var ownerId = Guid.NewGuid();
-        var file = new DriveFile("old.txt", "url", 1, new string('0', 64), ownerId);
+        var file = new DriveFile("old.txt", "url", 1, new string('0', 64), 1024L, ownerId);
 
         _fileRepository.Setup(r => r.GetByIdAsync(file.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(file);

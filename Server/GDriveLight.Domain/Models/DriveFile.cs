@@ -16,6 +16,8 @@ public class DriveFile
 
     public string ContentHash { get; private set; }
 
+    public long SizeBytes { get; private set; }
+
     public Guid? FolderId { get; private set; }
 
     public Guid OwnerId { get; private set; }
@@ -32,6 +34,7 @@ public class DriveFile
         string fileUrl,
         int fileTypeId,
         string contentHash,
+        long sizeBytes,
         Guid ownerId,
         Guid? folderId = null)
     {
@@ -39,6 +42,7 @@ public class DriveFile
         ValidateFileUrl(fileUrl);
         ValidateFileTypeId(fileTypeId);
         ValidateContentHash(contentHash);
+        ValidateSizeBytes(sizeBytes);
         ValidateGuid(ownerId, nameof(ownerId));
 
         if (folderId.HasValue && folderId.Value == Guid.Empty)
@@ -52,6 +56,7 @@ public class DriveFile
         FileUrl = fileUrl;
         FileTypeId = fileTypeId;
         ContentHash = contentHash;
+        SizeBytes = sizeBytes;
 
         OwnerId = ownerId;
         FolderId = folderId;
@@ -90,14 +95,17 @@ public class DriveFile
     public void UpdateContent(
         string fileUrl,
         string contentHash,
+        long sizeBytes,
         Guid editedByUserId)
     {
         ValidateFileUrl(fileUrl);
         ValidateContentHash(contentHash);
+        ValidateSizeBytes(sizeBytes);
         ValidateGuid(editedByUserId, nameof(editedByUserId));
 
         FileUrl = fileUrl;
         ContentHash = contentHash;
+        SizeBytes = sizeBytes;
 
         EditedByUserId = editedByUserId;
         EditedAtUtc = DateTime.UtcNow;
@@ -143,6 +151,15 @@ public class DriveFile
             throw new ArgumentException(
                 $"Content hash cannot exceed {MaxContentHashLength} characters.",
                 nameof(contentHash));
+    }
+
+
+    private static void ValidateSizeBytes(long sizeBytes)
+    {
+        if (sizeBytes < 0)
+            throw new ArgumentOutOfRangeException(
+                nameof(sizeBytes),
+                "File size cannot be negative.");
     }
 
 

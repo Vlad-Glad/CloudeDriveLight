@@ -24,6 +24,10 @@ public class DriveFileConfiguration : IEntityTypeConfiguration<DriveFileEntity>
             .IsRequired()
             .HasMaxLength(128);
 
+        builder.Property(f => f.SizeBytes)
+            .IsRequired()
+            .HasDefaultValue(0L);
+
         // Relationships
         builder.HasOne(f => f.FileType)
             .WithMany()
