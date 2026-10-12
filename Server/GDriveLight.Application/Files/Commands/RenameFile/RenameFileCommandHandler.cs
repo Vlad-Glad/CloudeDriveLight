@@ -1,5 +1,7 @@
 using GDriveLight.Application.Abstractions.Repositories;
 using GDriveLight.Application.Common.Models;
+using GDriveLight.Domain.Enums;
+using GDriveLight.Domain.Models;
 using MediatR;
 
 namespace GDriveLight.Application.Files.Commands;
@@ -7,11 +9,16 @@ namespace GDriveLight.Application.Files.Commands;
 public class RenameFileCommandHandler : IRequestHandler<RenameFileCommand, Result>
 {
     private readonly IDriveFileRepository _fileRepository;
+    private readonly IChangeLogRepository _changeLogRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public RenameFileCommandHandler(IDriveFileRepository fileRepository, IUnitOfWork unitOfWork)
+    public RenameFileCommandHandler(
+        IDriveFileRepository fileRepository,
+        IChangeLogRepository changeLogRepository,
+        IUnitOfWork unitOfWork)
     {
         _fileRepository = fileRepository;
+        _changeLogRepository = changeLogRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -42,6 +49,18 @@ public class RenameFileCommandHandler : IRequestHandler<RenameFileCommand, Resul
         file.Rename(request.NewName);
         
         _fileRepository.Update(file);
+
+        var changeLog = ChangeLogEntry.CreateFileChange(
+            file.Id,
+            ChangeType.Renamed,
+            request.UserId,
+            file.FolderId,
+            file.Name,
+            file.ContentHash,
+            file.SizeBytes,
+            request.OriginDeviceId);
+        await _changeLogRepository.AddAsync(changeLog, cancellationToken);
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success();

@@ -2,6 +2,12 @@ using GDriveLight.Domain.Models;
 
 namespace GDriveLight.Application.Abstractions.Repositories;
 
+public record FolderCascadeDeleteResult(
+    IReadOnlyList<DriveFolder> DeletedFolders,
+    IReadOnlyList<DriveFile> DeletedFiles,
+    IReadOnlyList<string> FileUrls
+);
+
 public interface IDriveFolderRepository
 {
     Task<DriveFolder?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
@@ -18,5 +24,5 @@ public interface IDriveFolderRepository
 
     void Delete(DriveFolder folder);
 
-    Task<IEnumerable<string>> DeleteRecursivelyAsync(Guid folderId, CancellationToken cancellationToken = default);
+    Task<FolderCascadeDeleteResult> DeleteRecursivelyAsync(Guid folderId, CancellationToken cancellationToken = default);
 }

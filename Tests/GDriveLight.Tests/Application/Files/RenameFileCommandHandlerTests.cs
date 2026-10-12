@@ -1,5 +1,6 @@
 using GDriveLight.Application.Abstractions.Repositories;
 using GDriveLight.Application.Files.Commands;
+using GDriveLight.Domain.Enums;
 using GDriveLight.Domain.Models;
 using Moq;
 
@@ -8,6 +9,7 @@ namespace GDriveLight.Tests.Application.Files;
 public class RenameFileCommandHandlerTests
 {
     private readonly Mock<IDriveFileRepository> _fileRepository = new(MockBehavior.Strict);
+    private readonly Mock<IChangeLogRepository> _changeLogRepository = new(MockBehavior.Strict);
     private readonly Mock<IUnitOfWork> _unitOfWork = new(MockBehavior.Strict);
 
     [Fact]
@@ -24,6 +26,7 @@ public class RenameFileCommandHandlerTests
 
         Assert.True(result.IsFailure);
         Assert.Contains("was not found", result.Error);
+        _changeLogRepository.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -41,6 +44,7 @@ public class RenameFileCommandHandlerTests
 
         Assert.True(result.IsFailure);
         Assert.Contains("permission", result.Error);
+        _changeLogRepository.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -57,6 +61,7 @@ public class RenameFileCommandHandlerTests
 
         Assert.True(result.IsSuccess);
         _fileRepository.Verify(r => r.Update(It.IsAny<DriveFile>()), Times.Never);
+        _changeLogRepository.VerifyNoOtherCalls();
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -76,6 +81,7 @@ public class RenameFileCommandHandlerTests
 
         Assert.True(result.IsFailure);
         Assert.Contains("already exists", result.Error);
+        _changeLogRepository.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -89,6 +95,12 @@ public class RenameFileCommandHandlerTests
         _fileRepository.Setup(r => r.ExistsAsync("new.txt", file.FolderId, ownerId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         _fileRepository.Setup(r => r.Update(file));
+        _changeLogRepository.Setup(r => r.AddAsync(It.Is<ChangeLogEntry>(e =>
+                e.ResourceType == ResourceType.File &&
+                e.EventType == ChangeType.Renamed &&
+                e.ResourceId == file.Id &&
+                e.Name == "new.txt"), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
         _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
@@ -98,9 +110,10 @@ public class RenameFileCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Equal("new.txt", file.Name);
         _fileRepository.Verify(r => r.Update(file), Times.Once);
+        _changeLogRepository.Verify(r => r.AddAsync(It.IsAny<ChangeLogEntry>(), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     private RenameFileCommandHandler CreateHandler() =>
-        new(_fileRepository.Object, _unitOfWork.Object);
+        new(_fileRepository.Object, _changeLogRepository.Object, _unitOfWork.Object);
 }

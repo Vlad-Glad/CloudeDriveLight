@@ -1,5 +1,7 @@
 using GDriveLight.Application.Abstractions.Repositories;
 using GDriveLight.Application.Common.Models;
+using GDriveLight.Domain.Enums;
+using GDriveLight.Domain.Models;
 using MediatR;
 
 namespace GDriveLight.Application.Folders.Commands;
@@ -7,11 +9,16 @@ namespace GDriveLight.Application.Folders.Commands;
 public class MoveFolderCommandHandler : IRequestHandler<MoveFolderCommand, Result>
 {
     private readonly IDriveFolderRepository _folderRepository;
+    private readonly IChangeLogRepository _changeLogRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public MoveFolderCommandHandler(IDriveFolderRepository folderRepository, IUnitOfWork unitOfWork)
+    public MoveFolderCommandHandler(
+        IDriveFolderRepository folderRepository,
+        IChangeLogRepository changeLogRepository,
+        IUnitOfWork unitOfWork)
     {
         _folderRepository = folderRepository;
+        _changeLogRepository = changeLogRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -27,6 +34,11 @@ public class MoveFolderCommandHandler : IRequestHandler<MoveFolderCommand, Resul
         if (folder.OwnerId != request.UserId)
         {
             return Result.Failure("You do not have permission to modify this folder.");
+        }
+
+        if (folder.ParentFolderId == request.NewParentFolderId)
+        {
+            return Result.Success();
         }
 
         if (request.NewParentFolderId.HasValue)
@@ -79,6 +91,16 @@ public class MoveFolderCommandHandler : IRequestHandler<MoveFolderCommand, Resul
         {
             folder.MoveTo(request.NewParentFolderId);
             _folderRepository.Update(folder);
+
+            var changeLog = ChangeLogEntry.CreateFolderChange(
+                folder.Id,
+                ChangeType.Moved,
+                request.UserId,
+                folder.ParentFolderId,
+                folder.Name,
+                request.OriginDeviceId);
+            await _changeLogRepository.AddAsync(changeLog, cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Result.Success();

@@ -1,6 +1,7 @@
 using GDriveLight.Application.Abstractions.Repositories;
 using GDriveLight.Application.Abstractions.Services;
 using GDriveLight.Application.Files.Commands;
+using GDriveLight.Domain.Enums;
 using GDriveLight.Domain.Models;
 using Moq;
 
@@ -10,6 +11,7 @@ public class DeleteFileCommandHandlerTests
 {
     private readonly Mock<IDriveFileRepository> _fileRepository = new(MockBehavior.Strict);
     private readonly Mock<IFileStorageService> _fileStorageService = new(MockBehavior.Strict);
+    private readonly Mock<IChangeLogRepository> _changeLogRepository = new(MockBehavior.Strict);
     private readonly Mock<IUnitOfWork> _unitOfWork = new(MockBehavior.Strict);
 
     [Fact]
@@ -27,6 +29,7 @@ public class DeleteFileCommandHandlerTests
         Assert.True(result.IsFailure);
         Assert.Contains("was not found", result.Error);
         _fileStorageService.VerifyNoOtherCalls();
+        _changeLogRepository.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -45,6 +48,7 @@ public class DeleteFileCommandHandlerTests
         Assert.True(result.IsFailure);
         Assert.Contains("permission", result.Error);
         _fileStorageService.VerifyNoOtherCalls();
+        _changeLogRepository.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -56,6 +60,11 @@ public class DeleteFileCommandHandlerTests
         _fileRepository.Setup(r => r.GetByIdAsync(file.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(file);
         _fileRepository.Setup(r => r.Delete(file));
+        _changeLogRepository.Setup(r => r.AddAsync(It.Is<ChangeLogEntry>(e =>
+                e.ResourceId == file.Id &&
+                e.EventType == ChangeType.Deleted &&
+                e.ResourceType == ResourceType.File), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
         _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
         _fileStorageService.Setup(s => s.DeleteAsync(file.FileUrl, It.IsAny<CancellationToken>()))
@@ -66,10 +75,11 @@ public class DeleteFileCommandHandlerTests
 
         Assert.True(result.IsSuccess);
         _fileRepository.Verify(r => r.Delete(file), Times.Once);
+        _changeLogRepository.Verify(r => r.AddAsync(It.IsAny<ChangeLogEntry>(), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         _fileStorageService.Verify(s => s.DeleteAsync(file.FileUrl, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     private DeleteFileCommandHandler CreateHandler() =>
-        new(_fileRepository.Object, _fileStorageService.Object, _unitOfWork.Object);
+        new(_fileRepository.Object, _fileStorageService.Object, _changeLogRepository.Object, _unitOfWork.Object);
 }

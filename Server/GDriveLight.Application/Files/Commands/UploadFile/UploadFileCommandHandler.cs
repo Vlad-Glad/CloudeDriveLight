@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using GDriveLight.Application.Abstractions.Repositories;
 using GDriveLight.Application.Abstractions.Services;
 using GDriveLight.Application.Common.Models;
+using GDriveLight.Domain.Enums;
 using GDriveLight.Domain.Models;
 using MediatR;
 
@@ -13,6 +14,7 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
     private readonly IDriveFolderRepository _folderRepository;
     private readonly IFileTypeRepository _fileTypeRepository;
     private readonly IFileStorageService _fileStorageService;
+    private readonly IChangeLogRepository _changeLogRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public UploadFileCommandHandler(
@@ -20,12 +22,14 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
         IDriveFolderRepository folderRepository,
         IFileTypeRepository fileTypeRepository,
         IFileStorageService fileStorageService,
+        IChangeLogRepository changeLogRepository,
         IUnitOfWork unitOfWork)
     {
         _fileRepository = fileRepository;
         _folderRepository = folderRepository;
         _fileTypeRepository = fileTypeRepository;
         _fileStorageService = fileStorageService;
+        _changeLogRepository = changeLogRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -93,6 +97,18 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
             );
 
             await _fileRepository.AddAsync(driveFile, cancellationToken);
+
+            var changeLog = ChangeLogEntry.CreateFileChange(
+                driveFile.Id,
+                ChangeType.Created,
+                request.UserId,
+                request.FolderId,
+                request.FileName,
+                contentHash,
+                sizeBytes,
+                request.OriginDeviceId);
+            await _changeLogRepository.AddAsync(changeLog, cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Result<Guid>.Success(driveFile.Id);

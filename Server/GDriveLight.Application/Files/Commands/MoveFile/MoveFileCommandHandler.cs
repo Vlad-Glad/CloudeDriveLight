@@ -1,5 +1,7 @@
 using GDriveLight.Application.Abstractions.Repositories;
 using GDriveLight.Application.Common.Models;
+using GDriveLight.Domain.Enums;
+using GDriveLight.Domain.Models;
 using MediatR;
 
 namespace GDriveLight.Application.Files.Commands;
@@ -8,15 +10,18 @@ public class MoveFileCommandHandler : IRequestHandler<MoveFileCommand, Result>
 {
     private readonly IDriveFileRepository _fileRepository;
     private readonly IDriveFolderRepository _folderRepository;
+    private readonly IChangeLogRepository _changeLogRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public MoveFileCommandHandler(
         IDriveFileRepository fileRepository,
         IDriveFolderRepository folderRepository,
+        IChangeLogRepository changeLogRepository,
         IUnitOfWork unitOfWork)
     {
         _fileRepository = fileRepository;
         _folderRepository = folderRepository;
+        _changeLogRepository = changeLogRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -61,6 +66,18 @@ public class MoveFileCommandHandler : IRequestHandler<MoveFileCommand, Result>
         file.MoveTo(request.NewFolderId);
 
         _fileRepository.Update(file);
+
+        var changeLog = ChangeLogEntry.CreateFileChange(
+            file.Id,
+            ChangeType.Moved,
+            request.UserId,
+            file.FolderId,
+            file.Name,
+            file.ContentHash,
+            file.SizeBytes,
+            request.OriginDeviceId);
+        await _changeLogRepository.AddAsync(changeLog, cancellationToken);
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success();

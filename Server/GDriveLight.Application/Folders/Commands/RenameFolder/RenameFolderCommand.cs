@@ -6,4 +6,5 @@ namespace GDriveLight.Application.Folders.Commands;
 public record RenameFolderCommand(
     Guid FolderId,
     string NewName,
-    Guid OwnerId) : IRequest<Result>;
+    Guid OwnerId,
+    Guid? OriginDeviceId = null) : IRequest<Result>;

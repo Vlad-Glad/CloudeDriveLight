@@ -7,4 +7,6 @@ public record UploadFileCommand(
     string FileName,
     Stream FileStream,
     Guid UserId,
-    Guid? FolderId) : IRequest<Result<Guid>>;
+    Guid? FolderId,
+    Guid? OriginDeviceId = null) : IRequest<Result<Guid>>;
+

@@ -6,4 +6,5 @@ namespace GDriveLight.Application.Folders.Commands;
 public record CreateFolderCommand(
     string Name,
     Guid OwnerId,
-    Guid? ParentFolderId = null) : IRequest<Result<Guid>>;
+    Guid? ParentFolderId = null,
+    Guid? OriginDeviceId = null) : IRequest<Result<Guid>>;

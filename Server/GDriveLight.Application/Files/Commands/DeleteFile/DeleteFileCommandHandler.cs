@@ -1,6 +1,8 @@
 using GDriveLight.Application.Abstractions.Repositories;
 using GDriveLight.Application.Abstractions.Services;
 using GDriveLight.Application.Common.Models;
+using GDriveLight.Domain.Enums;
+using GDriveLight.Domain.Models;
 using MediatR;
 
 namespace GDriveLight.Application.Files.Commands;
@@ -9,15 +11,18 @@ public class DeleteFileCommandHandler : IRequestHandler<DeleteFileCommand, Resul
 {
     private readonly IDriveFileRepository _fileRepository;
     private readonly IFileStorageService _fileStorageService;
+    private readonly IChangeLogRepository _changeLogRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public DeleteFileCommandHandler(
         IDriveFileRepository fileRepository,
         IFileStorageService fileStorageService,
+        IChangeLogRepository changeLogRepository,
         IUnitOfWork unitOfWork)
     {
         _fileRepository = fileRepository;
         _fileStorageService = fileStorageService;
+        _changeLogRepository = changeLogRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -35,6 +40,18 @@ public class DeleteFileCommandHandler : IRequestHandler<DeleteFileCommand, Resul
         }
 
         _fileRepository.Delete(file);
+
+        var changeLog = ChangeLogEntry.CreateFileChange(
+            file.Id,
+            ChangeType.Deleted,
+            request.UserId,
+            file.FolderId,
+            file.Name,
+            file.ContentHash,
+            file.SizeBytes,
+            request.OriginDeviceId);
+        await _changeLogRepository.AddAsync(changeLog, cancellationToken);
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         await _fileStorageService.DeleteAsync(file.FileUrl, cancellationToken);

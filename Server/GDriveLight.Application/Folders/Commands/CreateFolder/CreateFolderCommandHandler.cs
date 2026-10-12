@@ -1,5 +1,6 @@
 using GDriveLight.Application.Abstractions.Repositories;
 using GDriveLight.Application.Common.Models;
+using GDriveLight.Domain.Enums;
 using GDriveLight.Domain.Models;
 using MediatR;
 
@@ -8,13 +9,16 @@ namespace GDriveLight.Application.Folders.Commands;
 public class CreateFolderCommandHandler : IRequestHandler<CreateFolderCommand, Result<Guid>>
 {
     private readonly IDriveFolderRepository _folderRepository;
+    private readonly IChangeLogRepository _changeLogRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateFolderCommandHandler(
         IDriveFolderRepository folderRepository,
+        IChangeLogRepository changeLogRepository,
         IUnitOfWork unitOfWork)
     {
         _folderRepository = folderRepository;
+        _changeLogRepository = changeLogRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -29,6 +33,15 @@ public class CreateFolderCommandHandler : IRequestHandler<CreateFolderCommand, R
         var folder = new DriveFolder(request.Name, request.OwnerId, request.ParentFolderId);
 
         await _folderRepository.AddAsync(folder, cancellationToken);
+
+        var changeLog = ChangeLogEntry.CreateFolderChange(
+            folder.Id,
+            ChangeType.Created,
+            request.OwnerId,
+            folder.ParentFolderId,
+            folder.Name,
+            request.OriginDeviceId);
+        await _changeLogRepository.AddAsync(changeLog, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

@@ -76,7 +76,7 @@ public class DriveFolderRepository : IDriveFolderRepository
         _dbContext.DriveFolders.Remove(folder.ToEntity());
     }
 
-    public async Task<IEnumerable<string>> DeleteRecursivelyAsync(Guid folderId, CancellationToken cancellationToken = default)
+    public async Task<FolderCascadeDeleteResult> DeleteRecursivelyAsync(Guid folderId, CancellationToken cancellationToken = default)
     {
         var foldersToDelete = new List<DriveFolderEntity>();
         await CollectFoldersRecursively(folderId, foldersToDelete, cancellationToken);
@@ -89,12 +89,15 @@ public class DriveFolderRepository : IDriveFolderRepository
 
         var fileUrls = filesToDelete.Select(f => f.FileUrl).ToList();
 
+        var domainFolders = foldersToDelete.Select(f => f.ToDomain()).ToList();
+        var domainFiles = filesToDelete.Select(f => f.ToDomain()).ToList();
+
         _dbContext.DriveFiles.RemoveRange(filesToDelete);
 
         foldersToDelete.Reverse();
         _dbContext.DriveFolders.RemoveRange(foldersToDelete);
 
-        return fileUrls;
+        return new FolderCascadeDeleteResult(domainFolders, domainFiles, fileUrls);
     }
 
     private async Task CollectFoldersRecursively(Guid folderId, List<DriveFolderEntity> result, CancellationToken cancellationToken)

@@ -2,6 +2,7 @@ using System.Text;
 using GDriveLight.Application.Abstractions.Repositories;
 using GDriveLight.Application.Abstractions.Services;
 using GDriveLight.Application.Files.Commands;
+using GDriveLight.Domain.Enums;
 using GDriveLight.Domain.Models;
 using Moq;
 
@@ -13,6 +14,7 @@ public class UploadFileCommandHandlerTests
     private readonly Mock<IDriveFolderRepository> _folderRepository = new(MockBehavior.Strict);
     private readonly Mock<IFileTypeRepository> _fileTypeRepository = new(MockBehavior.Strict);
     private readonly Mock<IFileStorageService> _fileStorageService = new(MockBehavior.Strict);
+    private readonly Mock<IChangeLogRepository> _changeLogRepository = new(MockBehavior.Strict);
     private readonly Mock<IUnitOfWork> _unitOfWork = new(MockBehavior.Strict);
 
     [Fact]
@@ -111,6 +113,12 @@ public class UploadFileCommandHandlerTests
             .ReturnsAsync(savedUrl);
         _fileRepository.Setup(r => r.AddAsync(It.Is<DriveFile>(f => f.Name == "doc.txt" && f.FileUrl == savedUrl), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
+        _changeLogRepository.Setup(r => r.AddAsync(It.Is<ChangeLogEntry>(e =>
+                e.ResourceType == ResourceType.File &&
+                e.EventType == ChangeType.Created &&
+                e.Name == "doc.txt" &&
+                e.UserId == userId), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
         _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
@@ -122,6 +130,7 @@ public class UploadFileCommandHandlerTests
         Assert.NotEqual(Guid.Empty, result.Value);
         _fileStorageService.Verify(s => s.SaveAsync(stream, "doc.txt", It.IsAny<CancellationToken>()), Times.Once);
         _fileRepository.Verify(r => r.AddAsync(It.IsAny<DriveFile>(), It.IsAny<CancellationToken>()), Times.Once);
+        _changeLogRepository.Verify(r => r.AddAsync(It.IsAny<ChangeLogEntry>(), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -153,7 +162,7 @@ public class UploadFileCommandHandlerTests
     }
 
     private UploadFileCommandHandler CreateHandler() =>
-        new(_fileRepository.Object, _folderRepository.Object, _fileTypeRepository.Object, _fileStorageService.Object, _unitOfWork.Object);
+        new(_fileRepository.Object, _folderRepository.Object, _fileTypeRepository.Object, _fileStorageService.Object, _changeLogRepository.Object, _unitOfWork.Object);
 
     private static FileType CreateFileType(int id, string extension = ".txt")
     {

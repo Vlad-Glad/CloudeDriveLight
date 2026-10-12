@@ -1,5 +1,6 @@
 using GDriveLight.Application.Abstractions.Repositories;
 using GDriveLight.Application.Folders.Commands;
+using GDriveLight.Domain.Enums;
 using GDriveLight.Domain.Models;
 using Moq;
 
@@ -8,6 +9,7 @@ namespace GDriveLight.Tests.Application.Folders;
 public class MoveFolderCommandHandlerTests
 {
     private readonly Mock<IDriveFolderRepository> _folderRepository = new(MockBehavior.Strict);
+    private readonly Mock<IChangeLogRepository> _changeLogRepository = new(MockBehavior.Strict);
     private readonly Mock<IUnitOfWork> _unitOfWork = new(MockBehavior.Strict);
 
     [Fact]
@@ -154,6 +156,12 @@ public class MoveFolderCommandHandlerTests
         _folderRepository.Setup(r => r.ExistsAsync(folder.Name, targetParent.Id, userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         _folderRepository.Setup(r => r.Update(folder));
+        _changeLogRepository.Setup(r => r.AddAsync(It.Is<ChangeLogEntry>(e =>
+                e.ResourceType == ResourceType.Folder &&
+                e.EventType == ChangeType.Moved &&
+                e.ResourceId == folder.Id &&
+                e.ParentFolderId == targetParent.Id), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
         _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
@@ -163,6 +171,7 @@ public class MoveFolderCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Equal(targetParent.Id, folder.ParentFolderId);
         _folderRepository.Verify(r => r.Update(folder), Times.Once);
+        _changeLogRepository.Verify(r => r.AddAsync(It.IsAny<ChangeLogEntry>(), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -178,6 +187,12 @@ public class MoveFolderCommandHandlerTests
         _folderRepository.Setup(r => r.ExistsAsync(folder.Name, null, userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         _folderRepository.Setup(r => r.Update(folder));
+        _changeLogRepository.Setup(r => r.AddAsync(It.Is<ChangeLogEntry>(e =>
+                e.ResourceType == ResourceType.Folder &&
+                e.EventType == ChangeType.Moved &&
+                e.ResourceId == folder.Id &&
+                e.ParentFolderId == null), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
         _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
@@ -187,9 +202,10 @@ public class MoveFolderCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Null(folder.ParentFolderId);
         _folderRepository.Verify(r => r.Update(folder), Times.Once);
+        _changeLogRepository.Verify(r => r.AddAsync(It.IsAny<ChangeLogEntry>(), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     private MoveFolderCommandHandler CreateHandler() =>
-        new(_folderRepository.Object, _unitOfWork.Object);
+        new(_folderRepository.Object, _changeLogRepository.Object, _unitOfWork.Object);
 }
