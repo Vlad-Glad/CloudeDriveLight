@@ -16,6 +16,7 @@ public static class DependencyInjection
         services.AddSingleton<IDriveApiService, DriveApiService>();
         services.AddSingleton<IFileDialogService, FileDialogService>();
         services.AddSingleton<IUserDialogService, UserDialogService>();
+        services.AddSingleton<Data.ILocalSyncDbContextFactory, Data.LocalSyncDbContextFactory>();
         services.AddScoped<LoginViewModel>();
         services.AddScoped<LoginWindow>();
         services.AddScoped<MainWindowViewModel>();
