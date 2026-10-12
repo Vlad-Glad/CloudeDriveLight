@@ -124,6 +124,53 @@ public class UpdateFileContentCommandHandlerTests
         _fileStorageService.Verify(s => s.DeleteAsync(oldUrl, It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact]
+    public async Task Handle_WhenOriginDeviceIdSpecified_CalculatesSha256AndPassesOriginDeviceIdToChangeLog()
+    {
+        var ownerId = Guid.NewGuid();
+        var originDeviceId = Guid.NewGuid();
+        var oldUrl = "storage/old.txt";
+        var newUrl = "storage/new.txt";
+        var file = new DriveFile("test.txt", oldUrl, 1, new string('0', 64), 100L, ownerId);
+        var bytes = Encoding.UTF8.GetBytes("hello world content");
+        using var stream = new MemoryStream(bytes);
+
+        string expectedHash;
+        using (var sha256 = System.Security.Cryptography.SHA256.Create())
+        {
+            var hashBytes = sha256.ComputeHash(bytes);
+            expectedHash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+        }
+
+        _fileRepository.Setup(r => r.GetByIdAsync(file.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(file);
+        _fileStorageService.Setup(s => s.SaveAsync(stream, "test.txt", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(newUrl);
+        _fileRepository.Setup(r => r.Update(file));
+        _changeLogRepository.Setup(r => r.AddAsync(It.Is<ChangeLogEntry>(e =>
+                e.ResourceId == file.Id &&
+                e.EventType == ChangeType.Modified &&
+                e.ResourceType == ResourceType.File &&
+                e.ContentHash == expectedHash &&
+                e.SizeBytes == bytes.Length &&
+                e.OriginDeviceId == originDeviceId), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+        _fileStorageService.Setup(s => s.DeleteAsync(oldUrl, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var handler = CreateHandler();
+        var result = await handler.Handle(
+            new UpdateFileContentCommand(file.Id, stream, ownerId, originDeviceId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expectedHash, file.ContentHash);
+        Assert.Equal(bytes.Length, file.SizeBytes);
+        _changeLogRepository.Verify(r => r.AddAsync(It.IsAny<ChangeLogEntry>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private UpdateFileContentCommandHandler CreateHandler() =>
         new(_fileRepository.Object, _fileStorageService.Object, _changeLogRepository.Object, _unitOfWork.Object);
 }
+

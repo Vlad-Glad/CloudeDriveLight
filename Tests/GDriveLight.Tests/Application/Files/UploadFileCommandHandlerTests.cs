@@ -161,8 +161,45 @@ public class UploadFileCommandHandlerTests
         _fileStorageService.Verify(s => s.DeleteAsync(savedUrl, It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task Handle_WhenOriginDeviceIdProvided_RecordsOriginDeviceIdInChangeLog()
+    {
+        var userId = Guid.NewGuid();
+        var originDeviceId = Guid.NewGuid();
+        var content = "Device upload test";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(content));
+        var fileType = CreateFileType(1);
+        var savedUrl = "storage/device-doc.txt";
+
+        _fileTypeRepository.Setup(r => r.GetByExtensionAsync(".txt", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(fileType);
+        _fileRepository.Setup(r => r.ExistsAsync("doc.txt", null, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _fileStorageService.Setup(s => s.SaveAsync(stream, "doc.txt", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(savedUrl);
+        _fileRepository.Setup(r => r.AddAsync(It.IsAny<DriveFile>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _changeLogRepository.Setup(r => r.AddAsync(It.Is<ChangeLogEntry>(e =>
+                e.ResourceType == ResourceType.File &&
+                e.EventType == ChangeType.Created &&
+                e.Name == "doc.txt" &&
+                e.UserId == userId &&
+                e.OriginDeviceId == originDeviceId), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+
+        var handler = CreateHandler();
+        var command = new UploadFileCommand("doc.txt", stream, userId, null, originDeviceId);
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        _changeLogRepository.Verify(r => r.AddAsync(It.IsAny<ChangeLogEntry>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private UploadFileCommandHandler CreateHandler() =>
         new(_fileRepository.Object, _folderRepository.Object, _fileTypeRepository.Object, _fileStorageService.Object, _changeLogRepository.Object, _unitOfWork.Object);
+
 
     private static FileType CreateFileType(int id, string extension = ".txt")
     {

@@ -86,6 +86,34 @@ public class CreateFolderCommandHandlerTests
         Assert.NotEqual(Guid.Empty, result.Value);
     }
 
+    [Fact]
+    public async Task Handle_WhenOriginDeviceIdProvided_RecordsOriginDeviceIdInChangeLog()
+    {
+        var ownerId = Guid.NewGuid();
+        var originDeviceId = Guid.NewGuid();
+        var folderName = "DeviceFolder";
+        _folderRepository.Setup(r => r.ExistsAsync(folderName, null, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _folderRepository.Setup(r => r.AddAsync(It.IsAny<DriveFolder>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _changeLogRepository.Setup(r => r.AddAsync(It.Is<ChangeLogEntry>(e =>
+                e.ResourceType == ResourceType.Folder &&
+                e.EventType == ChangeType.Created &&
+                e.Name == folderName &&
+                e.UserId == ownerId &&
+                e.OriginDeviceId == originDeviceId), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+
+        var handler = CreateHandler();
+        var result = await handler.Handle(new CreateFolderCommand(folderName, ownerId, null, originDeviceId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        _changeLogRepository.Verify(r => r.AddAsync(It.IsAny<ChangeLogEntry>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private CreateFolderCommandHandler CreateHandler() =>
         new(_folderRepository.Object, _changeLogRepository.Object, _unitOfWork.Object);
 }
+
