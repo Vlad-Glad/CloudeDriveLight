@@ -43,7 +43,7 @@ public sealed class DriveApiServiceTests
     }
 
     [Fact]
-    public async Task ChangingServerClearsTheBearerToken()
+    public async Task LogoutClearsTheBearerToken()
     {
         var requests = new List<(Uri? Uri, string? Token)>();
         using var client = new HttpClient(new StubHandler((request, _) =>
@@ -57,16 +57,11 @@ public sealed class DriveApiServiceTests
         var service = new DriveApiService(client);
         service.SetAuthToken("old-session");
         await service.GetFilesAsync(null);
-        service.SetServerUrl("https://another.example/service/");
-        await service.GetFilesAsync(null);
-        service.SetAuthToken("new-session");
         service.Logout();
         await service.GetFilesAsync(null);
 
         Assert.Equal("old-session", requests[0].Token);
         Assert.Null(requests[1].Token);
-        Assert.Equal("https://another.example/service/api/files", requests[1].Uri?.AbsoluteUri);
-        Assert.Null(requests[2].Token);
         Assert.Null(client.DefaultRequestHeaders.Authorization);
     }
 
@@ -87,19 +82,6 @@ public sealed class DriveApiServiceTests
 
         Assert.Equal("new-session", await service.LoginAsync("a@b.com", "password"));
         Assert.True(content.WasDisposed);
-    }
-
-    [Theory]
-    [InlineData("")]
-    [InlineData("not a URL")]
-    [InlineData("ftp://example.com")]
-    [InlineData("https://user:password@example.com")]
-    [InlineData("https://example.com/?token=123")]
-    [InlineData("https://example.com/#fragment")]
-    public void InvalidServerAddressIsRejected(string address)
-    {
-        using var client = new HttpClient();
-        Assert.Throws<ArgumentException>(() => new DriveApiService(client).SetServerUrl(address));
     }
 
     private sealed class StubHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) : HttpMessageHandler

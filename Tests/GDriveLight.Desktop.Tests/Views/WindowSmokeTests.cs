@@ -26,7 +26,6 @@ public sealed class WindowSmokeTests
                 stage = "loading resources";
                 application.InitializeComponent();
                 var api = new Mock<IDriveApiService>(MockBehavior.Strict);
-                api.Setup(service => service.GetServerUrl()).Returns("https://localhost:7220");
                 api.Setup(service => service.GetFolderContentAsync(null, It.IsAny<CancellationToken>()))
                     .ReturnsAsync(new[] { new FolderResponse(Guid.NewGuid(), "Documents", null, Guid.NewGuid()) });
                 api.Setup(service => service.GetFilesAsync(null, It.IsAny<CancellationToken>()))

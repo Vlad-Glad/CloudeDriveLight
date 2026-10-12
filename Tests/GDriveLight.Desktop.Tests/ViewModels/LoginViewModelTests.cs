@@ -11,8 +11,6 @@ public sealed class LoginViewModelTests
     {
         var response = new TaskCompletionSource<string?>();
         var api = new Mock<IDriveApiService>(MockBehavior.Strict);
-        api.Setup(service => service.GetServerUrl()).Returns("https://localhost:7220");
-        api.Setup(service => service.SetServerUrl(It.IsAny<string>()));
         api.Setup(service => service.LoginAsync("a@b.com", "password", It.IsAny<CancellationToken>())).Returns(response.Task);
         using var viewModel = new LoginViewModel(api.Object) { Email = "a@b.com", Password = "password" };
         var succeeded = false;
@@ -32,8 +30,6 @@ public sealed class LoginViewModelTests
     public async Task RegisterValidationIsPresentedWithoutAuthenticating()
     {
         var api = new Mock<IDriveApiService>(MockBehavior.Strict);
-        api.Setup(service => service.GetServerUrl()).Returns("https://localhost:7220");
-        api.Setup(service => service.SetServerUrl(It.IsAny<string>()));
         api.Setup(service => service.RegisterAsync("a@b.com", "short", "Name", It.IsAny<CancellationToken>()))
             .ThrowsAsync(new DriveApiException(System.Net.HttpStatusCode.BadRequest, "Password is too short."));
         using var viewModel = new LoginViewModel(api.Object)
