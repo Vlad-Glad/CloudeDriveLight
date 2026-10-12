@@ -4,11 +4,7 @@ namespace GDriveLight.Domain.Models;
 
 public class SyncFolder
 {
-    private const int MaxLocalPathLength = 1024;
-
     public Guid Id { get; private set; }
-
-    public string LocalPath { get; private set; }
 
     public Guid DriveFolderId { get; private set; }
 
@@ -20,32 +16,21 @@ public class SyncFolder
 
 
     public SyncFolder(
-        string localPath,
         Guid driveFolderId,
         Guid deviceId,
         SyncMode syncMode)
     {
-        ValidateLocalPath(localPath);
         ValidateGuid(driveFolderId, nameof(driveFolderId));
         ValidateGuid(deviceId, nameof(deviceId));
         ValidateSyncMode(syncMode);
 
         Id = Guid.NewGuid();
 
-        LocalPath = localPath;
         DriveFolderId = driveFolderId;
         DeviceId = deviceId;
         SyncMode = syncMode;
 
         LastSyncedAtUtc = null;
-    }
-
-
-    public void ChangeLocalPath(string newLocalPath)
-    {
-        ValidateLocalPath(newLocalPath);
-
-        LocalPath = newLocalPath;
     }
 
 
@@ -60,24 +45,6 @@ public class SyncFolder
     public void MarkSynced()
     {
         LastSyncedAtUtc = DateTime.UtcNow;
-    }
-
-
-    private static void ValidateLocalPath(string localPath)
-    {
-        if (string.IsNullOrWhiteSpace(localPath))
-        {
-            throw new ArgumentException(
-                "Local path cannot be empty.",
-                nameof(localPath));
-        }
-
-        if (localPath.Length > MaxLocalPathLength)
-        {
-            throw new ArgumentException(
-                $"Local path cannot exceed {MaxLocalPathLength} characters.",
-                nameof(localPath));
-        }
     }
 
 

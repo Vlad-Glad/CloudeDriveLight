@@ -16,7 +16,6 @@ namespace GDriveLight.Infrastructure.Persistence
         public DbSet<DriveFolderEntity> DriveFolders { get; set; }
         public DbSet<FileTypeEntity> FileTypes { get; set; }
         public DbSet<SyncFolderEntity> SyncFolders { get; set; }
-        public DbSet<SyncFileStateEntity> SyncFileStates { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

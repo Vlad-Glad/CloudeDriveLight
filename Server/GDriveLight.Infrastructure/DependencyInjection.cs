@@ -41,7 +41,6 @@ public static class DependencyInjection
         services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddScoped<IFileTypeRepository, FileTypeRepository>();
         services.AddScoped<ISyncFolderRepository, SyncFolderRepository>();
-        services.AddScoped<ISyncFileStateRepository, SyncFileStateRepository>();
 
         services.AddSingleton<IFileStorageService, LocalFileStorageService>();
 

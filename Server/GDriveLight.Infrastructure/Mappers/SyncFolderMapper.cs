@@ -10,7 +10,6 @@ internal static class SyncFolderMapper
         return new SyncFolderEntity
         {
             Id = domain.Id,
-            LocalPath = domain.LocalPath,
             DriveFolderId = domain.DriveFolderId,
             DeviceId = domain.DeviceId,
             LastSyncedAtUtc = domain.LastSyncedAtUtc,
@@ -20,7 +19,7 @@ internal static class SyncFolderMapper
 
     public static SyncFolder ToDomain(this SyncFolderEntity entity)
     {
-        var domain = new SyncFolder(entity.LocalPath, entity.DriveFolderId, entity.DeviceId, entity.SyncMode);
+        var domain = new SyncFolder(entity.DriveFolderId, entity.DeviceId, entity.SyncMode);
         domain.SetPropertyValue(nameof(SyncFolder.Id), entity.Id);
         domain.SetPropertyValue(nameof(SyncFolder.LastSyncedAtUtc), entity.LastSyncedAtUtc);
         return domain;
