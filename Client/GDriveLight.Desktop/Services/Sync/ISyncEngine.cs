@@ -3,7 +3,9 @@ namespace GDriveLight.Desktop.Services.Sync;
 public record SyncResult(
     bool Success,
     int ProcessedChangesCount,
-    string? Message = null);
+    string? Message = null,
+    int FailedCount = 0,
+    IReadOnlyList<string>? Errors = null);
 
 public interface ISyncEngine
 {

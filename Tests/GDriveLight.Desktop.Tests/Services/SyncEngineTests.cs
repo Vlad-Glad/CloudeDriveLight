@@ -1,4 +1,5 @@
 using System.IO;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using GDriveLight.Desktop.Data;
@@ -376,6 +377,140 @@ public class SyncEngineTests : IDisposable
             Assert.NotNull(item);
             Assert.Equal("renamed.txt", item.RelativePath);
         }
+    }
+
+    [Fact]
+    public async Task DeltaSync_WhenIndividualFileFails_MarksConflictAndContinuesSyncingOtherChanges()
+    {
+        var file1Id = Guid.NewGuid();
+        var file2Id = Guid.NewGuid();
+        var content2 = "File 2 content";
+
+        using (var db = _dbFactory.CreateDbContext(_userId))
+        {
+            db.Cursors.Add(new SyncCursor { Id = 1, LastProcessedChangeId = 40 });
+            await db.SaveChangesAsync();
+        }
+
+        var change1 = new ChangeResponse(
+            Id: 41,
+            ResourceId: file1Id,
+            ResourceType: ResourceType.File,
+            EventType: ChangeType.Created,
+            Name: "locked.txt",
+            ParentFolderId: null,
+            ContentHash: "hash1",
+            SizeBytes: 10,
+            TimestampUtc: DateTime.UtcNow,
+            OriginDeviceId: _remoteDeviceId);
+
+        var change2 = new ChangeResponse(
+            Id: 42,
+            ResourceId: file2Id,
+            ResourceType: ResourceType.File,
+            EventType: ChangeType.Created,
+            Name: "success.txt",
+            ParentFolderId: null,
+            ContentHash: ComputeSha256(content2),
+            SizeBytes: content2.Length,
+            TimestampUtc: DateTime.UtcNow,
+            OriginDeviceId: _remoteDeviceId);
+
+        _apiMock.Setup(a => a.GetChangesAsync(40, 100, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SyncChangesResponse(new List<ChangeResponse> { change1, change2 }, 42, false));
+
+        // File 1 download throws IOException (simulating locked file on disk)
+        _apiMock.Setup(a => a.DownloadFileAsync(file1Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("The process cannot access the file because it is being used by another process."));
+
+        // File 2 download succeeds
+        _apiMock.Setup(a => a.DownloadFileAsync(file2Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns<Guid, string, CancellationToken>((_, destination, _) =>
+            {
+                File.WriteAllText(destination, content2);
+                return Task.CompletedTask;
+            });
+
+        var engine = new SyncEngine(_apiMock.Object, _dbFactory, _deviceMock.Object);
+        var result = await engine.SynchronizeAsync(_userId, _syncFolder);
+
+        Assert.False(result.Success);
+        Assert.Equal(1, result.FailedCount);
+        Assert.Equal(1, result.ProcessedChangesCount);
+
+        // Check SQLite
+        using (var db = _dbFactory.CreateDbContext(_userId))
+        {
+            var cursor = await db.Cursors.FindAsync(1);
+            Assert.Equal(42, cursor!.LastProcessedChangeId);
+
+            var item1 = await db.Items.FirstOrDefaultAsync(i => i.ServerResourceId == file1Id);
+            Assert.NotNull(item1);
+            Assert.Equal(SyncStatus.Conflict, item1.Status);
+
+            var item2 = await db.Items.FirstOrDefaultAsync(i => i.ServerResourceId == file2Id);
+            Assert.NotNull(item2);
+            Assert.Equal(SyncStatus.Synced, item2.Status);
+        }
+
+        // Check disk: File 2 was created despite File 1 failure
+        var path2 = Path.Combine(_syncFolder, "success.txt");
+        Assert.True(File.Exists(path2));
+    }
+
+    [Fact]
+    public async Task InitialSync_WhenOneFileFailsDownload_ContinuesDownloadingOtherFiles()
+    {
+        var file1Id = Guid.NewGuid();
+        var file2Id = Guid.NewGuid();
+        var content2 = "File 2 initial content";
+
+        _apiMock.Setup(a => a.GetChangesAsync(0, 1000, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SyncChangesResponse(new List<ChangeResponse>(), 50, false));
+
+        _apiMock.Setup(a => a.GetFolderContentAsync(null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<FolderResponse>());
+
+        _apiMock.Setup(a => a.GetFilesAsync(null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[]
+            {
+                new FileResponse(file1Id, "broken.txt", 10, "h1", null, _userId, DateTime.UtcNow, null, "path1"),
+                new FileResponse(file2Id, "ok.txt", content2.Length, ComputeSha256(content2), null, _userId, DateTime.UtcNow, null, "path2")
+            });
+
+        _apiMock.Setup(a => a.DownloadFileAsync(file1Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("Server transient failure"));
+
+        _apiMock.Setup(a => a.DownloadFileAsync(file2Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns<Guid, string, CancellationToken>((_, destination, _) =>
+            {
+                File.WriteAllText(destination, content2);
+                return Task.CompletedTask;
+            });
+
+        var engine = new SyncEngine(_apiMock.Object, _dbFactory, _deviceMock.Object);
+        var result = await engine.SynchronizeAsync(_userId, _syncFolder);
+
+        Assert.False(result.Success);
+        Assert.Equal(1, result.FailedCount);
+        Assert.Equal(1, result.ProcessedChangesCount);
+
+        var path2 = Path.Combine(_syncFolder, "ok.txt");
+        Assert.True(File.Exists(path2));
+    }
+
+    [Fact]
+    public async Task SynchronizeAsync_WhenNetworkFails_ReturnsFailureResultWithoutThrowing()
+    {
+        _apiMock.Setup(a => a.GetChangesAsync(It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("No network connection"));
+
+        var engine = new SyncEngine(_apiMock.Object, _dbFactory, _deviceMock.Object);
+        var result = await engine.SynchronizeAsync(_userId, _syncFolder);
+
+        Assert.False(result.Success);
+        Assert.Equal(1, result.FailedCount);
+        Assert.Contains("Network connection error", result.Message);
     }
 
     private static string ComputeSha256(string content)

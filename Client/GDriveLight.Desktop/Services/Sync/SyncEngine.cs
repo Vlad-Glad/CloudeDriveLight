@@ -1,4 +1,6 @@
 using System.IO;
+using System.Net;
+using System.Net.Http;
 using System.Security.Cryptography;
 using GDriveLight.Desktop.Data;
 using GDriveLight.Desktop.Models.Api;
@@ -28,30 +30,49 @@ public class SyncEngine : ISyncEngine
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(localFolderPath);
 
-        if (!Directory.Exists(localFolderPath))
+        try
         {
-            Directory.CreateDirectory(localFolderPath);
+            if (!Directory.Exists(localFolderPath))
+            {
+                Directory.CreateDirectory(localFolderPath);
+            }
+
+            using var dbContext = _dbContextFactory.CreateDbContext(userId);
+
+            var cursor = await dbContext.Cursors.FindAsync(new object[] { 1 }, cancellationToken);
+            if (cursor == null)
+            {
+                cursor = new SyncCursor { Id = 1, LastProcessedChangeId = 0 };
+                dbContext.Cursors.Add(cursor);
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            var myDeviceId = _deviceIdentifierService.GetDeviceId();
+            var hasExistingItems = await dbContext.Items.AnyAsync(cancellationToken);
+
+            if (cursor.LastProcessedChangeId == 0 && !hasExistingItems)
+            {
+                return await RunInitialSyncAsync(userId, localFolderPath, dbContext, cursor, cancellationToken);
+            }
+
+            return await RunDeltaSyncAsync(userId, localFolderPath, dbContext, cursor, myDeviceId, cancellationToken);
         }
-
-        using var dbContext = _dbContextFactory.CreateDbContext(userId);
-
-        var cursor = await dbContext.Cursors.FindAsync(new object[] { 1 }, cancellationToken);
-        if (cursor == null)
+        catch (OperationCanceledException)
         {
-            cursor = new SyncCursor { Id = 1, LastProcessedChangeId = 0 };
-            dbContext.Cursors.Add(cursor);
-            await dbContext.SaveChangesAsync(cancellationToken);
+            throw;
         }
-
-        var myDeviceId = _deviceIdentifierService.GetDeviceId();
-        var hasExistingItems = await dbContext.Items.AnyAsync(cancellationToken);
-
-        if (cursor.LastProcessedChangeId == 0 && !hasExistingItems)
+        catch (DriveApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
         {
-            return await RunInitialSyncAsync(userId, localFolderPath, dbContext, cursor, cancellationToken);
+            throw;
         }
-
-        return await RunDeltaSyncAsync(userId, localFolderPath, dbContext, cursor, myDeviceId, cancellationToken);
+        catch (HttpRequestException ex)
+        {
+            return new SyncResult(false, 0, "Network connection error during sync. Please check your connection.", FailedCount: 1, Errors: new[] { ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return new SyncResult(false, 0, $"Sync failed: {ex.Message}", FailedCount: 1, Errors: new[] { ex.Message });
+        }
     }
 
     private async Task<SyncResult> RunInitialSyncAsync(
@@ -77,6 +98,8 @@ public class SyncEngine : ISyncEngine
         }
 
         int count = 0;
+        int failedCount = 0;
+        var errors = new List<string>();
         var folderQueue = new Queue<(Guid? ServerFolderId, string ParentRelativePath)>();
         folderQueue.Enqueue((null, string.Empty));
 
@@ -84,82 +107,133 @@ public class SyncEngine : ISyncEngine
         {
             var (folderId, parentRelativePath) = folderQueue.Dequeue();
 
-            var folders = await _apiService.GetFolderContentAsync(folderId, cancellationToken);
-            foreach (var subFolder in folders)
+            IEnumerable<FolderResponse> folders;
+            try
             {
-                var subRelPath = string.IsNullOrEmpty(parentRelativePath)
-                    ? subFolder.Name
-                    : $"{parentRelativePath}/{subFolder.Name}";
-
-                var localDirPath = Path.Combine(localFolderPath, subRelPath.Replace('/', Path.DirectorySeparatorChar));
-                if (!Directory.Exists(localDirPath))
-                {
-                    Directory.CreateDirectory(localDirPath);
-                }
-
-                dbContext.Items.Add(new LocalItemState
-                {
-                    ServerResourceId = subFolder.Id,
-                    IsDirectory = true,
-                    RelativePath = subRelPath,
-                    Status = SyncStatus.Synced,
-                    LocalModifiedAtUtc = Directory.GetLastWriteTimeUtc(localDirPath)
-                });
-
-                count++;
-                folderQueue.Enqueue((subFolder.Id, subRelPath));
+                folders = await _apiService.GetFolderContentAsync(folderId, cancellationToken);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (DriveApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized) { throw; }
+            catch (Exception ex)
+            {
+                failedCount++;
+                errors.Add($"Failed to retrieve folder contents: {ex.Message}");
+                continue;
             }
 
-            var files = await _apiService.GetFilesAsync(folderId, cancellationToken);
+            foreach (var subFolder in folders)
+            {
+                try
+                {
+                    var subRelPath = string.IsNullOrEmpty(parentRelativePath)
+                        ? subFolder.Name
+                        : $"{parentRelativePath}/{subFolder.Name}";
+
+                    var localDirPath = Path.Combine(localFolderPath, subRelPath.Replace('/', Path.DirectorySeparatorChar));
+                    if (!Directory.Exists(localDirPath))
+                    {
+                        Directory.CreateDirectory(localDirPath);
+                    }
+
+                    dbContext.Items.Add(new LocalItemState
+                    {
+                        ServerResourceId = subFolder.Id,
+                        IsDirectory = true,
+                        RelativePath = subRelPath,
+                        Status = SyncStatus.Synced,
+                        LocalModifiedAtUtc = Directory.GetLastWriteTimeUtc(localDirPath)
+                    });
+
+                    count++;
+                    folderQueue.Enqueue((subFolder.Id, subRelPath));
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (DriveApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized) { throw; }
+                catch (Exception ex)
+                {
+                    failedCount++;
+                    errors.Add($"Failed to sync folder '{subFolder.Name}': {ex.Message}");
+                }
+            }
+
+            IEnumerable<FileResponse> files;
+            try
+            {
+                files = await _apiService.GetFilesAsync(folderId, cancellationToken);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (DriveApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized) { throw; }
+            catch (Exception ex)
+            {
+                failedCount++;
+                errors.Add($"Failed to retrieve files: {ex.Message}");
+                continue;
+            }
+
             foreach (var file in files)
             {
-                var fileRelPath = string.IsNullOrEmpty(parentRelativePath)
-                    ? file.Name
-                    : $"{parentRelativePath}/{file.Name}";
-
-                var localFilePath = Path.Combine(localFolderPath, fileRelPath.Replace('/', Path.DirectorySeparatorChar));
-                var needsDownload = true;
-
-                if (File.Exists(localFilePath))
+                try
                 {
-                    var localHash = await ComputeFileHashAsync(localFilePath, cancellationToken);
-                    if (string.Equals(localHash, file.ContentHash, StringComparison.OrdinalIgnoreCase))
-                    {
-                        needsDownload = false;
-                    }
-                }
+                    var fileRelPath = string.IsNullOrEmpty(parentRelativePath)
+                        ? file.Name
+                        : $"{parentRelativePath}/{file.Name}";
 
-                if (needsDownload)
-                {
-                    var dir = Path.GetDirectoryName(localFilePath);
-                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    var localFilePath = Path.Combine(localFolderPath, fileRelPath.Replace('/', Path.DirectorySeparatorChar));
+                    var needsDownload = true;
+
+                    if (File.Exists(localFilePath))
                     {
-                        Directory.CreateDirectory(dir);
+                        var localHash = await ComputeFileHashAsync(localFilePath, cancellationToken);
+                        if (string.Equals(localHash, file.ContentHash, StringComparison.OrdinalIgnoreCase))
+                        {
+                            needsDownload = false;
+                        }
                     }
 
-                    await _apiService.DownloadFileAsync(file.Id, localFilePath, cancellationToken);
+                    if (needsDownload)
+                    {
+                        var dir = Path.GetDirectoryName(localFilePath);
+                        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                        {
+                            Directory.CreateDirectory(dir);
+                        }
+
+                        await _apiService.DownloadFileAsync(file.Id, localFilePath, cancellationToken);
+                    }
+
+                    var fileInfo = new FileInfo(localFilePath);
+                    dbContext.Items.Add(new LocalItemState
+                    {
+                        ServerResourceId = file.Id,
+                        IsDirectory = false,
+                        RelativePath = fileRelPath,
+                        LocalSize = fileInfo.Length,
+                        LastSyncedHash = file.ContentHash,
+                        LocalModifiedAtUtc = fileInfo.LastWriteTimeUtc,
+                        Status = SyncStatus.Synced
+                    });
+
+                    count++;
                 }
-
-                var fileInfo = new FileInfo(localFilePath);
-                dbContext.Items.Add(new LocalItemState
+                catch (OperationCanceledException) { throw; }
+                catch (DriveApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized) { throw; }
+                catch (Exception ex)
                 {
-                    ServerResourceId = file.Id,
-                    IsDirectory = false,
-                    RelativePath = fileRelPath,
-                    LocalSize = fileInfo.Length,
-                    LastSyncedHash = file.ContentHash,
-                    LocalModifiedAtUtc = fileInfo.LastWriteTimeUtc,
-                    Status = SyncStatus.Synced
-                });
-
-                count++;
+                    failedCount++;
+                    errors.Add($"Failed to sync file '{file.Name}': {ex.Message}");
+                }
             }
         }
 
         cursor.LastProcessedChangeId = latestCursor;
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return new SyncResult(true, count, $"Initial sync completed. Processed {count} items.");
+        var isSuccess = failedCount == 0;
+        var message = isSuccess
+            ? $"Initial sync completed. Processed {count} items."
+            : $"Initial sync completed with {failedCount} errors. Processed {count} items.";
+
+        return new SyncResult(isSuccess, count, message, failedCount, errors);
     }
 
     private async Task<SyncResult> RunDeltaSyncAsync(
@@ -171,6 +245,8 @@ public class SyncEngine : ISyncEngine
         CancellationToken cancellationToken)
     {
         int processedCount = 0;
+        int failedCount = 0;
+        var errors = new List<string>();
 
         while (true)
         {
@@ -182,8 +258,25 @@ public class SyncEngine : ISyncEngine
 
             foreach (var change in response.Changes)
             {
-                await ApplyChangeAsync(change, localFolderPath, dbContext, myDeviceId, cancellationToken);
-                processedCount++;
+                try
+                {
+                    await ApplyChangeAsync(change, localFolderPath, dbContext, myDeviceId, cancellationToken);
+                    processedCount++;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (DriveApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    failedCount++;
+                    errors.Add($"Failed to apply change for '{change.Name ?? change.ResourceId.ToString()}': {ex.Message}");
+                    await MarkItemConflictAsync(change, dbContext, cancellationToken);
+                }
             }
 
             cursor.LastProcessedChangeId = response.NextCursor;
@@ -195,7 +288,47 @@ public class SyncEngine : ISyncEngine
             }
         }
 
-        return new SyncResult(true, processedCount, $"Delta sync completed. Processed {processedCount} changes.");
+        var isSuccess = failedCount == 0;
+        var message = isSuccess
+            ? $"Delta sync completed. Processed {processedCount} changes."
+            : $"Delta sync completed with {failedCount} errors. Processed {processedCount} changes.";
+
+        return new SyncResult(isSuccess, processedCount, message, failedCount, errors);
+    }
+
+    private static async Task MarkItemConflictAsync(
+        ChangeResponse change,
+        LocalSyncDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var item = await dbContext.Items.FirstOrDefaultAsync(x => x.ServerResourceId == change.ResourceId, cancellationToken);
+            if (item is not null)
+            {
+                item.Status = SyncStatus.Conflict;
+            }
+            else
+            {
+                var relPath = await BuildRelativePathAsync(change.Name, change.ParentFolderId, dbContext, cancellationToken);
+                dbContext.Items.Add(new LocalItemState
+                {
+                    ServerResourceId = change.ResourceId,
+                    IsDirectory = change.ResourceType == ResourceType.Folder,
+                    RelativePath = relPath,
+                    LocalSize = change.SizeBytes ?? 0,
+                    LastSyncedHash = change.ContentHash,
+                    LocalModifiedAtUtc = DateTime.UtcNow,
+                    Status = SyncStatus.Conflict
+                });
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            // Do not fail the whole sync process if conflict recording fails
+        }
     }
 
     private async Task ApplyChangeAsync(

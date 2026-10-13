@@ -258,13 +258,13 @@ public sealed partial class MainWindowViewModel
         await RunOperationAsync("Synchronizing...", async token =>
         {
             var result = await _syncEngine.SynchronizeAsync(userId.Value, folder, token);
-            if (result.Success)
+            if (result.Success && result.FailedCount == 0)
             {
                 return result.Message ?? $"Synchronized {result.ProcessedChangesCount} items.";
             }
 
             IsNotificationError = true;
-            return result.Message ?? "Synchronization failed.";
+            return result.Message ?? "Synchronization completed with errors.";
         }, refreshAfter: true);
     }
 
