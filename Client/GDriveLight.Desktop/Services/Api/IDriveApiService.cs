@@ -1,3 +1,4 @@
+using System.IO;
 using GDriveLight.Desktop.Models.Api;
 
 namespace GDriveLight.Desktop.Services.Api;
@@ -21,4 +22,10 @@ public interface IDriveApiService
 
     void SetAuthToken(string? token);
     void Logout();
+
+    Guid DeviceId { get; }
+    Guid? CurrentUserId { get; }
+    Task<SyncChangesResponse> GetChangesAsync(long cursor, int limit = 100, CancellationToken cancellationToken = default);
+    Task UpdateFileContentAsync(Guid fileId, Stream stream, string fileName, CancellationToken cancellationToken = default);
 }
+

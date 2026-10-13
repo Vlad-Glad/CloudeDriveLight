@@ -58,6 +58,7 @@ public sealed partial class MainWindowViewModel
     public AsyncRelayCommand<FileItemViewModel> DeleteCommand { get; private set; } = null!;
     public AsyncRelayCommand<FileItemViewModel> MoveCommand { get; private set; } = null!;
     public AsyncRelayCommand<ItemMoveRequest> MoveToCommand { get; private set; } = null!;
+    public AsyncRelayCommand SyncCommand { get; private set; } = null!;
     public RelayCommand DismissNotificationCommand { get; private set; } = null!;
     public RelayCommand CancelOperationCommand { get; private set; } = null!;
 
@@ -72,6 +73,7 @@ public sealed partial class MainWindowViewModel
         MoveCommand = new AsyncRelayCommand<FileItemViewModel>(MoveAsync, HandleOperationError, CanActOn);
         MoveToCommand = new AsyncRelayCommand<ItemMoveRequest>(MoveItemToAsync, HandleOperationError,
             request => request is not null && CanMoveTo(request.Item, request.Destination));
+        SyncCommand = new AsyncRelayCommand(SyncAsync, HandleOperationError, () => !_disposed && !IsBusy && _syncEngine is not null);
         DismissNotificationCommand = new RelayCommand(() => NotificationMessage = string.Empty);
         CancelOperationCommand = new RelayCommand(() => _activeOperation?.Cancel(), () => IsOperating);
     }
@@ -228,6 +230,42 @@ public sealed partial class MainWindowViewModel
             await _apiService.MoveAsync(request.Item.Id, request.Item.IsFolder, request.Destination.Id, token);
             return $"Moved '{request.Item.Name}' to '{request.Destination.Name}'.";
         });
+    }
+
+    private async Task SyncAsync()
+    {
+        if (_syncEngine is null)
+        {
+            return;
+        }
+
+        var userId = _apiService.CurrentUserId;
+        if (!userId.HasValue)
+        {
+            NotificationMessage = "You must be logged in to synchronize.";
+            IsNotificationError = true;
+            return;
+        }
+
+        var folder = _syncSettings?.GetSyncFolderPath(userId.Value);
+        if (string.IsNullOrWhiteSpace(folder))
+        {
+            NotificationMessage = "Sync folder is not configured.";
+            IsNotificationError = true;
+            return;
+        }
+
+        await RunOperationAsync("Synchronizing...", async token =>
+        {
+            var result = await _syncEngine.SynchronizeAsync(userId.Value, folder, token);
+            if (result.Success)
+            {
+                return result.Message ?? $"Synchronized {result.ProcessedChangesCount} items.";
+            }
+
+            IsNotificationError = true;
+            return result.Message ?? "Synchronization failed.";
+        }, refreshAfter: true);
     }
 
     private async Task RunOperationAsync(string status, Func<CancellationToken, Task<string>> operation, bool refreshAfter = true)

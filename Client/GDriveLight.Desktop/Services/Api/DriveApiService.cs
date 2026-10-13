@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using GDriveLight.Desktop.Models.Api;
 
 namespace GDriveLight.Desktop.Services.Api;
@@ -11,21 +12,27 @@ namespace GDriveLight.Desktop.Services.Api;
 public sealed class DriveApiService : IDriveApiService
 {
     private readonly HttpClient _httpClient;
+    private readonly IDeviceIdentifierService _deviceIdentifierService;
     private readonly object _sessionLock = new();
     private Uri _serverUri = new("https://localhost:7220/");
     private string? _authToken;
 
-    public DriveApiService(HttpClient httpClient)
+    public DriveApiService(HttpClient httpClient, IDeviceIdentifierService? deviceIdentifierService = null)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         _httpClient = httpClient;
+        _deviceIdentifierService = deviceIdentifierService ?? new DeviceIdentifierService();
     }
+
+    public Guid DeviceId => _deviceIdentifierService.GetDeviceId();
+    public Guid? CurrentUserId { get; private set; }
 
     public void SetAuthToken(string? token)
     {
         lock (_sessionLock)
         {
             _authToken = string.IsNullOrWhiteSpace(token) ? null : token;
+            CurrentUserId = _authToken is not null ? ExtractUserIdFromJwt(_authToken) : null;
         }
     }
 
@@ -81,6 +88,8 @@ public sealed class DriveApiService : IDriveApiService
         lock (_sessionLock)
         {
             var request = new HttpRequestMessage(method, new Uri(_serverUri, path));
+            request.Headers.Add("X-Device-Id", DeviceId.ToString());
+
             if (authenticated && _authToken is not null)
             {
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _authToken);
@@ -171,6 +180,66 @@ public sealed class DriveApiService : IDriveApiService
             ? JsonContent.Create(new { NewParentFolderId = destinationFolderId })
             : JsonContent.Create(new { NewFolderId = destinationFolderId });
         using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
+
+    public async Task<SyncChangesResponse> GetChangesAsync(long cursor, int limit = 100, CancellationToken cancellationToken = default)
+    {
+        using var request = CreateRequest(HttpMethod.Get, $"api/sync/changes?cursor={cursor}&limit={limit}");
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+        return await response.Content.ReadFromJsonAsync<SyncChangesResponse>(JsonOptions, cancellationToken).ConfigureAwait(false)
+            ?? throw new JsonException("The server returned an invalid sync changes response.");
+    }
+
+    public async Task UpdateFileContentAsync(Guid fileId, Stream stream, string fileName, CancellationToken cancellationToken = default)
+    {
+        using var request = CreateRequest(HttpMethod.Put, $"api/files/{fileId}/content");
+        var content = new MultipartFormDataContent();
+        request.Content = content;
+        content.Add(new StreamContent(stream), "file", fileName);
+
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static Guid? ExtractUserIdFromJwt(string jwt)
+    {
+        try
+        {
+            var parts = jwt.Split('.');
+            if (parts.Length < 2) return null;
+
+            var payload = parts[1];
+            payload = payload.Replace('-', '+').Replace('_', '/');
+            switch (payload.Length % 4)
+            {
+                case 2: payload += "=="; break;
+                case 3: payload += "="; break;
+            }
+
+            var jsonBytes = Convert.FromBase64String(payload);
+            using var doc = JsonDocument.Parse(jsonBytes);
+            if (doc.RootElement.TryGetProperty("sub", out var subProp) &&
+                Guid.TryParse(subProp.GetString(), out var subUserId))
+            {
+                return subUserId;
+            }
+
+            if (doc.RootElement.TryGetProperty("nameid", out var nameidProp) &&
+                Guid.TryParse(nameidProp.GetString(), out var nameidUserId))
+            {
+                return nameidUserId;
+            }
+        }
+        catch
+        {
+        }
+
+        return null;
     }
 
     private sealed record CreatedFolderResponse(Guid FolderId);

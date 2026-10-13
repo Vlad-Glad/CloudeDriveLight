@@ -169,6 +169,10 @@
                                 ToolTip="Refresh" AutomationProperties.Name="Refresh" Margin="0,0,8,0">
                             <ui:SymbolIcon Symbol="ArrowClockwise24" FontSize="22" />
                         </Button>
+                        <Button Style="{StaticResource QuietButton}" Command="{Binding SyncCommand}"
+                                ToolTip="Synchronize" AutomationProperties.Name="Synchronize" Margin="0,0,8,0">
+                            <ui:SymbolIcon Symbol="ArrowSync24" FontSize="22" />
+                        </Button>
                         <Button Style="{StaticResource QuietButton}" IsEnabled="False" ToolTip="Settings"
                                 AutomationProperties.Name="Settings" Margin="0,0,12,0">
                             <ui:SymbolIcon Symbol="Settings24" FontSize="22" />

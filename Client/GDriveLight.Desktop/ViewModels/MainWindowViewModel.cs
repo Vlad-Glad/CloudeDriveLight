@@ -6,6 +6,7 @@ using System.Text.Json;
 using GDriveLight.Desktop.Commands;
 using GDriveLight.Desktop.Services;
 using GDriveLight.Desktop.Services.Api;
+using GDriveLight.Desktop.Services.Sync;
 using Wpf.Ui.Controls;
 
 namespace GDriveLight.Desktop.ViewModels;
@@ -15,6 +16,8 @@ public record BreadcrumbItem(Guid? Id, string Name);
 public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private readonly IDriveApiService _apiService;
+    private readonly ISyncEngine? _syncEngine;
+    private readonly ISyncSettingsService? _syncSettings;
     private CancellationTokenSource? _activeLoad;
     private long _loadVersion;
     private bool _disposed;
@@ -25,11 +28,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private FileItemViewModel? _selectedFile;
     private string _searchText = string.Empty;
 
-    public MainWindowViewModel(IDriveApiService apiService, IFileDialogService fileDialogs, IUserDialogService dialogs)
+    public MainWindowViewModel(
+        IDriveApiService apiService,
+        IFileDialogService fileDialogs,
+        IUserDialogService dialogs,
+        ISyncEngine? syncEngine = null,
+        ISyncSettingsService? syncSettings = null)
     {
         _apiService = apiService;
         _fileDialogs = fileDialogs;
         _dialogs = dialogs;
+        _syncEngine = syncEngine;
+        _syncSettings = syncSettings;
         Breadcrumbs.Add(new BreadcrumbItem(null, "Home"));
         RetryCommand = new AsyncRelayCommand(RefreshAsync, HandleError, () => !_disposed && IsHomeView && !IsBusy);
         OpenFolderCommand = new AsyncRelayCommand<FileItemViewModel>(OpenFolderAsync, HandleError,
@@ -357,6 +367,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         DeleteCommand?.NotifyCanExecuteChanged();
         MoveCommand?.NotifyCanExecuteChanged();
         MoveToCommand?.NotifyCanExecuteChanged();
+        SyncCommand?.NotifyCanExecuteChanged();
         CancelOperationCommand?.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(IsBusy));
         OnPropertyChanged(nameof(CanNavigate));

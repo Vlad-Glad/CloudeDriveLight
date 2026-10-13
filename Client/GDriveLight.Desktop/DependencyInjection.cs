@@ -13,10 +13,13 @@ public static class DependencyInjection
     {
         // HTTPS uses the normal platform trust store, including trusted development certificates.
         services.AddSingleton(_ => new HttpClient());
+        services.AddSingleton<IDeviceIdentifierService, DeviceIdentifierService>();
         services.AddSingleton<IDriveApiService, DriveApiService>();
         services.AddSingleton<IFileDialogService, FileDialogService>();
         services.AddSingleton<IUserDialogService, UserDialogService>();
         services.AddSingleton<Data.ILocalSyncDbContextFactory, Data.LocalSyncDbContextFactory>();
+        services.AddSingleton<Services.Sync.ISyncSettingsService, Services.Sync.SyncSettingsService>();
+        services.AddSingleton<Services.Sync.ISyncEngine, Services.Sync.SyncEngine>();
         services.AddScoped<LoginViewModel>();
         services.AddScoped<LoginWindow>();
         services.AddScoped<MainWindowViewModel>();

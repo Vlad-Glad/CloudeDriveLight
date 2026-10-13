@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -82,6 +83,104 @@ public sealed class DriveApiServiceTests
 
         Assert.Equal("new-session", await service.LoginAsync("a@b.com", "password"));
         Assert.True(content.WasDisposed);
+    }
+
+    [Fact]
+    public async Task RequestsIncludeXDeviceIdHeader()
+    {
+        var expectedDeviceId = Guid.NewGuid();
+        var mockDeviceService = new Moq.Mock<GDriveLight.Desktop.Services.IDeviceIdentifierService>();
+        mockDeviceService.Setup(s => s.GetDeviceId()).Returns(expectedDeviceId);
+
+        string? capturedDeviceIdHeader = null;
+        using var client = new HttpClient(new StubHandler((request, _) =>
+        {
+            if (request.Headers.TryGetValues("X-Device-Id", out var values))
+            {
+                capturedDeviceIdHeader = values.FirstOrDefault();
+            }
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", Encoding.UTF8, "application/json")
+            });
+        }));
+
+        var service = new DriveApiService(client, mockDeviceService.Object);
+        await service.GetFilesAsync(null);
+
+        Assert.Equal(expectedDeviceId.ToString(), capturedDeviceIdHeader);
+    }
+
+    [Fact]
+    public async Task GetChangesAsync_SendsCorrectQueryAndDeserializesResponse()
+    {
+        var responseJson = """
+        {
+            "changes": [
+                {
+                    "id": 1,
+                    "resourceId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                    "resourceType": "File",
+                    "eventType": "Created",
+                    "name": "test.txt",
+                    "parentFolderId": null,
+                    "contentHash": "abc",
+                    "sizeBytes": 100,
+                    "timestamp": "2026-10-13T00:00:00Z",
+                    "originDeviceId": null
+                }
+            ],
+            "nextCursor": 1,
+            "hasMore": false
+        }
+        """;
+
+        Uri? requestedUri = null;
+        using var client = new HttpClient(new StubHandler((request, _) =>
+        {
+            requestedUri = request.RequestUri;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson, Encoding.UTF8, "application/json")
+            });
+        }));
+
+        var service = new DriveApiService(client);
+        var result = await service.GetChangesAsync(cursor: 42, limit: 10);
+
+        Assert.NotNull(result);
+        Assert.Equal("/api/sync/changes", requestedUri!.AbsolutePath);
+        Assert.Contains("cursor=42", requestedUri.Query);
+        Assert.Contains("limit=10", requestedUri.Query);
+        Assert.Single(result.Changes);
+        Assert.Equal("test.txt", result.Changes[0].Name);
+        Assert.Equal(1, result.NextCursor);
+        Assert.False(result.HasMore);
+    }
+
+    [Fact]
+    public async Task UpdateFileContentAsync_SendsMultipartPutRequest()
+    {
+        var fileId = Guid.NewGuid();
+        HttpMethod? capturedMethod = null;
+        string? capturedPath = null;
+        bool isMultipart = false;
+
+        using var client = new HttpClient(new StubHandler(async (request, _) =>
+        {
+            capturedMethod = request.Method;
+            capturedPath = request.RequestUri!.AbsolutePath;
+            isMultipart = request.Content is MultipartFormDataContent;
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }));
+
+        var service = new DriveApiService(client);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes("hello new content"));
+        await service.UpdateFileContentAsync(fileId, stream, "test.txt");
+
+        Assert.Equal(HttpMethod.Put, capturedMethod);
+        Assert.Equal($"/api/files/{fileId}/content", capturedPath);
+        Assert.True(isMultipart);
     }
 
     private sealed class StubHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) : HttpMessageHandler
