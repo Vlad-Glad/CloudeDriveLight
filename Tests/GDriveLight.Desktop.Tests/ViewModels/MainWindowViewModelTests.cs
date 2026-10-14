@@ -128,6 +128,7 @@ public sealed class MainWindowViewModelTests
 
         var item = Assert.Single(viewModel.Files);
         Assert.Equal(SymbolRegular.Image24, item.Icon);
+        Assert.Equal("PNG", item.FileType);
         var created = file.UploadedAtUtc.ToLocalTime();
         var modified = (file.EditedAtUtc ?? file.UploadedAtUtc).ToLocalTime();
         Assert.Equal(created.ToString("d"), item.DateCreated);

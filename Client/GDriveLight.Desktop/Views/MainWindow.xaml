@@ -392,7 +392,7 @@
                             <KeyBinding Key="M" Modifiers="Control" Command="{Binding MoveCommand}" CommandParameter="{Binding SelectedFile}" />
                         </DataGrid.InputBindings>
                         <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="Name" Width="*" MinWidth="120">
+                            <DataGridTemplateColumn x:Name="NameColumn" Header="Name" Width="*" MinWidth="120">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <DockPanel>
@@ -403,6 +403,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Type" Width="90" Binding="{Binding FileType}" />
                             <DataGridTemplateColumn Header="Created" Width="155" MinWidth="140">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -426,7 +427,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
                             <DataGridTextColumn Header="Size" Width="90" Binding="{Binding Size}" />
-                            <DataGridTemplateColumn Width="48">
+                            <DataGridTemplateColumn x:Name="ActionsColumn" Width="48">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Button Style="{StaticResource QuietButton}" Click="RowActionsClick"

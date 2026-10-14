@@ -1,3 +1,4 @@
+using System.IO;
 using Wpf.Ui.Controls;
 
 namespace GDriveLight.Desktop.ViewModels;
@@ -6,6 +7,15 @@ public sealed class FileItemViewModel : ViewModelBase
 {
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
+    public string FileType
+    {
+        get
+        {
+            if (IsFolder) return "Folder";
+            var extension = Path.GetExtension(Name);
+            return extension.Length > 1 ? extension[1..].ToUpperInvariant() : "File";
+        }
+    }
     public DateTime? CreatedAtUtc { get; init; }
     public DateTime? ModifiedAtUtc { get; init; }
     public string DateCreated => CreatedAtUtc?.ToLocalTime().ToString("d") ?? "—";

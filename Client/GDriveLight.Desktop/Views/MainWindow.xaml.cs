@@ -91,10 +91,13 @@ public partial class MainWindow : Window
                 Header = column.Header as string ?? "Actions",
                 IsCheckable = true,
                 IsChecked = column.Visibility == Visibility.Visible,
-                IsEnabled = column != FileGrid.Columns[0],
+                IsEnabled = column != NameColumn && column != ActionsColumn,
                 StaysOpenOnClick = true
             };
-            item.Click += (_, _) => column.Visibility = item.IsChecked ? Visibility.Visible : Visibility.Collapsed;
+            if (item.IsEnabled)
+            {
+                item.Click += (_, _) => column.Visibility = item.IsChecked ? Visibility.Visible : Visibility.Collapsed;
+            }
             menu.Items.Add(item);
             options.Add((column, item));
         }

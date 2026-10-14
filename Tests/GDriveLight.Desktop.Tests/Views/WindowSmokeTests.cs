@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Input;
@@ -104,15 +105,17 @@ public sealed class WindowSmokeTests
                     RoutedEvent = Mouse.PreviewMouseDownEvent
                 });
                 Assert.False(popup.IsOpen);
-                Assert.Equal(5, grid.Columns.Count);
+                Assert.Equal(6, grid.Columns.Count);
                 Assert.Equal(2, mainViewModel.VisibleFiles.Count);
                 var selector = Assert.IsType<ComboBox>(main.FindName("DeviceSelector"));
                 Assert.Equal("SelectedDevice", selector.GetBindingExpression(ComboBox.SelectedItemProperty)!.ParentBinding.Path.Path);
                 Assert.Equal("VisibleFiles", grid.GetBindingExpression(ItemsControl.ItemsSourceProperty)?.ParentBinding.Path.Path);
                 Assert.Equal("Name", grid.Columns[0].Header);
-                Assert.Equal("Created", grid.Columns[1].Header);
-                Assert.Equal("Modified", grid.Columns[2].Header);
-                Assert.Equal("Size", grid.Columns[3].Header);
+                Assert.Equal("Type", grid.Columns[1].Header);
+                Assert.Equal("FileType", Assert.IsType<Binding>(Assert.IsType<DataGridTextColumn>(grid.Columns[1]).Binding).Path.Path);
+                Assert.Equal("Created", grid.Columns[2].Header);
+                Assert.Equal("Modified", grid.Columns[3].Header);
+                Assert.Equal("Size", grid.Columns[4].Header);
                 var columnsButton = Assert.IsType<Button>(main.FindName("ColumnsButton"));
                 columnsButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 var columnsMenu = Assert.IsType<ContextMenu>(columnsButton.ContextMenu);
@@ -120,7 +123,11 @@ public sealed class WindowSmokeTests
                 var requiredName = Assert.IsType<MenuItem>(columnsMenu.Items[0]);
                 Assert.True(requiredName.IsChecked);
                 Assert.False(requiredName.IsEnabled);
-                for (var index = 1; index < grid.Columns.Count; index++)
+                var requiredActions = Assert.IsType<MenuItem>(columnsMenu.Items[5]);
+                Assert.Equal("Actions", requiredActions.Header);
+                Assert.True(requiredActions.IsChecked);
+                Assert.False(requiredActions.IsEnabled);
+                for (var index = 1; index < grid.Columns.Count - 1; index++)
                 {
                     var option = Assert.IsType<MenuItem>(columnsMenu.Items[index]);
                     Assert.True(option.IsChecked);
@@ -129,13 +136,17 @@ public sealed class WindowSmokeTests
                     Assert.Equal(Visibility.Collapsed, grid.Columns[index].Visibility);
                 }
                 Assert.Equal(Visibility.Visible, grid.Columns[0].Visibility);
+                Assert.Equal(Visibility.Visible, grid.Columns[5].Visibility);
                 mainViewModel.RefreshAsync().GetAwaiter().GetResult();
-                Assert.All(grid.Columns.Skip(1), column => Assert.Equal(Visibility.Collapsed, column.Visibility));
+                Assert.All(grid.Columns.Skip(1).Take(4), column => Assert.Equal(Visibility.Collapsed, column.Visibility));
+                Assert.Equal(Visibility.Visible, grid.Columns[0].Visibility);
+                Assert.Equal(Visibility.Visible, grid.Columns[5].Visibility);
                 var showAll = Assert.IsType<MenuItem>(columnsMenu.Items[columnsMenu.Items.Count - 1]);
                 showAll.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
                 Assert.All(grid.Columns, column => Assert.Equal(Visibility.Visible, column.Visibility));
                 columnsMenu.IsOpen = false;
                 var folderItem = mainViewModel.VisibleFiles.Single(item => item.IsFolder);
+                Assert.Equal("Folder", folderItem.FileType);
                 Assert.Equal("—", folderItem.DateCreated);
                 Assert.Equal("—", folderItem.DateModified);
                 Assert.Empty(folderItem.TimeCreated);
