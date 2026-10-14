@@ -24,6 +24,20 @@ public class CreateFolderCommandHandler : IRequestHandler<CreateFolderCommand, R
 
     public async Task<Result<Guid>> Handle(CreateFolderCommand request, CancellationToken cancellationToken)
     {
+        if (request.ParentFolderId.HasValue)
+        {
+            var parentFolder = await _folderRepository.GetByIdAsync(request.ParentFolderId.Value, cancellationToken);
+            if (parentFolder == null)
+            {
+                return Result<Guid>.Failure($"Folder with ID {request.ParentFolderId.Value} was not found.");
+            }
+
+            if (parentFolder.OwnerId != request.OwnerId)
+            {
+                return Result<Guid>.Failure("You do not have permission to create a folder in this location.");
+            }
+        }
+
         bool exists = await _folderRepository.ExistsAsync(request.Name, request.ParentFolderId, request.OwnerId, cancellationToken);
         if (exists)
         {

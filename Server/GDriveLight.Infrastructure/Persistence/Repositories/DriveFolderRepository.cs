@@ -28,7 +28,7 @@ public class DriveFolderRepository : IDriveFolderRepository
     {
         var entities = await _dbContext.DriveFolders
             .AsNoTracking()
-            .Where(f => f.OwnerId == userId && f.ParentFolderId == null)
+            .Where(f => f.OwnerId == userId && f.ParentFolderId == null && !_dbContext.SyncFolders.Any(s => s.DriveFolderId == f.Id))
             .ToListAsync(cancellationToken);
 
         return entities.Select(e => e.ToDomain());
@@ -47,14 +47,15 @@ public class DriveFolderRepository : IDriveFolderRepository
     public async Task<bool> ExistsAsync(string name, Guid? parentFolderId, Guid ownerId, CancellationToken cancellationToken = default)
     {
         return await _dbContext.DriveFolders
-            .AnyAsync(f => f.Name == name && f.ParentFolderId == parentFolderId && f.OwnerId == ownerId, cancellationToken);
+            .AnyAsync(f => f.Name == name && f.ParentFolderId == parentFolderId && f.OwnerId == ownerId && !_dbContext.SyncFolders.Any(s => s.DriveFolderId == f.Id), cancellationToken);
     }
 
     public async Task<IEnumerable<DriveFolder>> SearchByNameAsync(string name, Guid userId, CancellationToken cancellationToken = default)
     {
+        var syncedIds = await SyncTreeScope.GetFolderIdsAsync(_dbContext, userId, cancellationToken);
         var entities = await _dbContext.DriveFolders
             .AsNoTracking()
-            .Where(f => f.OwnerId == userId && f.Name.Contains(name))
+            .Where(f => f.OwnerId == userId && f.Name.Contains(name) && !syncedIds.Contains(f.Id))
             .ToListAsync(cancellationToken);
 
         return entities.Select(e => e.ToDomain());

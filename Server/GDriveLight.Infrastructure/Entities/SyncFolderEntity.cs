@@ -5,6 +5,7 @@ namespace GDriveLight.Infrastructure.Entities;
 public class SyncFolderEntity
 {
     public Guid Id { get; set; }
+    public string? LocalPath { get; set; }
     
     public Guid DriveFolderId { get; set; }
     public DriveFolderEntity DriveFolder { get; set; } = null!;

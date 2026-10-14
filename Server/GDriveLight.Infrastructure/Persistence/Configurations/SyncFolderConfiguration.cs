@@ -11,6 +11,7 @@ public class SyncFolderConfiguration : IEntityTypeConfiguration<SyncFolderEntity
         builder.ToTable("SyncFolders");
 
         builder.HasKey(s => s.Id);
+        builder.Property(s => s.LocalPath).HasMaxLength(4096);
 
         // Relationships
         builder.HasOne(s => s.DriveFolder)

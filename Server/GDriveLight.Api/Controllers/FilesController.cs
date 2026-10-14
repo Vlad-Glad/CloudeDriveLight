@@ -64,7 +64,7 @@ public class FilesController : ControllerBase
 
         var dto = result.Value;
         var response = new FileResponse(
-            dto.Id, dto.Name, dto.FileTypeId, dto.ContentHash, 
+            dto.Id, dto.Name, dto.FileTypeId, dto.ContentHash, dto.SizeBytes,
             dto.FolderId, dto.OwnerId, dto.UploadedAtUtc, dto.EditedAtUtc, dto.FileUrl);
 
         return Ok(response);
@@ -84,7 +84,7 @@ public class FilesController : ControllerBase
         }
 
         var response = result.Value.Select(dto => new FileResponse(
-            dto.Id, dto.Name, dto.FileTypeId, dto.ContentHash, 
+            dto.Id, dto.Name, dto.FileTypeId, dto.ContentHash, dto.SizeBytes,
             dto.FolderId, dto.OwnerId, dto.UploadedAtUtc, dto.EditedAtUtc, dto.FileUrl));
 
         return Ok(response);
@@ -193,7 +193,7 @@ public class FilesController : ControllerBase
         }
 
         var response = result.Value.Select(dto => new FileResponse(
-            dto.Id, dto.Name, dto.FileTypeId, dto.ContentHash, 
+            dto.Id, dto.Name, dto.FileTypeId, dto.ContentHash, dto.SizeBytes,
             dto.FolderId, dto.OwnerId, dto.UploadedAtUtc, dto.EditedAtUtc, dto.FileUrl));
 
         return Ok(response);

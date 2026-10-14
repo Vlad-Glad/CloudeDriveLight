@@ -23,9 +23,13 @@ public interface IDriveApiService
     void SetAuthToken(string? token);
     void Logout();
 
+    Task<IEnumerable<DeviceResponse>> GetDevicesAsync(CancellationToken cancellationToken = default);
+    Task<DeviceResponse> ConfigureSyncFolderAsync(string localPath, CancellationToken cancellationToken = default);
     Guid DeviceId { get; }
     Guid? CurrentUserId { get; }
     Task<SyncChangesResponse> GetChangesAsync(long cursor, int limit = 100, CancellationToken cancellationToken = default);
     Task UpdateFileContentAsync(Guid fileId, Stream stream, string fileName, CancellationToken cancellationToken = default);
+    Task<Guid> RegisterDeviceAsync(Guid deviceId, string name, CancellationToken cancellationToken = default);
+    Task<Guid> EnsureDeviceRegisteredAsync(CancellationToken cancellationToken = default);
 }
 

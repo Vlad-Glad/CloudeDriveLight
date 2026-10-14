@@ -161,6 +161,7 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
                 <DockPanel Margin="0,0,0,24">
@@ -173,8 +174,10 @@
                                 ToolTip="Synchronize" AutomationProperties.Name="Synchronize" Margin="0,0,8,0">
                             <ui:SymbolIcon Symbol="ArrowSync24" FontSize="22" />
                         </Button>
-                        <Button Style="{StaticResource QuietButton}" IsEnabled="False" ToolTip="Settings"
-                                AutomationProperties.Name="Settings" Margin="0,0,12,0">
+                        <TextBlock Text="{Binding SyncStatusSummary}" VerticalAlignment="Center" Margin="0,0,8,0"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <Button Style="{StaticResource QuietButton}" Command="{Binding ChangeSyncFolderCommand}" ToolTip="Change local sync folder"
+                                AutomationProperties.Name="Change local sync folder" Margin="0,0,12,0">
                             <ui:SymbolIcon Symbol="Settings24" FontSize="22" />
                         </Button>
                         <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource SidebarSelectedBrush}">
@@ -204,7 +207,27 @@
                         </StackPanel>
                     </ScrollViewer>
                 </DockPanel>
-                <Border Grid.Row="1" Background="{DynamicResource SearchBarBackgroundBrush}"
+                <Border Grid.Row="1" Background="{DynamicResource AppBackgroundBrush}" CornerRadius="10" Padding="12"
+                        Margin="0,0,0,14" Visibility="{Binding IsSyncedFoldersView, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Grid>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="Device" VerticalAlignment="Center" Margin="0,0,12,8" />
+                        <ComboBox x:Name="DeviceSelector" Grid.Column="1" Grid.ColumnSpan="3" ItemsSource="{Binding Devices}"
+                                  SelectedItem="{Binding SelectedDevice}" DisplayMemberPath="DisplayName" IsEnabled="{Binding CanNavigate}"
+                                  HorizontalAlignment="Left" MinWidth="220" Margin="0,0,0,8" AutomationProperties.Name="Viewed device" />
+                        <TextBlock Grid.Row="1" Text="Local folder" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding CurrentSyncFolderPath}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding CurrentSyncFolderPath}" />
+                        <Button Grid.Row="1" Grid.Column="2" Content="Change..." Command="{Binding ChangeSyncFolderCommand}"
+                                Style="{StaticResource QuietButton}" Margin="8,0,0,0" />
+                        <Button Grid.Row="1" Grid.Column="3" Content="Open folder" Command="{Binding OpenSyncFolderInExplorerCommand}"
+                                Style="{StaticResource QuietButton}" Margin="8,0,0,0" />
+                        <TextBlock Grid.Row="2" Grid.ColumnSpan="4" Text="{Binding SyncFolderHint}" FontSize="12"
+                                   TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </Grid>
+                </Border>
+                <Border Grid.Row="2" Background="{DynamicResource SearchBarBackgroundBrush}"
                         CornerRadius="26" Padding="16,12" Margin="0,0,0,20">
                     <DockPanel>
                         <ui:SymbolIcon Symbol="Search24" FontSize="20" Margin="0,0,12,0" />
@@ -229,7 +252,7 @@
                         </TextBox>
                     </DockPanel>
                 </Border>
-                <StackPanel Grid.Row="2">
+                <StackPanel Grid.Row="3">
                     <!-- Operation progress bar -->
                     <Border Visibility="{Binding IsOperating, Converter={StaticResource BooleanToVisibilityConverter}}"
                             Background="{DynamicResource AppBackgroundBrush}" CornerRadius="10" Padding="12,10" Margin="0,0,0,10">
@@ -296,7 +319,7 @@
                         </Grid>
                     </Border>
                 </StackPanel>
-                <Grid Grid.Row="3">
+                <Grid Grid.Row="4">
                     <DataGrid x:Name="FileGrid" ItemsSource="{Binding VisibleFiles}" SelectedItem="{Binding SelectedFile}"
                               IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"
                               CanUserDeleteRows="False" CanUserSortColumns="False" CanUserResizeRows="False"

@@ -6,6 +6,14 @@ public class SyncFolder
 {
     public Guid Id { get; private set; }
 
+    public string? LocalPath { get; private set; }
+
+    public void SetLocalPath(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        LocalPath = path.Trim();
+    }
+
     public Guid DriveFolderId { get; private set; }
 
     public Guid DeviceId { get; private set; }

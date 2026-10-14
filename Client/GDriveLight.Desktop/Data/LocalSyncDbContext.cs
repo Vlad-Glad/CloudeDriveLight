@@ -6,6 +6,7 @@ namespace GDriveLight.Desktop.Data;
 public class LocalSyncDbContext : DbContext
 {
     public DbSet<LocalItemState> Items => Set<LocalItemState>();
+    public DbSet<SyncScope> Scopes => Set<SyncScope>();
     public DbSet<SyncCursor> Cursors => Set<SyncCursor>();
 
     public LocalSyncDbContext(DbContextOptions<LocalSyncDbContext> options)
@@ -32,6 +33,13 @@ public class LocalSyncDbContext : DbContext
                 .IsUnique();
 
             entity.HasIndex(e => e.ServerResourceId);
+        });
+
+        modelBuilder.Entity<SyncScope>(entity =>
+        {
+            entity.ToTable("SyncScopes");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever();
         });
 
         modelBuilder.Entity<SyncCursor>(entity =>

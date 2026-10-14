@@ -83,12 +83,15 @@ public sealed class DriveApiService : IDriveApiService
             ?? throw new JsonException("The server returned an invalid item list.");
     }
 
-    private HttpRequestMessage CreateRequest(HttpMethod method, string path, bool authenticated = true)
+    private HttpRequestMessage CreateRequest(HttpMethod method, string path, bool authenticated = true, bool deviceOrigin = false)
     {
         lock (_sessionLock)
         {
             var request = new HttpRequestMessage(method, new Uri(_serverUri, path));
-            request.Headers.Add("X-Device-Id", DeviceId.ToString());
+            if (deviceOrigin)
+            {
+                request.Headers.Add("X-Device-Id", DeviceId.ToString());
+            }
 
             if (authenticated && _authToken is not null)
             {
@@ -198,7 +201,7 @@ public sealed class DriveApiService : IDriveApiService
 
     public async Task UpdateFileContentAsync(Guid fileId, Stream stream, string fileName, CancellationToken cancellationToken = default)
     {
-        using var request = CreateRequest(HttpMethod.Put, $"api/files/{fileId}/content");
+        using var request = CreateRequest(HttpMethod.Put, $"api/files/{fileId}/content", deviceOrigin: true);
         var content = new MultipartFormDataContent();
         request.Content = content;
         content.Add(new StreamContent(stream), "file", fileName);
@@ -242,8 +245,34 @@ public sealed class DriveApiService : IDriveApiService
         return null;
     }
 
+    public async Task<Guid> RegisterDeviceAsync(Guid deviceId, string name, CancellationToken cancellationToken = default)
+    {
+        using var request = CreateRequest(HttpMethod.Post, "api/devices");
+        request.Content = JsonContent.Create(new { DeviceId = deviceId, Name = name });
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+        var result = await response.Content.ReadFromJsonAsync<RegisterDeviceResponse>(cancellationToken).ConfigureAwait(false);
+        return result is { DeviceId: var id } && id != Guid.Empty
+            ? id : throw new JsonException("The server returned an invalid device ID.");
+    }
+
+    public Task<IEnumerable<DeviceResponse>> GetDevicesAsync(CancellationToken cancellationToken = default) =>
+        GetListAsync<DeviceResponse>("api/devices", cancellationToken);
+
+    public async Task<DeviceResponse> ConfigureSyncFolderAsync(string localPath, CancellationToken cancellationToken = default)
+    {
+        using var request = CreateRequest(HttpMethod.Put, $"api/devices/{DeviceId}/sync-folder");
+        request.Content = JsonContent.Create(new { LocalPath = localPath });
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+        return await response.Content.ReadFromJsonAsync<DeviceResponse>(cancellationToken).ConfigureAwait(false)
+            ?? throw new JsonException("The server returned an invalid device configuration.");
+    }
+
+    public Task<Guid> EnsureDeviceRegisteredAsync(CancellationToken cancellationToken = default) =>
+        RegisterDeviceAsync(DeviceId, Environment.MachineName, cancellationToken);
+
     private sealed record CreatedFolderResponse(Guid FolderId);
     private sealed record CreatedFileResponse(Guid Id);
+    private sealed record RegisterDeviceResponse(Guid DeviceId);
 
     private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {

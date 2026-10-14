@@ -46,4 +46,13 @@ public class SyncSettingsServiceTests : IDisposable
         var retrieved = service.GetSyncFolderPath(userId);
         Assert.Equal(customFolder, retrieved);
     }
+    [Fact]
+    public void MissingConfiguredFolderDoesNotSilentlySwitchToDefault()
+    {
+        var service = new SyncSettingsService(_testDirectory);
+        var user = Guid.NewGuid();
+        var path = Path.Combine(_testDirectory, "disconnected-drive");
+        service.SetSyncFolderPath(user, path);
+        Assert.Equal(path, service.GetSyncFolderPath(user));
+    }
 }

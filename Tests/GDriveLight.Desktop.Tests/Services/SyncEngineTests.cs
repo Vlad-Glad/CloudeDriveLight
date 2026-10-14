@@ -75,7 +75,7 @@ public class SyncEngineTests : IDisposable
         _apiMock.Setup(a => a.GetFilesAsync(folderId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[]
             {
-                new FileResponse(fileId, "readme.txt", fileContent.Length, fileHash, folderId, _userId, DateTime.UtcNow, null, "path")
+                new FileResponse(fileId, "readme.txt", 1, fileHash, fileContent.Length, folderId, _userId, DateTime.UtcNow, null, "path")
             });
 
         // Download handler
@@ -128,7 +128,7 @@ public class SyncEngineTests : IDisposable
         _apiMock.Setup(a => a.GetFilesAsync(null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[]
             {
-                new FileResponse(fileId, "existing.txt", fileContent.Length, fileHash, null, _userId, DateTime.UtcNow, null, "path")
+                new FileResponse(fileId, "existing.txt", 1, fileHash, fileContent.Length, null, _userId, DateTime.UtcNow, null, "path")
             });
 
         // DownloadFileAsync should NOT be called!
@@ -474,8 +474,8 @@ public class SyncEngineTests : IDisposable
         _apiMock.Setup(a => a.GetFilesAsync(null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[]
             {
-                new FileResponse(file1Id, "broken.txt", 10, "h1", null, _userId, DateTime.UtcNow, null, "path1"),
-                new FileResponse(file2Id, "ok.txt", content2.Length, ComputeSha256(content2), null, _userId, DateTime.UtcNow, null, "path2")
+                new FileResponse(file1Id, "broken.txt", 1, "h1", 10L, null, _userId, DateTime.UtcNow, null, "path1"),
+                new FileResponse(file2Id, "ok.txt", 1, ComputeSha256(content2), content2.Length, null, _userId, DateTime.UtcNow, null, "path2")
             });
 
         _apiMock.Setup(a => a.DownloadFileAsync(file1Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))

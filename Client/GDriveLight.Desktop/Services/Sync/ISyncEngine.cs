@@ -10,4 +10,5 @@ public record SyncResult(
 public interface ISyncEngine
 {
     Task<SyncResult> SynchronizeAsync(Guid userId, string localFolderPath, CancellationToken cancellationToken = default);
+    Task<SyncResult> SynchronizeAsync(Guid userId, string localFolderPath, CancellationToken cancellationToken, Guid? serverRootFolderId);
 }

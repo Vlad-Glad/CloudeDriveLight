@@ -13,12 +13,15 @@ public class Device
 
     public Device(
         Guid userId,
-        string name)
+        string name,
+        Guid? id = null)
     {
         ValidateGuid(userId, nameof(userId));
         ValidateName(name);
 
-        Id = Guid.NewGuid();
+        Id = id.HasValue ? id.Value : Guid.NewGuid();
+        ValidateGuid(Id, nameof(id));
+
         UserId = userId;
         Name = name;
     }

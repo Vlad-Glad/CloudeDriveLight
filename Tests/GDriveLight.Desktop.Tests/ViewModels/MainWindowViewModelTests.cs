@@ -16,6 +16,7 @@ public sealed class MainWindowViewModelTests
         var folders = new TaskCompletionSource<IEnumerable<FolderResponse>>();
         var files = new TaskCompletionSource<IEnumerable<FileResponse>>();
         var api = new Mock<IDriveApiService>(MockBehavior.Strict);
+        api.Setup(service => service.EnsureDeviceRegisteredAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Guid.NewGuid());
         CancellationToken loadToken = default;
         api.Setup(service => service.GetFolderContentAsync(null, It.IsAny<CancellationToken>()))
             .Callback<Guid?, CancellationToken>((_, token) => loadToken = token).Returns(folders.Task);
@@ -24,6 +25,8 @@ public sealed class MainWindowViewModelTests
             new Mock<IFileDialogService>().Object, new Mock<IUserDialogService>().Object);
 
         var load = viewModel.InitializeAsync();
+        api.Setup(service => service.GetDevicesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<DeviceResponse>());
+        api.SetupGet(service => service.DeviceId).Returns(Guid.NewGuid());
         viewModel.SelectedSidebarIndex = 1;
         folders.SetResult(new[] { new FolderResponse(Guid.NewGuid(), "Old folder", null, Guid.NewGuid()) });
         files.SetResult(Array.Empty<FileResponse>());
@@ -41,6 +44,7 @@ public sealed class MainWindowViewModelTests
     {
         var oldFolders = new TaskCompletionSource<IEnumerable<FolderResponse>>();
         var api = new Mock<IDriveApiService>(MockBehavior.Strict);
+        api.Setup(service => service.EnsureDeviceRegisteredAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Guid.NewGuid());
         api.SetupSequence(service => service.GetFolderContentAsync(null, It.IsAny<CancellationToken>()))
             .Returns(oldFolders.Task)
             .ReturnsAsync(new[] { new FolderResponse(Guid.NewGuid(), "New folder", null, Guid.NewGuid()) });
@@ -63,6 +67,7 @@ public sealed class MainWindowViewModelTests
     {
         var folder = new FolderResponse(Guid.NewGuid(), "Documents", null, Guid.NewGuid());
         var api = new Mock<IDriveApiService>(MockBehavior.Strict);
+        api.Setup(service => service.EnsureDeviceRegisteredAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Guid.NewGuid());
         api.Setup(service => service.GetFolderContentAsync(null, It.IsAny<CancellationToken>())).ReturnsAsync(new[] { folder });
         api.Setup(service => service.GetFilesAsync(It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<FileResponse>());
@@ -88,6 +93,7 @@ public sealed class MainWindowViewModelTests
     public async Task ExpiredSessionRaisesAnEventForTheApplicationToHandle()
     {
         var api = new Mock<IDriveApiService>(MockBehavior.Strict);
+        api.Setup(service => service.EnsureDeviceRegisteredAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Guid.NewGuid());
         api.Setup(service => service.GetFolderContentAsync(null, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new DriveApiException(HttpStatusCode.Unauthorized, "Sign in."));
         api.Setup(service => service.GetFilesAsync(null, It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<FileResponse>());
@@ -107,9 +113,10 @@ public sealed class MainWindowViewModelTests
     public async Task FileAppearanceUsesTheExtensionAndModifiedDateInsteadOfGuessedTypeIds()
     {
         var edited = new DateTime(2026, 10, 7, 12, 0, 0, DateTimeKind.Utc);
-        var file = new FileResponse(Guid.NewGuid(), "photo.png", 12, "hash", null, Guid.NewGuid(),
+        var file = new FileResponse(Guid.NewGuid(), "photo.png", 12, "hash", 1024L, null, Guid.NewGuid(),
             edited.AddDays(-1), edited, "server-path");
         var api = new Mock<IDriveApiService>(MockBehavior.Strict);
+        api.Setup(service => service.EnsureDeviceRegisteredAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Guid.NewGuid());
         api.Setup(service => service.GetFolderContentAsync(null, It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<FolderResponse>());
         api.Setup(service => service.GetFilesAsync(null, It.IsAny<CancellationToken>())).ReturnsAsync(new[] { file });
         using var viewModel = new MainWindowViewModel(api.Object,

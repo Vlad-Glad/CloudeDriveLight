@@ -62,7 +62,7 @@ public partial class MainWindow
         var data = new DataObject(InternalDragFormat, item.Id.ToString("D"), autoConvert: false);
         try
         {
-            DragDrop.DoDragDrop(FileGrid, data, DragDropEffects.Move);
+            DragDrop.DoDragDrop(FileGrid, data, DragDropEffects.Move | DragDropEffects.Copy);
         }
         finally
         {
@@ -77,9 +77,9 @@ public partial class MainWindow
     private void ItemDragOver(object sender, DragEventArgs e)
     {
         e.Effects = DragDropEffects.None;
-        if (TryGetMoveRequest(e, out _, out var target))
+        if (TryGetMoveRequest(e, out var request, out var target))
         {
-            e.Effects = DragDropEffects.Move;
+            e.Effects = _viewModel.IsSyncedFoldersView && request?.Destination.Id is null ? DragDropEffects.Copy : DragDropEffects.Move;
             if (!ReferenceEquals(_dropHighlight?.AdornedElement, target))
             {
                 ClearDropHighlight();
@@ -105,7 +105,7 @@ public partial class MainWindow
         e.Effects = DragDropEffects.None;
         if (TryGetMoveRequest(e, out var request, out _))
         {
-            e.Effects = DragDropEffects.Move;
+            e.Effects = _viewModel.IsSyncedFoldersView && request?.Destination.Id is null ? DragDropEffects.Copy : DragDropEffects.Move;
             _viewModel.MoveToCommand.Execute(request);
         }
 

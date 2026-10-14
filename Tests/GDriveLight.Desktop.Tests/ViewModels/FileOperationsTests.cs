@@ -11,21 +11,20 @@ namespace GDriveLight.Desktop.Tests.ViewModels;
 public sealed class FileOperationsTests
 {
     [Fact]
-    public async Task SearchFiltersFilesAndFoldersWithoutMakingAnotherServerRequest()
+    public async Task SearchUsesCloudResultsAndCanBeCleared()
     {
         var api = ReadableApi();
+        api.Setup(service => service.SearchFoldersAsync("NOTES", It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<FolderResponse>());
+        api.Setup(service => service.SearchFilesAsync("NOTES", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { new FileResponse(Guid.NewGuid(), "notes.txt", 2, "hash", 1024L, null, Guid.NewGuid(), DateTime.UtcNow, null, "path") });
         using var model = CreateModel(api);
         await model.InitializeAsync();
-
         model.SearchText = "NOTES";
-
+        await model.RefreshAsync();
         Assert.Equal("notes.txt", Assert.Single(model.VisibleFiles).Name);
-        Assert.Equal(2, model.Files.Count);
-        api.Verify(service => service.GetFilesAsync(null, It.IsAny<CancellationToken>()), Times.Once);
-        model.SearchText = "missing";
-        Assert.True(model.IsEmpty);
-        Assert.Equal("No matching files", model.EmptyTitle);
+        api.Verify(service => service.SearchFilesAsync("NOTES", It.IsAny<CancellationToken>()), Times.Once);
         model.SearchText = string.Empty;
+        await model.RefreshAsync();
         Assert.Equal(2, model.VisibleFiles.Count);
     }
 
@@ -196,7 +195,7 @@ public sealed class FileOperationsTests
         using var model = CreateModel(api, dialogs: dialogs);
         await model.InitializeAsync();
         var parent = model.Files.Single(item => item.IsFolder);
-        var file = new FileResponse(Guid.NewGuid(), "nested.txt", 2, "hash", parent.Id, Guid.NewGuid(), DateTime.UtcNow, null, "path");
+        var file = new FileResponse(Guid.NewGuid(), "nested.txt", 2, "hash", 1024L, parent.Id, Guid.NewGuid(), DateTime.UtcNow, null, "path");
         api.Setup(service => service.GetFolderContentAsync(parent.Id, It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<FolderResponse>());
         api.Setup(service => service.GetFilesAsync(parent.Id, It.IsAny<CancellationToken>())).ReturnsAsync(new[] { file });
         api.Setup(service => service.MoveAsync(file.Id, false, null, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
@@ -219,7 +218,7 @@ public sealed class FileOperationsTests
         using var model = CreateModel(api, dialogs: dialogs);
         await model.InitializeAsync();
         var item = model.Files.Single(file => file.IsFolder == isFolder);
-        dialogs.Setup(service => service.RequestName("Rename", "New name", item.Name)).Returns("Renamed.txt");
+        dialogs.Setup(service => service.RequestName("Rename", "New name", item.IsFolder ? item.Name : System.IO.Path.GetFileNameWithoutExtension(item.Name))).Returns("Renamed.txt");
         api.Setup(service => service.RenameAsync(item.Id, isFolder, "Renamed.txt", It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         await model.RenameCommand.ExecuteAsync(item);
@@ -235,7 +234,7 @@ public sealed class FileOperationsTests
     {
         var api = ReadableApi();
         var dialogs = new Mock<IUserDialogService>(MockBehavior.Strict);
-        dialogs.Setup(service => service.RequestName("Rename", "New name", "notes.txt")).Returns(cancelled ? null : "notes.txt");
+        dialogs.Setup(service => service.RequestName("Rename", "New name", "notes")).Returns(cancelled ? null : "notes.txt");
         using var model = CreateModel(api, dialogs: dialogs);
         await model.InitializeAsync();
 
@@ -258,7 +257,7 @@ public sealed class FileOperationsTests
         var rejection = new DriveApiException(HttpStatusCode.BadRequest, "Operation rejected.");
         var targetId = Guid.NewGuid();
         dialogs.Setup(service => service.SelectDestination(null, null)).Returns(new FolderDestination(targetId, "Target"));
-        dialogs.Setup(service => service.RequestName("Rename", "New name", item.Name)).Returns("Other.txt");
+        dialogs.Setup(service => service.RequestName("Rename", "New name", item.IsFolder ? item.Name : System.IO.Path.GetFileNameWithoutExtension(item.Name))).Returns("Other.txt");
         dialogs.Setup(service => service.ConfirmDelete(item.Name, false)).Returns(true);
         api.Setup(service => service.MoveAsync(item.Id, false, targetId, It.IsAny<CancellationToken>())).ThrowsAsync(rejection);
         api.Setup(service => service.RenameAsync(item.Id, false, "Other.txt", It.IsAny<CancellationToken>())).ThrowsAsync(rejection);
@@ -298,12 +297,13 @@ public sealed class FileOperationsTests
     private static Mock<IDriveApiService> ReadableApi()
     {
         var api = new Mock<IDriveApiService>(MockBehavior.Strict);
+        api.Setup(service => service.EnsureDeviceRegisteredAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Guid.NewGuid());
         api.Setup(service => service.GetFolderContentAsync(null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { new FolderResponse(Guid.NewGuid(), "Documents", null, Guid.NewGuid()) });
         api.Setup(service => service.GetFilesAsync(null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[]
             {
-                new FileResponse(Guid.NewGuid(), "notes.txt", 2, "hash", null, Guid.NewGuid(),
+                new FileResponse(Guid.NewGuid(), "notes.txt", 2, "hash", 1024L, null, Guid.NewGuid(),
                     DateTime.UtcNow, null, "internal-path")
             });
         return api;

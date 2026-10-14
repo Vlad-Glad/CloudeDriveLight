@@ -86,7 +86,7 @@ public sealed class DriveApiServiceTests
     }
 
     [Fact]
-    public async Task RequestsIncludeXDeviceIdHeader()
+    public async Task CloudRequestsDoNotIncludeDeviceOrigin()
     {
         var expectedDeviceId = Guid.NewGuid();
         var mockDeviceService = new Moq.Mock<GDriveLight.Desktop.Services.IDeviceIdentifierService>();
@@ -108,7 +108,7 @@ public sealed class DriveApiServiceTests
         var service = new DriveApiService(client, mockDeviceService.Object);
         await service.GetFilesAsync(null);
 
-        Assert.Equal(expectedDeviceId.ToString(), capturedDeviceIdHeader);
+        Assert.Null(capturedDeviceIdHeader);
     }
 
     [Fact]
@@ -181,6 +181,24 @@ public sealed class DriveApiServiceTests
         Assert.Equal(HttpMethod.Put, capturedMethod);
         Assert.Equal($"/api/files/{fileId}/content", capturedPath);
         Assert.True(isMultipart);
+    }
+
+    [Fact]
+    public async Task CloudMutationsDoNotIncludeDeviceOrigin()
+    {
+        using var client = new HttpClient(new StubHandler((request, _) =>
+        {
+            Assert.False(request.Headers.Contains("X-Device-Id"));
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent($"{{\"folderId\":\"{Guid.NewGuid()}\"}}", Encoding.UTF8, "application/json")
+            });
+        }));
+        var service = new DriveApiService(client);
+        await service.CreateFolderAsync("New", Guid.NewGuid());
+        await service.RenameAsync(Guid.NewGuid(), false, "renamed.txt");
+        await service.MoveAsync(Guid.NewGuid(), false, null);
+        await service.DeleteAsync(Guid.NewGuid(), false);
     }
 
     private sealed class StubHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) : HttpMessageHandler

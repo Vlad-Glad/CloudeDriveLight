@@ -27,6 +27,7 @@ public class SearchFilesQueryHandler : IRequestHandler<SearchFilesQuery, Result<
             file.Name,
             file.FileTypeId,
             file.ContentHash,
+            file.SizeBytes,
             file.FolderId,
             file.OwnerId,
             file.UploadedAtUtc,

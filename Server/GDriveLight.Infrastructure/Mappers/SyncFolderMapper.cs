@@ -13,7 +13,8 @@ internal static class SyncFolderMapper
             DriveFolderId = domain.DriveFolderId,
             DeviceId = domain.DeviceId,
             LastSyncedAtUtc = domain.LastSyncedAtUtc,
-            SyncMode = domain.SyncMode
+            SyncMode = domain.SyncMode,
+            LocalPath = domain.LocalPath
         };
     }
 
@@ -22,6 +23,7 @@ internal static class SyncFolderMapper
         var domain = new SyncFolder(entity.DriveFolderId, entity.DeviceId, entity.SyncMode);
         domain.SetPropertyValue(nameof(SyncFolder.Id), entity.Id);
         domain.SetPropertyValue(nameof(SyncFolder.LastSyncedAtUtc), entity.LastSyncedAtUtc);
+        if (entity.LocalPath is not null) domain.SetLocalPath(entity.LocalPath);
         return domain;
     }
 }

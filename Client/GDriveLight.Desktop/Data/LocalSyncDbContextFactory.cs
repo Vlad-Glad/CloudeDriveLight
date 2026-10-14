@@ -42,6 +42,15 @@ public class LocalSyncDbContextFactory : ILocalSyncDbContextFactory
 
         var context = new LocalSyncDbContext(options);
         context.Database.EnsureCreated();
+        // EnsureCreated does not add tables to existing per-user SQLite databases.
+        context.Database.ExecuteSqlRaw("""
+            CREATE TABLE IF NOT EXISTS "SyncScopes" (
+                "Id" INTEGER NOT NULL PRIMARY KEY,
+                "ServerRootFolderId" TEXT NOT NULL,
+                "LocalPath" TEXT NOT NULL,
+                "InitialSyncCompleted" INTEGER NOT NULL
+            );
+            """);
         return context;
     }
 }

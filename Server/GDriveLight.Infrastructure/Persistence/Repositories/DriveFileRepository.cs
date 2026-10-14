@@ -70,9 +70,10 @@ public class DriveFileRepository : IDriveFileRepository
 
     public async Task<IEnumerable<DriveFile>> SearchByNameAsync(string name, Guid userId, CancellationToken cancellationToken = default)
     {
+        var syncedIds = await SyncTreeScope.GetFolderIdsAsync(_dbContext, userId, cancellationToken);
         var entities = await _dbContext.DriveFiles
             .AsNoTracking()
-            .Where(f => f.OwnerId == userId && f.Name.Contains(name))
+            .Where(f => f.OwnerId == userId && f.Name.Contains(name) && (!f.FolderId.HasValue || !syncedIds.Contains(f.FolderId.Value)))
             .ToListAsync(cancellationToken);
 
         return entities.Select(e => e.ToDomain());

@@ -26,7 +26,10 @@ public class SyncEngine : ISyncEngine
         _deviceIdentifierService = deviceIdentifierService;
     }
 
-    public async Task<SyncResult> SynchronizeAsync(Guid userId, string localFolderPath, CancellationToken cancellationToken = default)
+    public Task<SyncResult> SynchronizeAsync(Guid userId, string localFolderPath, CancellationToken cancellationToken = default)
+        => SynchronizeAsync(userId, localFolderPath, cancellationToken, null);
+
+    public async Task<SyncResult> SynchronizeAsync(Guid userId, string localFolderPath, CancellationToken cancellationToken, Guid? serverRootFolderId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(localFolderPath);
 
@@ -39,6 +42,29 @@ public class SyncEngine : ISyncEngine
 
             using var dbContext = _dbContextFactory.CreateDbContext(userId);
 
+            SyncScope? scope = null;
+            if (serverRootFolderId.HasValue)
+            {
+                var normalizedPath = Path.GetFullPath(localFolderPath).TrimEnd(Path.DirectorySeparatorChar);
+                scope = await dbContext.Scopes.FindAsync(new object[] { 1 }, cancellationToken);
+                if (scope is null || scope.ServerRootFolderId != serverRootFolderId ||
+                    !string.Equals(scope.LocalPath, normalizedPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Discard metadata only. Existing files are preserved in both locations.
+                    dbContext.Items.RemoveRange(dbContext.Items);
+                    dbContext.Cursors.RemoveRange(dbContext.Cursors);
+                    if (scope is null)
+                    {
+                        scope = new SyncScope();
+                        dbContext.Scopes.Add(scope);
+                    }
+                    scope.ServerRootFolderId = serverRootFolderId.Value;
+                    scope.LocalPath = normalizedPath;
+                    scope.InitialSyncCompleted = false;
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                }
+            }
+
             var cursor = await dbContext.Cursors.FindAsync(new object[] { 1 }, cancellationToken);
             if (cursor == null)
             {
@@ -50,12 +76,23 @@ public class SyncEngine : ISyncEngine
             var myDeviceId = _deviceIdentifierService.GetDeviceId();
             var hasExistingItems = await dbContext.Items.AnyAsync(cancellationToken);
 
-            if (cursor.LastProcessedChangeId == 0 && !hasExistingItems)
+            if (scope is { InitialSyncCompleted: false } || (scope is null && cursor.LastProcessedChangeId == 0 && !hasExistingItems))
             {
-                return await RunInitialSyncAsync(userId, localFolderPath, dbContext, cursor, cancellationToken);
+                if (scope is not null)
+                {
+                    dbContext.Items.RemoveRange(dbContext.Items);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                }
+                var result = await RunInitialSyncAsync(userId, localFolderPath, dbContext, cursor, cancellationToken, serverRootFolderId);
+                if (scope is not null)
+                {
+                    scope.InitialSyncCompleted = result.Success;
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                }
+                return result;
             }
 
-            return await RunDeltaSyncAsync(userId, localFolderPath, dbContext, cursor, myDeviceId, cancellationToken);
+            return await RunDeltaSyncAsync(userId, localFolderPath, dbContext, cursor, myDeviceId, cancellationToken, serverRootFolderId);
         }
         catch (OperationCanceledException)
         {
@@ -80,7 +117,7 @@ public class SyncEngine : ISyncEngine
         string localFolderPath,
         LocalSyncDbContext dbContext,
         SyncCursor cursor,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, Guid? serverRootFolderId)
     {
         long latestCursor = 0;
         long currentCursor = 0;
@@ -101,7 +138,16 @@ public class SyncEngine : ISyncEngine
         int failedCount = 0;
         var errors = new List<string>();
         var folderQueue = new Queue<(Guid? ServerFolderId, string ParentRelativePath)>();
-        folderQueue.Enqueue((null, string.Empty));
+        folderQueue.Enqueue((serverRootFolderId, string.Empty));
+        if (serverRootFolderId.HasValue)
+        {
+            dbContext.Items.Add(new LocalItemState
+            {
+                ServerResourceId = serverRootFolderId, IsDirectory = true,
+                RelativePath = string.Empty, Status = SyncStatus.Synced, LocalModifiedAtUtc = DateTime.UtcNow
+            });
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
 
         while (folderQueue.Count > 0)
         {
@@ -129,7 +175,7 @@ public class SyncEngine : ISyncEngine
                         ? subFolder.Name
                         : $"{parentRelativePath}/{subFolder.Name}";
 
-                    var localDirPath = Path.Combine(localFolderPath, subRelPath.Replace('/', Path.DirectorySeparatorChar));
+                    var localDirPath = ResolveLocalPath(localFolderPath, subRelPath);
                     if (!Directory.Exists(localDirPath))
                     {
                         Directory.CreateDirectory(localDirPath);
@@ -178,7 +224,7 @@ public class SyncEngine : ISyncEngine
                         ? file.Name
                         : $"{parentRelativePath}/{file.Name}";
 
-                    var localFilePath = Path.Combine(localFolderPath, fileRelPath.Replace('/', Path.DirectorySeparatorChar));
+                    var localFilePath = ResolveLocalPath(localFolderPath, fileRelPath);
                     var needsDownload = true;
 
                     if (File.Exists(localFilePath))
@@ -242,7 +288,7 @@ public class SyncEngine : ISyncEngine
         LocalSyncDbContext dbContext,
         SyncCursor cursor,
         Guid myDeviceId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, Guid? serverRootFolderId)
     {
         int processedCount = 0;
         int failedCount = 0;
@@ -260,7 +306,24 @@ public class SyncEngine : ISyncEngine
             {
                 try
                 {
+                    if (serverRootFolderId.HasValue)
+                    {
+                        if (change.ResourceId == serverRootFolderId.Value) continue;
+                        var tracked = await dbContext.Items.FirstOrDefaultAsync(x => x.ServerResourceId == change.ResourceId, cancellationToken);
+                        var parentTracked = change.ParentFolderId.HasValue &&
+                            await dbContext.Items.AnyAsync(x => x.ServerResourceId == change.ParentFolderId && x.IsDirectory, cancellationToken);
+                        if (!parentTracked)
+                        {
+                            if (tracked is not null)
+                            {
+                                await ApplyDeleteChangeAsync(change, localFolderPath, dbContext, Guid.Empty, cancellationToken);
+                                await dbContext.SaveChangesAsync(cancellationToken);
+                            }
+                            continue;
+                        }
+                    }
                     await ApplyChangeAsync(change, localFolderPath, dbContext, myDeviceId, cancellationToken);
+                    await dbContext.SaveChangesAsync(cancellationToken);
                     processedCount++;
                 }
                 catch (OperationCanceledException)
@@ -371,7 +434,7 @@ public class SyncEngine : ISyncEngine
 
         if (change.OriginDeviceId != myDeviceId)
         {
-            var path = Path.Combine(localFolderPath, item.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+            var path = ResolveLocalPath(localFolderPath, item.RelativePath);
             if (item.IsDirectory)
             {
                 if (Directory.Exists(path))
@@ -388,6 +451,11 @@ public class SyncEngine : ISyncEngine
             }
         }
 
+        if (item.IsDirectory)
+        {
+            var prefix = item.RelativePath + "/";
+            dbContext.Items.RemoveRange(await dbContext.Items.Where(x => x.RelativePath.StartsWith(prefix)).ToListAsync(cancellationToken));
+        }
         dbContext.Items.Remove(item);
     }
 
@@ -403,7 +471,7 @@ public class SyncEngine : ISyncEngine
             var folderRelPath = await BuildRelativePathAsync(change.Name, change.ParentFolderId, dbContext, cancellationToken);
             if (change.OriginDeviceId != myDeviceId)
             {
-                var localDirPath = Path.Combine(localFolderPath, folderRelPath.Replace('/', Path.DirectorySeparatorChar));
+                var localDirPath = ResolveLocalPath(localFolderPath, folderRelPath);
                 if (!Directory.Exists(localDirPath))
                 {
                     Directory.CreateDirectory(localDirPath);
@@ -431,7 +499,7 @@ public class SyncEngine : ISyncEngine
         else
         {
             var fileRelPath = await BuildRelativePathAsync(change.Name, change.ParentFolderId, dbContext, cancellationToken);
-            var localFilePath = Path.Combine(localFolderPath, fileRelPath.Replace('/', Path.DirectorySeparatorChar));
+            var localFilePath = ResolveLocalPath(localFolderPath, fileRelPath);
 
             if (change.OriginDeviceId == myDeviceId)
             {
@@ -524,8 +592,8 @@ public class SyncEngine : ISyncEngine
 
         if (change.OriginDeviceId != myDeviceId)
         {
-            var oldDiskPath = Path.Combine(localFolderPath, item.RelativePath.Replace('/', Path.DirectorySeparatorChar));
-            var newDiskPath = Path.Combine(localFolderPath, newRelPath.Replace('/', Path.DirectorySeparatorChar));
+            var oldDiskPath = ResolveLocalPath(localFolderPath, item.RelativePath);
+            var newDiskPath = ResolveLocalPath(localFolderPath, newRelPath);
 
             if (item.IsDirectory)
             {
@@ -555,6 +623,13 @@ public class SyncEngine : ISyncEngine
             }
         }
 
+        if (item.IsDirectory)
+        {
+            var oldPrefix = item.RelativePath + "/";
+            var descendants = await dbContext.Items.Where(x => x.RelativePath.StartsWith(oldPrefix)).ToListAsync(cancellationToken);
+            foreach (var descendant in descendants)
+                descendant.RelativePath = newRelPath + "/" + descendant.RelativePath[oldPrefix.Length..];
+        }
         item.RelativePath = newRelPath;
         item.Status = SyncStatus.Synced;
     }
@@ -566,6 +641,8 @@ public class SyncEngine : ISyncEngine
         CancellationToken cancellationToken)
     {
         var itemName = name ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(itemName) || itemName is "." or ".." || itemName.IndexOfAny(['/', '\\']) >= 0)
+            throw new IOException("The server returned an invalid resource name.");
         if (!parentFolderId.HasValue)
         {
             return itemName;
@@ -580,6 +657,15 @@ public class SyncEngine : ISyncEngine
         return string.IsNullOrEmpty(parent.RelativePath)
             ? itemName
             : $"{parent.RelativePath}/{itemName}";
+    }
+
+    private static string ResolveLocalPath(string root, string relativePath)
+    {
+        var rootPath = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var target = Path.GetFullPath(Path.Combine(rootPath, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        if (!target.StartsWith(rootPath, StringComparison.OrdinalIgnoreCase))
+            throw new IOException("Resource path is outside the local sync folder.");
+        return target;
     }
 
     private static async Task<string> ComputeFileHashAsync(string filePath, CancellationToken cancellationToken)

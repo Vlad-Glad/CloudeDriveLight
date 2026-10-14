@@ -5,6 +5,7 @@ public record FileResponse(
     string Name,
     int FileTypeId,
     string ContentHash,
+    long SizeBytes,
     Guid? FolderId,
     Guid OwnerId,
     DateTime UploadedAtUtc,

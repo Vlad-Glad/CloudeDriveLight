@@ -43,4 +43,50 @@ public sealed class LoginViewModelTests
         Assert.False(viewModel.IsLoading);
         Assert.True(viewModel.SubmitCommand.CanExecute(null));
     }
+
+    [Fact]
+    public async Task Login_WhenCredentialsAreValid_RegistersDeviceAndRaisesLoginSucceeded()
+    {
+        var api = new Mock<IDriveApiService>(MockBehavior.Strict);
+        api.Setup(service => service.LoginAsync("a@b.com", "password", It.IsAny<CancellationToken>()))
+            .ReturnsAsync("valid-jwt-token");
+        api.Setup(service => service.SetAuthToken("valid-jwt-token"));
+        api.Setup(service => service.EnsureDeviceRegisteredAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Guid.NewGuid());
+
+        using var viewModel = new LoginViewModel(api.Object) { Email = "a@b.com", Password = "password" };
+        var succeeded = false;
+        viewModel.LoginSucceeded += (_, _) => succeeded = true;
+
+        await viewModel.SubmitCommand.ExecuteAsync();
+
+        Assert.True(succeeded);
+        Assert.Empty(viewModel.Password);
+        Assert.False(viewModel.IsLoading);
+        api.Verify(service => service.SetAuthToken("valid-jwt-token"), Times.Once);
+        api.Verify(service => service.EnsureDeviceRegisteredAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Login_WhenDeviceRegistrationFails_LogsOutAndDisplaysError()
+    {
+        var api = new Mock<IDriveApiService>(MockBehavior.Strict);
+        api.Setup(service => service.LoginAsync("a@b.com", "password", It.IsAny<CancellationToken>()))
+            .ReturnsAsync("valid-jwt-token");
+        api.Setup(service => service.SetAuthToken("valid-jwt-token"));
+        api.Setup(service => service.EnsureDeviceRegisteredAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DriveApiException(System.Net.HttpStatusCode.BadRequest, "This device is already registered to another user."));
+        api.Setup(service => service.Logout());
+
+        using var viewModel = new LoginViewModel(api.Object) { Email = "a@b.com", Password = "password" };
+        var succeeded = false;
+        viewModel.LoginSucceeded += (_, _) => succeeded = true;
+
+        await viewModel.SubmitCommand.ExecuteAsync();
+
+        Assert.False(succeeded);
+        Assert.Equal("This device is already registered to another user.", viewModel.ErrorMessage);
+        Assert.False(viewModel.IsLoading);
+        api.Verify(service => service.Logout(), Times.Once);
+    }
 }

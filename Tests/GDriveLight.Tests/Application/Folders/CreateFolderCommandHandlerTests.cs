@@ -65,6 +65,9 @@ public class CreateFolderCommandHandlerTests
         var ownerId = Guid.NewGuid();
         var parentId = Guid.NewGuid();
         var folderName = "2026";
+        var parentFolder = new DriveFolder("Parent", ownerId);
+        _folderRepository.Setup(r => r.GetByIdAsync(parentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(parentFolder);
         _folderRepository.Setup(r => r.ExistsAsync(folderName, parentId, ownerId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         _folderRepository.Setup(r => r.AddAsync(It.Is<DriveFolder>(f => f.Name == folderName && f.OwnerId == ownerId && f.ParentFolderId == parentId), It.IsAny<CancellationToken>()))
@@ -84,6 +87,42 @@ public class CreateFolderCommandHandlerTests
 
         Assert.True(result.IsSuccess);
         Assert.NotEqual(Guid.Empty, result.Value);
+    }
+
+    [Fact]
+    public async Task Handle_WhenParentFolderNotFound_ReturnsFailure()
+    {
+        var ownerId = Guid.NewGuid();
+        var parentId = Guid.NewGuid();
+        _folderRepository.Setup(r => r.GetByIdAsync(parentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DriveFolder?)null);
+
+        var handler = CreateHandler();
+        var result = await handler.Handle(new CreateFolderCommand("Sub", ownerId, parentId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Contains("was not found", result.Error);
+        _folderRepository.Verify(r => r.AddAsync(It.IsAny<DriveFolder>(), It.IsAny<CancellationToken>()), Times.Never);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_WhenParentFolderOwnedByAnotherUser_ReturnsFailure()
+    {
+        var ownerId = Guid.NewGuid();
+        var otherUserId = Guid.NewGuid();
+        var parentId = Guid.NewGuid();
+        var parentFolder = new DriveFolder("Parent", otherUserId);
+        _folderRepository.Setup(r => r.GetByIdAsync(parentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(parentFolder);
+
+        var handler = CreateHandler();
+        var result = await handler.Handle(new CreateFolderCommand("Sub", ownerId, parentId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Contains("permission", result.Error);
+        _folderRepository.Verify(r => r.AddAsync(It.IsAny<DriveFolder>(), It.IsAny<CancellationToken>()), Times.Never);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

@@ -32,6 +32,17 @@ public sealed class FileDialogService : IFileDialogService
         return ShowDialog(dialog) ? dialog.FileName : null;
     }
 
+    public string? SelectFolder(string? initialDirectory = null)
+    {
+        var dialog = new OpenFolderDialog
+        {
+            Title = "Select Folder for Synchronization",
+            InitialDirectory = Directory.Exists(initialDirectory) ? initialDirectory : string.Empty
+        };
+
+        return ShowDialog(dialog) ? dialog.FolderName : null;
+    }
+
     private static bool ShowDialog(CommonDialog dialog)
     {
         var owner = Application.Current?.MainWindow;

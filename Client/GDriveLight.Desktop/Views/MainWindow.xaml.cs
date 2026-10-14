@@ -95,7 +95,7 @@ public partial class MainWindow : Window
             ? CreateAction("Open folder", _viewModel.OpenFolderCommand, SymbolRegular.FolderOpen24, item)
             : CreateAction("Download", _viewModel.DownloadCommand, SymbolRegular.ArrowDownload24, item));
         menu.Items.Add(new Separator());
-        var move = CreateAction("Move to...", _viewModel.MoveCommand, SymbolRegular.FolderArrowRight24, item);
+        var move = CreateAction(_viewModel.IsSyncedFoldersView ? "Copy to Home..." : "Move to...", _viewModel.MoveCommand, SymbolRegular.FolderArrowRight24, item);
         move.InputGestureText = "Ctrl+M";
         menu.Items.Add(move);
         var rename = CreateAction("Rename", _viewModel.RenameCommand, SymbolRegular.Edit24, item);

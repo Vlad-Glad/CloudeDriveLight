@@ -35,7 +35,7 @@ public sealed partial class MainWindowViewModel
 
     public bool IsBusy => IsLoading || IsOperating;
     public bool CanNavigate => !_disposed && !IsOperating;
-    public bool CanManageFiles => !_disposed && IsHomeView && !IsBusy && !IsError;
+    public bool CanManageFiles => !_disposed && !IsBusy && !IsError && (IsHomeView || HasSyncRoot);
     public string OperationStatus { get => _operationStatus; private set => SetProperty(ref _operationStatus, value); }
     public bool IsNotificationError { get => _isNotificationError; private set => SetProperty(ref _isNotificationError, value); }
     public string NotificationMessage
@@ -59,8 +59,41 @@ public sealed partial class MainWindowViewModel
     public AsyncRelayCommand<FileItemViewModel> MoveCommand { get; private set; } = null!;
     public AsyncRelayCommand<ItemMoveRequest> MoveToCommand { get; private set; } = null!;
     public AsyncRelayCommand SyncCommand { get; private set; } = null!;
+    public AsyncRelayCommand ChangeSyncFolderCommand { get; private set; } = null!;
+    public RelayCommand OpenSyncFolderInExplorerCommand { get; private set; } = null!;
     public RelayCommand DismissNotificationCommand { get; private set; } = null!;
     public RelayCommand CancelOperationCommand { get; private set; } = null!;
+
+    private string _syncStatusSummary = "Ready";
+    public string SyncStatusSummary
+    {
+        get => _syncStatusSummary;
+        private set => SetProperty(ref _syncStatusSummary, value);
+    }
+
+    private string _lastSyncTimeText = "Not synced yet";
+    public string LastSyncTimeText
+    {
+        get => _lastSyncTimeText;
+        private set => SetProperty(ref _lastSyncTimeText, value);
+    }
+
+    public string CurrentSyncFolderPath
+    {
+        get
+        {
+            try
+            {
+                return IsSyncedFoldersView ? SelectedDevice?.LocalPath ?? string.Empty : _apiService.CurrentUserId.HasValue && _syncSettings is not null
+                    ? _syncSettings.GetSyncFolderPath(_apiService.CurrentUserId.Value)
+                    : string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+    }
 
     private void InitializeOperationCommands()
     {
@@ -73,7 +106,9 @@ public sealed partial class MainWindowViewModel
         MoveCommand = new AsyncRelayCommand<FileItemViewModel>(MoveAsync, HandleOperationError, CanActOn);
         MoveToCommand = new AsyncRelayCommand<ItemMoveRequest>(MoveItemToAsync, HandleOperationError,
             request => request is not null && CanMoveTo(request.Item, request.Destination));
-        SyncCommand = new AsyncRelayCommand(SyncAsync, HandleOperationError, () => !_disposed && !IsBusy && _syncEngine is not null);
+        SyncCommand = new AsyncRelayCommand(SyncAsync, HandleOperationError, () => !_disposed && !IsBusy && _syncEngine is not null && (IsHomeView || IsCurrentDevice));
+        ChangeSyncFolderCommand = new AsyncRelayCommand(ChangeSyncFolderAsync, HandleOperationError, () => !_disposed && !IsBusy && _syncSettings is not null && (IsHomeView || IsCurrentDevice));
+        OpenSyncFolderInExplorerCommand = new RelayCommand(OpenSyncFolderInExplorer, () => !_disposed && !IsBusy && (IsHomeView || IsCurrentDevice) && !string.IsNullOrWhiteSpace(CurrentSyncFolderPath));
         DismissNotificationCommand = new RelayCommand(() => NotificationMessage = string.Empty);
         CancelOperationCommand = new RelayCommand(() => _activeOperation?.Cancel(), () => IsOperating);
     }
@@ -88,10 +123,11 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
-        var parentId = Breadcrumbs.Last().Id;
         await RunOperationAsync("Creating folder...", async token =>
         {
+            var parentId = await GetCurrentFolderIdAsync(token);
             await _apiService.CreateFolderAsync(name, parentId, token);
+
             return $"Created '{name}'.";
         });
     }
@@ -104,11 +140,12 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
-        var folderId = Breadcrumbs.Last().Id;
         await RunOperationAsync("Uploading files...", async token =>
         {
+            var folderId = await GetCurrentFolderIdAsync(token);
             var uploaded = 0;
             var failures = new List<string>();
+
             foreach (var path in paths)
             {
                 token.ThrowIfCancellationRequested();
@@ -117,6 +154,7 @@ public sealed partial class MainWindowViewModel
                 {
                     await _apiService.UploadFileAsync(path, folderId, token);
                     uploaded++;
+
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException &&
                     exception is not DriveApiException { StatusCode: HttpStatusCode.Unauthorized })
@@ -182,6 +220,7 @@ public sealed partial class MainWindowViewModel
         await RunOperationAsync("Renaming...", async token =>
         {
             await _apiService.RenameAsync(item.Id, item.IsFolder, name, token);
+
             return $"Renamed to '{name}'.";
         });
     }
@@ -196,6 +235,7 @@ public sealed partial class MainWindowViewModel
         await RunOperationAsync("Deleting...", async token =>
         {
             await _apiService.DeleteAsync(item.Id, item.IsFolder, token);
+
             return $"Deleted '{item.Name}'.";
         });
     }
@@ -227,9 +267,47 @@ public sealed partial class MainWindowViewModel
 
         await RunOperationAsync("Moving...", async token =>
         {
+            if (IsSyncedFoldersView && !await IsWithinSelectedSyncTreeAsync(request.Destination.Id, token))
+            {
+                await CopyToCloudAsync(request.Item.Id, request.Item.Name, request.Item.IsFolder, request.Destination.Id, token);
+                return $"Copied '{request.Item.Name}' to '{request.Destination.Name}'.";
+            }
             await _apiService.MoveAsync(request.Item.Id, request.Item.IsFolder, request.Destination.Id, token);
             return $"Moved '{request.Item.Name}' to '{request.Destination.Name}'.";
         });
+    }
+
+    private async Task<bool> IsWithinSelectedSyncTreeAsync(Guid? folderId, CancellationToken token)
+    {
+        if (!folderId.HasValue) return false;
+        if (folderId == SelectedDevice?.SyncRootFolderId) return true;
+        return (await _apiService.GetFolderPathAsync(folderId.Value, token)).Any(folder => folder.Id == SelectedDevice?.SyncRootFolderId);
+    }
+
+    private async Task CopyToCloudAsync(Guid id, string name, bool isFolder, Guid? destination, CancellationToken token)
+    {
+        if (isFolder)
+        {
+            var targetId = await _apiService.CreateFolderAsync(name, destination, token);
+            foreach (var folder in await _apiService.GetFolderContentAsync(id, token))
+                await CopyToCloudAsync(folder.Id, folder.Name, true, targetId, token);
+            foreach (var file in await _apiService.GetFilesAsync(id, token))
+                await CopyToCloudAsync(file.Id, file.Name, false, targetId, token);
+            return;
+        }
+        var temporaryDirectory = Path.Combine(Path.GetTempPath(), $"gdrivelight-copy-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(temporaryDirectory);
+        var temporaryFile = Path.Combine(temporaryDirectory, Path.GetFileName(name));
+        try
+        {
+            await _apiService.DownloadFileAsync(id, temporaryFile, token);
+            await _apiService.UploadFileAsync(temporaryFile, destination, token);
+        }
+        finally
+        {
+            if (File.Exists(temporaryFile)) File.Delete(temporaryFile);
+            Directory.Delete(temporaryDirectory);
+        }
     }
 
     private async Task SyncAsync()
@@ -255,17 +333,80 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
+        SyncStatusSummary = "Syncing...";
         await RunOperationAsync("Synchronizing...", async token =>
         {
-            var result = await _syncEngine.SynchronizeAsync(userId.Value, folder, token);
+            var config = await _apiService.ConfigureSyncFolderAsync(folder, token);
+            var result = await _syncEngine.SynchronizeAsync(userId.Value, folder, token, config.SyncRootFolderId);
             if (result.Success && result.FailedCount == 0)
             {
+                LastSyncTimeText = DateTime.Now.ToString("HH:mm");
+                SyncStatusSummary = $"Synced ({LastSyncTimeText})";
                 return result.Message ?? $"Synchronized {result.ProcessedChangesCount} items.";
             }
 
+            SyncStatusSummary = result.FailedCount > 0 ? "Sync warning" : "Sync failed";
             IsNotificationError = true;
             return result.Message ?? "Synchronization completed with errors.";
         }, refreshAfter: true);
+    }
+
+    private async Task ChangeSyncFolderAsync()
+    {
+        var userId = _apiService.CurrentUserId;
+        if (!userId.HasValue)
+        {
+            NotificationMessage = "You must be logged in to configure the sync folder.";
+            IsNotificationError = true;
+            return;
+        }
+
+        var current = _syncSettings?.GetSyncFolderPath(userId.Value);
+        var selected = _fileDialogs.SelectFolder(current);
+        if (!string.IsNullOrWhiteSpace(selected))
+        {
+            await RunOperationAsync("Changing sync folder...", async token =>
+            {
+                await _apiService.ConfigureSyncFolderAsync(selected, token);
+                _syncSettings!.SetSyncFolderPath(userId.Value, Path.GetFullPath(selected));
+                OnPropertyChanged(nameof(CurrentSyncFolderPath));
+                return $"Sync folder changed to '{selected}'. Synchronize to populate it.";
+            });
+        }
+    }
+
+    private void OpenSyncFolderInExplorer()
+    {
+        var syncFolder = CurrentSyncFolderPath;
+        if (string.IsNullOrWhiteSpace(syncFolder) || !Directory.Exists(syncFolder))
+        {
+            return;
+        }
+
+        var relativeParts = Breadcrumbs.Skip(1).Select(b => b.Name).ToArray();
+        var targetDir = (IsSyncedFoldersView && relativeParts.Length > 0)
+            ? Path.Combine(syncFolder, Path.Combine(relativeParts))
+            : syncFolder;
+
+        if (!Directory.Exists(targetDir))
+        {
+            targetDir = syncFolder;
+        }
+
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"/n, \"{Path.GetFullPath(targetDir)}\"",
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            NotificationMessage = $"Could not open folder: {ex.Message}";
+            IsNotificationError = true;
+        }
     }
 
     private async Task RunOperationAsync(string status, Func<CancellationToken, Task<string>> operation, bool refreshAfter = true)
@@ -275,6 +416,9 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
+        CancelLoad();
+        _searchDebounce?.Cancel();
+        IsLoading = false;
         using var cancellation = new CancellationTokenSource();
         _activeOperation = cancellation;
         IsOperating = true;
@@ -314,6 +458,7 @@ public sealed partial class MainWindowViewModel
         }
         finally
         {
+            if (SyncStatusSummary == "Syncing...") SyncStatusSummary = IsNotificationError ? "Sync failed" : "Ready";
             _activeOperation = null;
             OperationStatus = string.Empty;
             IsOperating = false;
@@ -349,4 +494,7 @@ public sealed partial class MainWindowViewModel
         ArgumentException => "Check the file name and ensure the file is not empty.",
         _ => "The operation could not be completed. Refresh before trying again."
     };
+
+    private Task<Guid?> GetCurrentFolderIdAsync(CancellationToken token)
+        => Task.FromResult(Breadcrumbs.Last().Id);
 }

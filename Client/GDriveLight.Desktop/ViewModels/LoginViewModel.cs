@@ -91,6 +91,7 @@ public sealed class LoginViewModel : ViewModelBase, IDisposable
 
         IsLoading = true;
         ErrorMessage = string.Empty;
+        var tokenSet = false;
         try
         {
             var token = IsRegisterMode
@@ -108,6 +109,8 @@ public sealed class LoginViewModel : ViewModelBase, IDisposable
             }
 
             _apiService.SetAuthToken(token);
+            tokenSet = true;
+            await _apiService.EnsureDeviceRegisteredAsync(_lifetime.Token);
             Password = string.Empty;
             LoginSucceeded?.Invoke(this, EventArgs.Empty);
         }
@@ -116,6 +119,10 @@ public sealed class LoginViewModel : ViewModelBase, IDisposable
         }
         catch (Exception exception)
         {
+            if (tokenSet)
+            {
+                _apiService.Logout();
+            }
             HandleError(exception);
         }
         finally

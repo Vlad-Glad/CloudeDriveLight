@@ -26,12 +26,13 @@ public sealed class WindowSmokeTests
                 stage = "loading resources";
                 application.InitializeComponent();
                 var api = new Mock<IDriveApiService>(MockBehavior.Strict);
+                api.Setup(service => service.EnsureDeviceRegisteredAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Guid.NewGuid());
                 api.Setup(service => service.GetFolderContentAsync(null, It.IsAny<CancellationToken>()))
                     .ReturnsAsync(new[] { new FolderResponse(Guid.NewGuid(), "Documents", null, Guid.NewGuid()) });
                 api.Setup(service => service.GetFilesAsync(null, It.IsAny<CancellationToken>()))
                     .ReturnsAsync(new[]
                     {
-                        new FileResponse(Guid.NewGuid(), "notes.txt", 2, "hash", null, Guid.NewGuid(),
+                        new FileResponse(Guid.NewGuid(), "notes.txt", 2, "hash", 1024L, null, Guid.NewGuid(),
                             new DateTime(2026, 10, 7, 12, 0, 0, DateTimeKind.Utc), null, "internal-path")
                     });
                 using var mainViewModel = new MainWindowViewModel(api.Object,
@@ -47,6 +48,9 @@ public sealed class WindowSmokeTests
                 grid.GetBindingExpression(ItemsControl.ItemsSourceProperty)?.UpdateTarget();
                 grid.GetBindingExpression(UIElement.VisibilityProperty)?.UpdateTarget();
                 Assert.Equal(4, grid.Columns.Count);
+                Assert.Equal(2, mainViewModel.VisibleFiles.Count);
+                var selector = Assert.IsType<ComboBox>(main.FindName("DeviceSelector"));
+                Assert.Equal("SelectedDevice", selector.GetBindingExpression(ComboBox.SelectedItemProperty)!.ParentBinding.Path.Path);
                 Assert.Equal("VisibleFiles", grid.GetBindingExpression(ItemsControl.ItemsSourceProperty)?.ParentBinding.Path.Path);
                 Assert.Equal("Name", grid.Columns[0].Header);
                 Assert.Equal("Modified", grid.Columns[1].Header);

@@ -19,7 +19,7 @@ public class SyncSettingsService : ISyncSettingsService
         if (File.Exists(settingsFile))
         {
             var path = File.ReadAllText(settingsFile).Trim();
-            if (!string.IsNullOrWhiteSpace(path) && Directory.Exists(path))
+            if (!string.IsNullOrWhiteSpace(path))
             {
                 return path;
             }
@@ -47,6 +47,6 @@ public class SyncSettingsService : ISyncSettingsService
         }
 
         var settingsFile = Path.Combine(_settingsFolder, $"sync_folder_{userId}.txt");
-        File.WriteAllText(settingsFile, folderPath.Trim());
+        File.WriteAllText(settingsFile, Path.GetFullPath(folderPath.Trim()));
     }
 }

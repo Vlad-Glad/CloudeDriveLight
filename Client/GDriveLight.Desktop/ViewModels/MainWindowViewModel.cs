@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using GDriveLight.Desktop.Commands;
+using GDriveLight.Desktop.Data;
 using GDriveLight.Desktop.Services;
 using GDriveLight.Desktop.Services.Api;
 using GDriveLight.Desktop.Services.Sync;
@@ -18,6 +19,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IDriveApiService _apiService;
     private readonly ISyncEngine? _syncEngine;
     private readonly ISyncSettingsService? _syncSettings;
+    private readonly ILocalSyncDbContextFactory? _dbContextFactory;
     private CancellationTokenSource? _activeLoad;
     private long _loadVersion;
     private bool _disposed;
@@ -33,19 +35,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         IFileDialogService fileDialogs,
         IUserDialogService dialogs,
         ISyncEngine? syncEngine = null,
-        ISyncSettingsService? syncSettings = null)
+        ISyncSettingsService? syncSettings = null,
+        ILocalSyncDbContextFactory? dbContextFactory = null)
     {
         _apiService = apiService;
         _fileDialogs = fileDialogs;
         _dialogs = dialogs;
         _syncEngine = syncEngine;
         _syncSettings = syncSettings;
+        _dbContextFactory = dbContextFactory;
         Breadcrumbs.Add(new BreadcrumbItem(null, "Home"));
-        RetryCommand = new AsyncRelayCommand(RefreshAsync, HandleError, () => !_disposed && IsHomeView && !IsBusy);
+        RetryCommand = new AsyncRelayCommand(RefreshAsync, HandleError, () => !_disposed && !IsBusy);
         OpenFolderCommand = new AsyncRelayCommand<FileItemViewModel>(OpenFolderAsync, HandleError,
             file => CanManageFiles && file?.IsFolder == true);
         NavigateBackCommand = new AsyncRelayCommand<BreadcrumbItem>(NavigateBackAsync, HandleError,
-            crumb => !_disposed && IsHomeView && !IsBusy && crumb is not null &&
+            crumb => !_disposed && !IsBusy && crumb is not null &&
                 Breadcrumbs.Contains(crumb) && !ReferenceEquals(crumb, Breadcrumbs.LastOrDefault()));
         LogoutCommand = new RelayCommand(Logout, () => !_disposed);
         InitializeOperationCommands();
@@ -92,22 +96,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            CancelLoad();
-            Breadcrumbs.Clear();
-            Breadcrumbs.Add(new BreadcrumbItem(null, value == 0 ? "Home" : "Synced folders"));
-            Files.Clear();
-            _searchText = string.Empty;
-            OnPropertyChanged(nameof(SearchText));
-            VisibleFiles.Clear();
-            SelectedFile = null;
-            IsError = false;
-            IsLoading = false;
-            NotifyState();
-            if (IsHomeView)
-            {
-                // RefreshAsync handles errors and discards cancelled or superseded results.
-                _ = RefreshAsync();
-            }
+            ResetBrowsingRoot();
+            _ = RefreshAsync();
         }
     }
 
@@ -140,9 +130,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public string ErrorMessage { get => _errorMessage; private set => SetProperty(ref _errorMessage, value); }
     public bool IsEmpty => !IsLoading && !IsError && VisibleFiles.Count == 0;
     public bool IsContentVisible => !IsLoading && !IsError && VisibleFiles.Count > 0;
-    public string EmptyTitle => IsSyncedFoldersView ? "Synced folders" : string.IsNullOrWhiteSpace(SearchText) ? "This folder is empty" : "No matching files";
-    public string EmptyDescription => IsSyncedFoldersView
-        ? "Devices and synced folders will appear here in a later version."
+    public string EmptyTitle => IsSyncedFoldersView && !HasSyncRoot ? "No synced folder configured" : string.IsNullOrWhiteSpace(SearchText) ? "This folder is empty" : "No matching files";
+    public string EmptyDescription => IsSyncedFoldersView && !HasSyncRoot
+        ? "Configure a local sync folder on this device to get started."
         : string.IsNullOrWhiteSpace(SearchText) ? "Use New to add folders and files." : "Try another name or clear the search.";
 
     public FileItemViewModel? SelectedFile
@@ -157,11 +147,26 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public RelayCommand LogoutCommand { get; }
     public event EventHandler? SessionEnded;
 
-    public Task InitializeAsync() => RefreshAsync();
+    public async Task InitializeAsync()
+    {
+        try
+        {
+            await _apiService.EnsureDeviceRegisteredAsync();
+            if (_syncSettings is not null && _apiService.CurrentUserId is Guid userId)
+                await _apiService.ConfigureSyncFolderAsync(_syncSettings.GetSyncFolderPath(userId));
+        }
+        catch (Exception exception)
+        {
+            HandleError(exception);
+            return;
+        }
+
+        await RefreshAsync();
+    }
 
     public async Task RefreshAsync()
     {
-        if (_disposed || !IsHomeView)
+        if (_disposed)
         {
             return;
         }
@@ -170,7 +175,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         var version = _loadVersion;
         using var cancellation = new CancellationTokenSource();
         _activeLoad = cancellation;
-        var folderId = Breadcrumbs.Last().Id;
         IsLoading = true;
         IsError = false;
         ErrorMessage = string.Empty;
@@ -178,12 +182,24 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         try
         {
+            if (IsSyncedFoldersView)
+            {
+                await LoadDevicesAsync(cancellation.Token, version);
+                if (_disposed || version != _loadVersion || !HasSyncRoot) return;
+            }
+            var folderId = Breadcrumbs.Last().Id;
             Task<IEnumerable<GDriveLight.Desktop.Models.Api.FolderResponse>> foldersTask;
             Task<IEnumerable<GDriveLight.Desktop.Models.Api.FileResponse>> filesTask;
             if (string.IsNullOrWhiteSpace(SearchText))
             {
                 foldersTask = _apiService.GetFolderContentAsync(folderId, cancellation.Token);
                 filesTask = _apiService.GetFilesAsync(folderId, cancellation.Token);
+            }
+            else if (IsSyncedFoldersView)
+            {
+                var matches = await SearchSyncedTreeAsync(SearchText.Trim(), cancellation.Token);
+                foldersTask = Task.FromResult(matches.Folders);
+                filesTask = Task.FromResult(matches.Files);
             }
             else
             {
@@ -192,7 +208,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 filesTask = _apiService.SearchFilesAsync(query, cancellation.Token);
             }
             await Task.WhenAll(foldersTask, filesTask);
-            if (_disposed || version != _loadVersion || !IsHomeView)
+            if (_disposed || version != _loadVersion)
             {
                 return;
             }
@@ -213,7 +229,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 Files.Add(new FileItemViewModel
                 {
                     Id = file.Id, Name = file.Name, DateModified = (file.EditedAtUtc ?? file.UploadedAtUtc).ToLocalTime().ToString("d"),
-                    Size = "—", Icon = icon, IconColorBrushKey = color, FolderId = file.FolderId
+                    Size = FormatFileSize(file.SizeBytes), Icon = icon, IconColorBrushKey = color, FolderId = file.FolderId
                 });
             }
 
@@ -257,9 +273,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             try
             {
                 var path = await _apiService.GetFolderPathAsync(file.Id);
+                var scopedPath = path.ToList();
+                if (IsSyncedFoldersView)
+                {
+                    var rootIndex = scopedPath.FindIndex(folder => folder.Id == SelectedDevice?.SyncRootFolderId);
+                    if (rootIndex < 0) throw new InvalidOperationException("Folder is outside the selected device.");
+                    scopedPath = scopedPath.Skip(rootIndex + 1).ToList();
+                }
                 Breadcrumbs.Clear();
-                Breadcrumbs.Add(new BreadcrumbItem(null, "Home"));
-                foreach (var folder in path)
+                Breadcrumbs.Add(new BreadcrumbItem(IsSyncedFoldersView ? SelectedDevice?.SyncRootFolderId : null,
+                    IsSyncedFoldersView ? SelectedDevice!.Name : "Home"));
+                foreach (var folder in scopedPath)
                 {
                     Breadcrumbs.Add(new BreadcrumbItem(folder.Id, folder.Name));
                 }
@@ -311,6 +335,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void Logout()
     {
         CancelLoad();
+        _searchDebounce?.Cancel();
         _activeOperation?.Cancel();
         _apiService.Logout();
         SessionEnded?.Invoke(this, EventArgs.Empty);
@@ -368,6 +393,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         MoveCommand?.NotifyCanExecuteChanged();
         MoveToCommand?.NotifyCanExecuteChanged();
         SyncCommand?.NotifyCanExecuteChanged();
+        ChangeSyncFolderCommand?.NotifyCanExecuteChanged();
+        OpenSyncFolderInExplorerCommand?.NotifyCanExecuteChanged();
         CancelOperationCommand?.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(IsBusy));
         OnPropertyChanged(nameof(CanNavigate));
@@ -375,6 +402,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
 
+
+    private static string FormatFileSize(long bytes) => bytes switch
+    {
+        < 1024 => $"{bytes} B",
+        < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
+        < 1024 * 1024 * 1024 => $"{bytes / (1024.0 * 1024.0):F1} MB",
+        _ => $"{bytes / (1024.0 * 1024.0 * 1024.0):F1} GB"
+    };
 
     private static (SymbolRegular Icon, string Color) GetFileAppearance(string name) =>
         Path.GetExtension(name).ToLowerInvariant() switch
@@ -396,6 +431,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         _disposed = true;
         CancelLoad();
+        _searchDebounce?.Cancel();
         _activeOperation?.Cancel();
     }
 }
