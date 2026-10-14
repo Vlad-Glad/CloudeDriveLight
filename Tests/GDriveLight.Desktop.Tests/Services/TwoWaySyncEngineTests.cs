@@ -370,6 +370,59 @@ public sealed class TwoWaySyncEngineTests : IDisposable
         _api.Verify(a => a.UploadFileAsync(It.IsAny<string>(), _root, true, It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task RestartUsesPersistedStateAndUpdatesTheExistingCloudFile()
+    {
+        var path = Path.Combine(LocalPath, "notes.txt");
+        await File.WriteAllTextAsync(path, "before restart");
+        Assert.True((await Sync()).Success);
+        var id = _files.Single().Key;
+        var identifiers = new Mock<IDeviceIdentifierService>();
+        identifiers.Setup(d => d.GetDeviceId()).Returns(_device);
+        var restarted = new SyncEngine(_api.Object, _factory, identifiers.Object);
+
+        Assert.True((await restarted.SynchronizeAsync(_user, LocalPath, default, _root)).Success);
+        await File.WriteAllTextAsync(path, "after restart");
+        Assert.True((await restarted.SynchronizeAsync(_user, LocalPath, default, _root)).Success);
+
+        Assert.Equal(id, _files.Single().Key);
+        Assert.Equal("after restart", Encoding.UTF8.GetString(_content[id]));
+        _api.Verify(a => a.UploadFileAsync(path, _root, true, It.IsAny<CancellationToken>()), Times.Once);
+        _api.Verify(a => a.DownloadFileAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _api.Verify(a => a.UpdateFileContentAsync(id, It.IsAny<Stream>(), "notes.txt", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CanceledInitialSyncCanBeRetriedWithoutLosingFilesOrKeepingTheSyncLock()
+    {
+        var path = Path.Combine(LocalPath, "notes.txt");
+        await File.WriteAllTextAsync(path, "local content");
+        var requestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _api.Setup(a => a.GetChangesAsync(0, 1000, It.IsAny<CancellationToken>()))
+            .Returns<long, int, CancellationToken>(async (_, _, token) =>
+            {
+                requestStarted.TrySetResult();
+                await Task.Delay(Timeout.Infinite, token);
+                return new SyncChangesResponse([], 0, false);
+            });
+        using var cancellation = new CancellationTokenSource();
+        var canceledSync = _engine.SynchronizeAsync(_user, LocalPath, cancellation.Token, _root);
+        await requestStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => canceledSync);
+        Assert.Equal("local content", await File.ReadAllTextAsync(path));
+        Assert.Empty(_files);
+        _api.Setup(a => a.GetChangesAsync(0, 1000, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SyncChangesResponse([], 0, false));
+
+        Assert.True((await Sync()).Success);
+
+        Assert.Equal("local content", Encoding.UTF8.GetString(_content[_files.Single().Key]));
+        _api.Verify(a => a.UploadFileAsync(path, _root, true, It.IsAny<CancellationToken>()), Times.Once);
+        using var db = _factory.CreateDbContext(_user);
+        Assert.True((await db.Scopes.SingleAsync()).InitialSyncCompleted);
+    }
+
     public void Dispose()
     {
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
