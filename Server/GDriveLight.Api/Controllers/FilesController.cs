@@ -70,6 +70,18 @@ public class FilesController : ControllerBase
         return Ok(response);
     }
 
+    [HttpGet("types")]
+    public async Task<IActionResult> GetFileTypes(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetFileTypesQuery(), cancellationToken);
+        if (result.IsFailure)
+        {
+            return BadRequest(new { error = result.Error });
+        }
+
+        return Ok(result.Value.Select(type => new FileTypeResponse(type.Id, type.Name, type.Extension)));
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetFiles([FromQuery] Guid? folderId)
     {

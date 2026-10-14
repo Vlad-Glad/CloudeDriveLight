@@ -138,9 +138,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public bool IsEmpty => !IsLoading && !IsError && VisibleFiles.Count == 0;
     public bool IsContentVisible => !IsLoading && !IsError && VisibleFiles.Count > 0;
     public string EmptyTitle => IsSyncedFoldersView && !HasSyncRoot ? "No synced folder configured"
+        : SelectedFileType is not null ? "No matching files"
         : string.IsNullOrWhiteSpace(SearchText) ? IsSyncedFoldersView ? "No synchronized items yet" : "This folder is empty" : "No matching files";
     public string EmptyDescription => IsSyncedFoldersView && !HasSyncRoot
         ? "Configure a local sync folder on this device to get started."
+        : SelectedFileType is not null ? "Try another file type or select All types."
         : IsSyncedFoldersView && IsCurrentDevice && string.IsNullOrWhiteSpace(SearchText)
             ? "No items are in this device's cloud folder yet. Press Synchronize to upload local files."
             : string.IsNullOrWhiteSpace(SearchText) ? "Use New to add folders and files." : "Try another name or clear the search.";
@@ -247,17 +249,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 var (icon, color) = GetFileAppearance(file.Name);
                 Files.Add(new FileItemViewModel
                 {
-                    Id = file.Id, Name = file.Name, CreatedAtUtc = file.UploadedAtUtc, ModifiedAtUtc = file.EditedAtUtc,
+                    Id = file.Id, Name = file.Name, FileTypeId = file.FileTypeId,
+                    CreatedAtUtc = file.UploadedAtUtc, ModifiedAtUtc = file.EditedAtUtc,
                     Size = FormatFileSize(file.SizeBytes), Icon = icon, IconColorBrushKey = color, FolderId = file.FolderId
                 });
             }
 
-            VisibleFiles.Clear();
-            foreach (var file in Files)
-            {
-                VisibleFiles.Add(file);
-            }
-            NotifyState();
+            ApplyFileTypeFilter();
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {

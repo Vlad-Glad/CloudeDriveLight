@@ -50,6 +50,9 @@ public sealed class WindowSmokeTests
                         new FileResponse(Guid.NewGuid(), "notes.txt", 2, "hash", 1024L, null, Guid.NewGuid(),
                             new DateTime(2026, 10, 7, 12, 0, 0, DateTimeKind.Utc), null, "internal-path")
                     });
+                api.SetupSequence(service => service.GetFileTypesAsync(It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new[] { new FileTypeResponse(2, "Text", ".txt") })
+                    .ReturnsAsync(new[] { new FileTypeResponse(2, "Text", ".txt"), new FileTypeResponse(99, "Markdown", ".md") });
                 api.SetupGet(service => service.CurrentUser).Returns(new UserProfile(Guid.NewGuid(), "Olena", "olena@example.com"));
                 using var profile = new UserProfileViewModel(api.Object, new Mock<IAvatarService>().Object);
                 using var mainViewModel = new MainWindowViewModel(api.Object,
@@ -141,6 +144,23 @@ public sealed class WindowSmokeTests
                 showAll.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
                 Assert.All(grid.Columns, column => Assert.Equal(Visibility.Visible, column.Visibility));
                 columnsMenu.IsOpen = false;
+                var filterButton = Assert.IsType<Button>(main.FindName("FileTypeFilterButton"));
+                filterButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                var filterMenu = Assert.IsType<ContextMenu>(filterButton.ContextMenu);
+                filterMenu.Opacity = 0;
+                var textType = Assert.IsType<MenuItem>(filterMenu.Items[2]);
+                Assert.Equal("Text (.txt)", textType.Header);
+                textType.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+                Assert.Equal(2, mainViewModel.SelectedFileType?.Id);
+                filterMenu.IsOpen = false;
+                filterButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                filterMenu = Assert.IsType<ContextMenu>(filterButton.ContextMenu);
+                filterMenu.Opacity = 0;
+                Assert.Equal("Markdown (.md)", Assert.IsType<MenuItem>(filterMenu.Items[2]).Header);
+                Assert.True(Assert.IsType<MenuItem>(filterMenu.Items[3]).IsChecked);
+                Assert.IsType<MenuItem>(filterMenu.Items[0]).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+                Assert.Null(mainViewModel.SelectedFileType);
+                filterMenu.IsOpen = false;
                 var folderItem = mainViewModel.VisibleFiles.Single(item => item.IsFolder);
                 Assert.Equal("Folder", folderItem.FileType);
                 Assert.Equal("—", folderItem.DateCreated);

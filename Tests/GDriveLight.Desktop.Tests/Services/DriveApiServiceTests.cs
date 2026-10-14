@@ -10,6 +10,33 @@ namespace GDriveLight.Desktop.Tests.Services;
 public sealed class DriveApiServiceTests
 {
     [Fact]
+    public async Task FileTypesAreReadFromTheAuthenticatedCatalogOnEachRequest()
+    {
+        var requests = 0;
+        using var client = new HttpClient(new StubHandler((request, _) =>
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal("/api/files/types", request.RequestUri!.AbsolutePath);
+            Assert.Equal("session-token", request.Headers.Authorization!.Parameter);
+            requests++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(requests == 1
+                    ? """[{"id":12,"name":"PNG","extension":".png"}]"""
+                    : """[{"id":12,"name":"PNG","extension":".png"},{"id":99,"name":"Markdown","extension":".md"}]""",
+                    Encoding.UTF8, "application/json")
+            });
+        }));
+        var service = new DriveApiService(client);
+        service.SetAuthToken("session-token");
+
+        Assert.Equal(".png", Assert.Single(await service.GetFileTypesAsync()).Extension);
+        var refreshed = (await service.GetFileTypesAsync()).ToArray();
+        Assert.Equal(2, refreshed.Length);
+        Assert.Contains(refreshed, type => type.Id == 99 && type.Name == "Markdown" && type.Extension == ".md");
+    }
+
+    [Fact]
     public void ProfileClaimsAreReplacedWithTheSessionAndClearedOnLogout()
     {
         using var client = new HttpClient();

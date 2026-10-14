@@ -7,6 +7,7 @@ public sealed class FileItemViewModel : ViewModelBase
 {
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
+    public int FileTypeId { get; init; }
     public string FileType
     {
         get

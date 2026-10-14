@@ -67,6 +67,9 @@ public sealed class DriveApiService : IDriveApiService
     public Task<IEnumerable<FileResponse>> GetFilesAsync(Guid? folderId, CancellationToken cancellationToken = default) =>
         GetListAsync<FileResponse>(folderId.HasValue ? $"api/files?folderId={folderId.Value}" : "api/files", cancellationToken);
 
+    public Task<IEnumerable<FileTypeResponse>> GetFileTypesAsync(CancellationToken cancellationToken = default) =>
+        GetListAsync<FileTypeResponse>("api/files/types", cancellationToken);
+
     public Task<IEnumerable<FolderResponse>> GetFolderPathAsync(Guid id, CancellationToken cancellationToken = default) =>
         GetListAsync<FolderResponse>($"api/folders/{id}/path", cancellationToken);
 

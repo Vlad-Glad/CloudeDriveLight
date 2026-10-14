@@ -369,6 +369,11 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
+                    <Button x:Name="FileTypeFilterButton" Content="{Binding FileTypeFilterLabel}" Click="FileTypeFilterButtonClick"
+                            HorizontalAlignment="Left" Margin="0,0,0,6" Padding="10,6"
+                            Style="{StaticResource QuietButton}" Foreground="{DynamicResource TextSecondaryBrush}"
+                            IsEnabled="{Binding CanManageFiles}"
+                            ToolTip="Filter by file type" AutomationProperties.Name="Filter by file type" />
                     <Button x:Name="ColumnsButton" Content="Columns ▾" Click="ColumnsButtonClick"
                             HorizontalAlignment="Right" Margin="0,0,0,6" Padding="10,6"
                             Style="{StaticResource QuietButton}" Foreground="{DynamicResource TextSecondaryBrush}"

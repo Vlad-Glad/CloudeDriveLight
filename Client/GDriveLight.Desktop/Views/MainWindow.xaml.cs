@@ -80,6 +80,36 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    private async void FileTypeFilterButtonClick(object sender, RoutedEventArgs e)
+    {
+        var menu = new ContextMenu { MaxHeight = 440 };
+        var allTypes = new MenuItem { Header = "All types", IsCheckable = true, IsChecked = _viewModel.SelectedFileType is null };
+        allTypes.Click += (_, _) => _viewModel.SelectedFileType = null;
+        menu.Items.Add(allTypes);
+        menu.Items.Add(new Separator());
+        var loading = new MenuItem { Header = "Loading types...", IsEnabled = false };
+        menu.Items.Add(loading);
+        FileTypeFilterButton.ContextMenu = menu;
+        OpenMenu(FileTypeFilterButton, menu);
+        e.Handled = true;
+
+        var types = await _viewModel.LoadFileTypesAsync();
+        if (!menu.IsOpen) return;
+        menu.Items.Remove(loading);
+        if (types is null) return;
+        foreach (var type in types)
+        {
+            var option = new MenuItem
+            {
+                Header = $"{type.Name} ({type.Extension})",
+                IsCheckable = true,
+                IsChecked = _viewModel.SelectedFileType?.Id == type.Id
+            };
+            option.Click += (_, _) => _viewModel.SelectedFileType = type;
+            menu.Items.Add(option);
+        }
+    }
+
     private void ColumnsButtonClick(object sender, RoutedEventArgs e)
     {
         var menu = new ContextMenu();
