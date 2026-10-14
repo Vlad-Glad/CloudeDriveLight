@@ -1,6 +1,7 @@
 using System.Net.Http;
 using GDriveLight.Desktop.Services;
 using GDriveLight.Desktop.Services.Api;
+using GDriveLight.Desktop.Services.Shell;
 using GDriveLight.Desktop.ViewModels;
 using GDriveLight.Desktop.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,7 @@ public static class DependencyInjection
             new HttpClient(new HttpClientHandler { UseCookies = false }) { Timeout = TimeSpan.FromSeconds(5) }));
         services.AddScoped<UserProfileViewModel>();
         services.AddSingleton<IFileDialogService, FileDialogService>();
+        services.AddSingleton<IVirtualFileDragService, WindowsVirtualFileDragService>();
         services.AddSingleton<IUserDialogService, UserDialogService>();
         services.AddSingleton<Data.ILocalSyncDbContextFactory, Data.LocalSyncDbContextFactory>();
         services.AddSingleton<Services.Sync.ISyncSettingsService, Services.Sync.SyncSettingsService>();

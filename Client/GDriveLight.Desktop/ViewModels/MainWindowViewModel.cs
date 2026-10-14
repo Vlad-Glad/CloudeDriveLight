@@ -7,6 +7,7 @@ using GDriveLight.Desktop.Commands;
 using GDriveLight.Desktop.Data;
 using GDriveLight.Desktop.Services;
 using GDriveLight.Desktop.Services.Api;
+using GDriveLight.Desktop.Services.Shell;
 using GDriveLight.Desktop.Services.Sync;
 using Wpf.Ui.Controls;
 
@@ -38,10 +39,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         ISyncSettingsService? syncSettings = null,
         ILocalSyncDbContextFactory? dbContextFactory = null,
         UserProfileViewModel? profile = null,
-        IDeviceSyncConnection? deviceConnection = null)
+        IDeviceSyncConnection? deviceConnection = null,
+        IVirtualFileDragService? virtualFileDrag = null)
     {
         _apiService = apiService;
         _deviceConnection = deviceConnection;
+        _virtualFileDrag = virtualFileDrag ?? new WindowsVirtualFileDragService();
         Profile = profile;
         _fileDialogs = fileDialogs;
         _dialogs = dialogs;
@@ -251,7 +254,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 {
                     Id = file.Id, Name = file.Name, FileTypeId = file.FileTypeId,
                     CreatedAtUtc = file.UploadedAtUtc, ModifiedAtUtc = file.EditedAtUtc,
-                    Size = FormatFileSize(file.SizeBytes), Icon = icon, IconColorBrushKey = color, FolderId = file.FolderId
+                    Size = FormatFileSize(file.SizeBytes), SizeBytes = file.SizeBytes,
+                    Icon = icon, IconColorBrushKey = color, FolderId = file.FolderId
                 });
             }
 

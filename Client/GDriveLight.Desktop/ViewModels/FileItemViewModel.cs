@@ -26,6 +26,7 @@ public sealed class FileItemViewModel : ViewModelBase
     public string TimeModified => (ModifiedAtUtc ?? CreatedAtUtc)?.ToLocalTime().ToString("HH:mm") ?? string.Empty;
     public string ModifiedTimestamp => (ModifiedAtUtc ?? CreatedAtUtc)?.ToLocalTime().ToString("F") ?? "—";
     public string Size { get; init; } = string.Empty;
+    public long SizeBytes { get; init; }
     
     public SymbolRegular Icon { get; init; } = SymbolRegular.Document24;
     public string IconColorBrushKey { get; init; } = "TextPrimaryBrush";

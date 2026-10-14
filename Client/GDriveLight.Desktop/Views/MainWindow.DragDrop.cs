@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -35,7 +36,7 @@ public partial class MainWindow
         }
     }
 
-    private void FileGridMouseMove(object sender, MouseEventArgs e)
+    private async void FileGridMouseMove(object sender, MouseEventArgs e)
     {
         if (e.LeftButton != MouseButtonState.Pressed || !_viewModel.CanManageFiles)
         {
@@ -63,7 +64,9 @@ public partial class MainWindow
         var data = new DataObject(InternalDragFormat, item.Id.ToString("D"), autoConvert: false);
         try
         {
-            DragDrop.DoDragDrop(FileGrid, data, DragDropEffects.Move | DragDropEffects.Copy);
+            e.Handled = true;
+            if (item.IsFolder) DragDrop.DoDragDrop(FileGrid, data, DragDropEffects.Move | DragDropEffects.Copy);
+            else await _viewModel.DragFileAsync(item, InternalDragFormat);
         }
         finally
         {
@@ -121,12 +124,18 @@ public partial class MainWindow
         request = null;
         target = null;
         if (_activeDraggedItem is null || (e.AllowedEffects & DragDropEffects.Move) == 0 ||
-            !e.Data.GetDataPresent(InternalDragFormat, autoConvert: false) ||
-            e.Data.GetData(InternalDragFormat, autoConvert: false) is not string draggedId ||
-            draggedId != _activeDraggedItem.Id.ToString("D"))
+            !e.Data.GetDataPresent(InternalDragFormat, autoConvert: false))
         {
             return false;
         }
+
+        var draggedId = e.Data.GetData(InternalDragFormat, autoConvert: false) switch
+        {
+            string id => id,
+            MemoryStream stream => Encoding.Unicode.GetString(stream.ToArray()).TrimEnd('\0'),
+            _ => null
+        };
+        if (draggedId != _activeDraggedItem.Id.ToString("D")) return false;
 
         if (!TryGetDropDestination(e.OriginalSource as DependencyObject, false, out var destination, out target)) return false;
 
