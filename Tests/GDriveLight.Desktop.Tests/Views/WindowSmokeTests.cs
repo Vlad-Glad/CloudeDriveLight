@@ -120,17 +120,13 @@ public sealed class WindowSmokeTests
                 columnsButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 var columnsMenu = Assert.IsType<ContextMenu>(columnsButton.ContextMenu);
                 columnsMenu.Opacity = 0;
-                var requiredName = Assert.IsType<MenuItem>(columnsMenu.Items[0]);
-                Assert.True(requiredName.IsChecked);
-                Assert.False(requiredName.IsEnabled);
-                var requiredActions = Assert.IsType<MenuItem>(columnsMenu.Items[5]);
-                Assert.Equal("Actions", requiredActions.Header);
-                Assert.True(requiredActions.IsChecked);
-                Assert.False(requiredActions.IsEnabled);
+                Assert.Equal(new[] { "Type", "Created", "Modified", "Size", "Show all columns" },
+                    columnsMenu.Items.OfType<MenuItem>().Select(item => item.Header));
                 for (var index = 1; index < grid.Columns.Count - 1; index++)
                 {
-                    var option = Assert.IsType<MenuItem>(columnsMenu.Items[index]);
+                    var option = Assert.IsType<MenuItem>(columnsMenu.Items[index - 1]);
                     Assert.True(option.IsChecked);
+                    Assert.True(option.IsEnabled);
                     option.IsChecked = false;
                     option.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
                     Assert.Equal(Visibility.Collapsed, grid.Columns[index].Visibility);

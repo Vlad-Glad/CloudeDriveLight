@@ -86,18 +86,16 @@ public partial class MainWindow : Window
         var options = new List<(DataGridColumn Column, MenuItem Item)>();
         foreach (var column in FileGrid.Columns)
         {
+            if (column == NameColumn || column == ActionsColumn) continue;
+
             var item = new MenuItem
             {
-                Header = column.Header as string ?? "Actions",
+                Header = column.Header,
                 IsCheckable = true,
                 IsChecked = column.Visibility == Visibility.Visible,
-                IsEnabled = column != NameColumn && column != ActionsColumn,
                 StaysOpenOnClick = true
             };
-            if (item.IsEnabled)
-            {
-                item.Click += (_, _) => column.Visibility = item.IsChecked ? Visibility.Visible : Visibility.Collapsed;
-            }
+            item.Click += (_, _) => column.Visibility = item.IsChecked ? Visibility.Visible : Visibility.Collapsed;
             menu.Items.Add(item);
             options.Add((column, item));
         }
