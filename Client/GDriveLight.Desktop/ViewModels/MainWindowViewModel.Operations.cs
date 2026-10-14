@@ -11,6 +11,7 @@ using GDriveLight.Desktop.Services.Sync;
 namespace GDriveLight.Desktop.ViewModels;
 
 public sealed record ItemMoveRequest(FileItemViewModel Item, FolderDestination Destination);
+public sealed record FileUploadRequest(IReadOnlyList<string> Paths, FolderDestination Destination);
 
 public sealed partial class MainWindowViewModel
 {
@@ -55,6 +56,7 @@ public sealed partial class MainWindowViewModel
     public bool HasNotification => !string.IsNullOrWhiteSpace(NotificationMessage);
     public AsyncRelayCommand CreateFolderCommand { get; private set; } = null!;
     public AsyncRelayCommand UploadCommand { get; private set; } = null!;
+    public AsyncRelayCommand<FileUploadRequest> UploadFilesCommand { get; private set; } = null!;
     public AsyncRelayCommand<FileItemViewModel> DownloadCommand { get; private set; } = null!;
     public AsyncRelayCommand<FileItemViewModel> RenameCommand { get; private set; } = null!;
     public AsyncRelayCommand<FileItemViewModel> DeleteCommand { get; private set; } = null!;
@@ -103,6 +105,8 @@ public sealed partial class MainWindowViewModel
     {
         CreateFolderCommand = new AsyncRelayCommand(CreateFolderAsync, HandleOperationError, () => CanManageFiles);
         UploadCommand = new AsyncRelayCommand(UploadAsync, HandleOperationError, () => CanManageFiles);
+        UploadFilesCommand = new AsyncRelayCommand<FileUploadRequest>(UploadFilesAsync, HandleOperationError,
+            request => CanManageFiles && request is { Paths.Count: > 0 });
         DownloadCommand = new AsyncRelayCommand<FileItemViewModel>(DownloadAsync, HandleOperationError,
             file => CanActOn(file) && file?.IsFolder == false);
         RenameCommand = new AsyncRelayCommand<FileItemViewModel>(RenameAsync, HandleOperationError, CanActOn);
@@ -140,21 +144,27 @@ public sealed partial class MainWindowViewModel
     private async Task UploadAsync()
     {
         var paths = _fileDialogs.SelectFilesToUpload();
-        if (paths.Count == 0)
+        await UploadFilesAsync(new FileUploadRequest(paths, new FolderDestination(Breadcrumbs.Last().Id, CurrentFolderName)));
+    }
+
+    private async Task UploadFilesAsync(FileUploadRequest? request)
+    {
+        if (!CanManageFiles || request is null || request.Paths.Count == 0)
         {
             return;
         }
 
+        var paths = request.Paths.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var folderId = request.Destination.Id;
         await RunOperationAsync("Uploading files...", async token =>
         {
-            var folderId = await GetCurrentFolderIdAsync(token);
             var uploaded = 0;
             var failures = new List<string>();
 
             foreach (var path in paths)
             {
                 token.ThrowIfCancellationRequested();
-                OperationStatus = $"Uploading {uploaded + failures.Count + 1} of {paths.Count}...";
+                OperationStatus = $"Uploading {uploaded + failures.Count + 1} of {paths.Length}...";
                 try
                 {
                     await _apiService.UploadFileAsync(path, folderId, token);
@@ -171,7 +181,7 @@ public sealed partial class MainWindowViewModel
             IsNotificationError = failures.Count > 0;
             return failures.Count == 0
                 ? $"Uploaded {uploaded} file(s)."
-                : $"Uploaded {uploaded} of {paths.Count} file(s).\n" + string.Join("\n", failures.Take(5));
+                : $"Uploaded {uploaded} of {paths.Length} file(s).\n" + string.Join("\n", failures.Take(5));
         });
     }
 

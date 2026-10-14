@@ -87,8 +87,10 @@ public sealed class FileOperationsTests
             confirmed ? Times.Exactly(2) : Times.Once());
     }
 
-    [Fact]
-    public async Task UploadContinuesAfterOneFailureAndReportsThePartialResult()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UploadContinuesAfterOneFailureAndReportsThePartialResult(bool dropped)
     {
         var api = ReadableApi();
         api.Setup(service => service.UploadFileAsync("one.txt", null, It.IsAny<CancellationToken>()))
@@ -99,7 +101,10 @@ public sealed class FileOperationsTests
         using var model = CreateModel(api, files);
         await model.InitializeAsync();
 
-        await model.UploadCommand.ExecuteAsync();
+        if (dropped)
+            await model.UploadFilesCommand.ExecuteAsync(new FileUploadRequest(new[] { "one.txt", "two.txt" }, new FolderDestination(null, "Home")));
+        else
+            await model.UploadCommand.ExecuteAsync();
 
         api.Verify(service => service.UploadFileAsync("two.txt", null, It.IsAny<CancellationToken>()), Times.Once);
         Assert.True(model.IsNotificationError);
@@ -108,8 +113,10 @@ public sealed class FileOperationsTests
         api.Verify(service => service.GetFilesAsync(null, It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
-    [Fact]
-    public async Task BusyOperationsDisableOtherWritesAndCanBeCancelled()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BusyOperationsDisableOtherWritesAndCanBeCancelled(bool dropped)
     {
         var api = ReadableApi();
         CancellationToken captured = default;
@@ -125,16 +132,38 @@ public sealed class FileOperationsTests
         using var model = CreateModel(api, files);
         await model.InitializeAsync();
 
-        var upload = model.UploadCommand.ExecuteAsync();
+        var request = new FileUploadRequest(new[] { "one.txt", "two.txt" }, new FolderDestination(null, "Home"));
+        var upload = dropped ? model.UploadFilesCommand.ExecuteAsync(request) : model.UploadCommand.ExecuteAsync();
         Assert.True(model.IsOperating);
         Assert.False(model.CreateFolderCommand.CanExecute(null));
         Assert.False(model.CanNavigate);
+        Assert.False(model.UploadFilesCommand.CanExecute(request));
         model.CancelOperationCommand.Execute(null);
         await upload;
 
         Assert.True(captured.IsCancellationRequested);
         Assert.False(model.IsOperating);
         Assert.Contains("cancelled", model.NotificationMessage);
+        api.Verify(service => service.UploadFileAsync("two.txt", It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DroppedFilesUseTheChosenDestinationWithoutOpeningTheFileDialog(bool nestedFolder)
+    {
+        var api = ReadableApi();
+        using var model = CreateModel(api);
+        await model.InitializeAsync();
+        var destinationId = nestedFolder ? model.Files.Single(item => item.IsFolder).Id : (Guid?)null;
+        api.Setup(service => service.UploadFileAsync("one.txt", destinationId, It.IsAny<CancellationToken>())).ReturnsAsync(Guid.NewGuid());
+
+        await model.UploadFilesCommand.ExecuteAsync(new FileUploadRequest(new[] { "one.txt" }, new FolderDestination(destinationId, "Target")));
+
+        api.Verify(service => service.UploadFileAsync("one.txt", destinationId, It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Null(model.Breadcrumbs.Last().Id);
+        Assert.Contains("Uploaded 1", model.NotificationMessage);
+        Assert.False(model.UploadFilesCommand.CanExecute(new FileUploadRequest(Array.Empty<string>(), new FolderDestination(null, "Home"))));
     }
 
     [Fact]

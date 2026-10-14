@@ -400,89 +400,96 @@
                             HorizontalAlignment="Right" Margin="0,0,0,6" Padding="10,6"
                             Style="{StaticResource QuietButton}" Foreground="{DynamicResource TextSecondaryBrush}"
                             ToolTip="Show or hide columns" AutomationProperties.Name="Show or hide columns" />
-                    <DataGrid x:Name="FileGrid" Grid.Row="1" ItemsSource="{Binding VisibleFiles}" SelectedItem="{Binding SelectedFile}"
-                              IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"
-                              CanUserDeleteRows="False" CanUserSortColumns="False" CanUserResizeRows="False"
-                              SelectionMode="Single" SelectionUnit="FullRow" HeadersVisibility="Column"
-                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource BorderBrush}"
-                              RowHeight="56" BorderThickness="0" Background="{DynamicResource SurfaceBrush}"
-                              AllowDrop="True" PreviewMouseLeftButtonDown="FileGridMouseDown" PreviewMouseMove="FileGridMouseMove"
-                              PreviewMouseRightButtonUp="FileGridRightClick" PreviewKeyDown="FileGridKeyDown"
-                              MouseDoubleClick="FileGridDoubleClick" PreviewDragOver="ItemDragOver"
-                              PreviewDrop="ItemDrop" PreviewDragLeave="ItemDragLeave"
-                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                              Visibility="{Binding IsContentVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <DataGrid.InputBindings>
-                            <KeyBinding Key="Enter" Command="{Binding OpenFolderCommand}" CommandParameter="{Binding SelectedFile}" />
-                            <KeyBinding Key="F2" Command="{Binding RenameCommand}" CommandParameter="{Binding SelectedFile}" />
-                            <KeyBinding Key="Delete" Command="{Binding DeleteCommand}" CommandParameter="{Binding SelectedFile}" />
-                            <KeyBinding Key="M" Modifiers="Control" Command="{Binding MoveCommand}" CommandParameter="{Binding SelectedFile}" />
-                        </DataGrid.InputBindings>
-                        <DataGrid.Columns>
-                            <DataGridTemplateColumn x:Name="NameColumn" Header="Name" Width="*" MinWidth="120">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <DockPanel>
-                                            <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="24" Margin="0,0,14,0"
-                                                           Foreground="{Binding IconColorBrushKey, Converter={StaticResource StringToBrushConverter}}" />
-                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" />
-                                        </DockPanel>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Type" Width="90" Binding="{Binding FileType}" />
-                            <DataGridTemplateColumn Header="Created" Width="155" MinWidth="140">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <StackPanel ToolTip="{Binding CreatedTimestamp}">
-                                            <TextBlock Text="{Binding DateCreated}" FontSize="13" />
-                                            <TextBlock Text="{Binding TimeCreated}" FontSize="12" Margin="0,2,0,0"
-                                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="Modified" Width="155" MinWidth="140">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <StackPanel ToolTip="{Binding ModifiedTimestamp}">
-                                            <TextBlock Text="{Binding DateModified}" FontSize="13" />
-                                            <TextBlock Text="{Binding TimeModified}" FontSize="12" Margin="0,2,0,0"
-                                                       Foreground="{DynamicResource TextSecondaryBrush}" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Size" Width="90" Binding="{Binding Size}" />
-                            <DataGridTemplateColumn x:Name="ActionsColumn" Width="48">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <Button Style="{StaticResource QuietButton}" Click="RowActionsClick"
-                                                Width="32" Height="32" Padding="4" ToolTip="File actions" AutomationProperties.Name="File actions">
-                                            <ui:SymbolIcon Symbol="MoreVertical24" FontSize="20" />
-                                        </Button>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                    <ui:ProgressRing Grid.Row="1" IsIndeterminate="True" Width="44" Height="44" HorizontalAlignment="Center"
-                                     VerticalAlignment="Center" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                    <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                Visibility="{Binding IsEmpty, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <ui:SymbolIcon Symbol="FolderOpen24" FontSize="56" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,16" />
-                        <TextBlock Text="{Binding EmptyTitle}" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                        <TextBlock Text="{Binding EmptyDescription}" Margin="0,8,0,0" TextWrapping="Wrap"
-                                   MaxWidth="380" TextAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                    </StackPanel>
-                    <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                Visibility="{Binding IsError, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <ui:SymbolIcon Symbol="Warning24" FontSize="48" Foreground="{DynamicResource PdfIconBrush}" Margin="0,0,0,16" />
-                        <TextBlock Text="Could not load this folder" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                        <TextBlock Text="{Binding ErrorMessage}" Margin="0,8,0,0" TextWrapping="Wrap"
-                                   MaxWidth="380" TextAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                        <Button Content="Retry" Command="{Binding RetryCommand}" Margin="0,20,0,0" HorizontalAlignment="Center" Padding="24,8" />
-                    </StackPanel>
+                    <Grid x:Name="FileDropSurface" Grid.Row="1" Background="Transparent" AllowDrop="True"
+                          PreviewDragOver="ItemDragOver" PreviewDrop="ItemDrop" PreviewDragLeave="ItemDragLeave">
+                        <DataGrid x:Name="FileGrid" ItemsSource="{Binding VisibleFiles}" SelectedItem="{Binding SelectedFile}"
+                                  IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"
+                                  CanUserDeleteRows="False" CanUserSortColumns="False" CanUserResizeRows="False"
+                                  SelectionMode="Single" SelectionUnit="FullRow" HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource BorderBrush}"
+                                  RowHeight="56" BorderThickness="0" Background="{DynamicResource SurfaceBrush}"
+                                  AllowDrop="True" PreviewMouseLeftButtonDown="FileGridMouseDown" PreviewMouseMove="FileGridMouseMove"
+                                  PreviewMouseRightButtonUp="FileGridRightClick" PreviewKeyDown="FileGridKeyDown"
+                                  MouseDoubleClick="FileGridDoubleClick"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                  Visibility="{Binding IsContentVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <DataGrid.InputBindings>
+                                <KeyBinding Key="Enter" Command="{Binding OpenFolderCommand}" CommandParameter="{Binding SelectedFile}" />
+                                <KeyBinding Key="F2" Command="{Binding RenameCommand}" CommandParameter="{Binding SelectedFile}" />
+                                <KeyBinding Key="Delete" Command="{Binding DeleteCommand}" CommandParameter="{Binding SelectedFile}" />
+                                <KeyBinding Key="M" Modifiers="Control" Command="{Binding MoveCommand}" CommandParameter="{Binding SelectedFile}" />
+                            </DataGrid.InputBindings>
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn x:Name="NameColumn" Header="Name" Width="*" MinWidth="120">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <DockPanel>
+                                                <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="24" Margin="0,0,14,0"
+                                                               Foreground="{Binding IconColorBrushKey, Converter={StaticResource StringToBrushConverter}}" />
+                                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" />
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Type" Width="90" Binding="{Binding FileType}" />
+                                <DataGridTemplateColumn Header="Created" Width="155" MinWidth="140">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel ToolTip="{Binding CreatedTimestamp}">
+                                                <TextBlock Text="{Binding DateCreated}" FontSize="13" />
+                                                <TextBlock Text="{Binding TimeCreated}" FontSize="12" Margin="0,2,0,0"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Modified" Width="155" MinWidth="140">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel ToolTip="{Binding ModifiedTimestamp}">
+                                                <TextBlock Text="{Binding DateModified}" FontSize="13" />
+                                                <TextBlock Text="{Binding TimeModified}" FontSize="12" Margin="0,2,0,0"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Size" Width="90" Binding="{Binding Size}" />
+                                <DataGridTemplateColumn x:Name="ActionsColumn" Width="48">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Style="{StaticResource QuietButton}" Click="RowActionsClick"
+                                                    Width="32" Height="32" Padding="4" ToolTip="File actions" AutomationProperties.Name="File actions">
+                                                <ui:SymbolIcon Symbol="MoreVertical24" FontSize="20" />
+                                            </Button>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <ui:ProgressRing IsIndeterminate="True" Width="44" Height="44" HorizontalAlignment="Center"
+                                         VerticalAlignment="Center" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Visibility="{Binding IsEmpty, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <ui:SymbolIcon Symbol="FolderOpen24" FontSize="56" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,16" />
+                            <TextBlock Text="{Binding EmptyTitle}" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding EmptyDescription}" Margin="0,8,0,0" TextWrapping="Wrap"
+                                       MaxWidth="380" TextAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Visibility="{Binding IsError, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <ui:SymbolIcon Symbol="Warning24" FontSize="48" Foreground="{DynamicResource PdfIconBrush}" Margin="0,0,0,16" />
+                            <TextBlock Text="Could not load this folder" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding ErrorMessage}" Margin="0,8,0,0" TextWrapping="Wrap"
+                                       MaxWidth="380" TextAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <Button Content="Retry" Command="{Binding RetryCommand}" Margin="0,20,0,0" HorizontalAlignment="Center" Padding="24,8" />
+                        </StackPanel>
+                        <Border x:Name="DropUploadBanner" Visibility="Collapsed" IsHitTestVisible="False"
+                                HorizontalAlignment="Center" VerticalAlignment="Top" Margin="12" Padding="14,8" CornerRadius="8"
+                                Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1">
+                            <TextBlock x:Name="DropUploadHint" TextWrapping="Wrap" Foreground="{DynamicResource AccentBrush}" />
+                        </Border>
+                    </Grid>
                 </Grid>
             </Grid>
         </Border>

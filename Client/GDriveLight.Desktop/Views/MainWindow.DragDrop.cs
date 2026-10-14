@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -80,16 +81,12 @@ public partial class MainWindow
         if (TryGetMoveRequest(e, out var request, out var target))
         {
             e.Effects = _viewModel.IsSyncedFoldersView && request?.Destination.Id is null ? DragDropEffects.Copy : DragDropEffects.Move;
-            if (!ReferenceEquals(_dropHighlight?.AdornedElement, target))
-            {
-                ClearDropHighlight();
-                _dropLayer = AdornerLayer.GetAdornerLayer(target!);
-                if (_dropLayer is not null)
-                {
-                    _dropHighlight = new DropTargetAdorner(target!, (Brush)FindResource("AccentBrush")) { IsHitTestVisible = false };
-                    _dropLayer.Add(_dropHighlight);
-                }
-            }
+            ShowDropHighlight(target!);
+        }
+        else if (TryGetUploadRequest(e, out var upload, out target))
+        {
+            e.Effects = DragDropEffects.Copy;
+            ShowDropHighlight(target!, $"Upload {upload!.Paths.Count} file(s) to {upload.Destination.Name}");
         }
         else
         {
@@ -107,6 +104,11 @@ public partial class MainWindow
         {
             e.Effects = _viewModel.IsSyncedFoldersView && request?.Destination.Id is null ? DragDropEffects.Copy : DragDropEffects.Move;
             _viewModel.MoveToCommand.Execute(request);
+        }
+        else if (TryGetUploadRequest(e, out var upload, out _))
+        {
+            e.Effects = DragDropEffects.Copy;
+            _viewModel.UploadFilesCommand.Execute(upload);
         }
 
         e.Handled = true;
@@ -126,41 +128,84 @@ public partial class MainWindow
             return false;
         }
 
-        var source = e.OriginalSource as DependencyObject;
-        FolderDestination? destination = null;
+        if (!TryGetDropDestination(e.OriginalSource as DependencyObject, false, out var destination, out target)) return false;
+
+        request = new ItemMoveRequest(_activeDraggedItem, destination!);
+        return _viewModel.MoveToCommand.CanExecute(request);
+    }
+
+    private bool TryGetUploadRequest(DragEventArgs e, out FileUploadRequest? request, out FrameworkElement? target)
+    {
+        request = null;
+        target = null;
+        if (!_viewModel.CanManageFiles || _activeDraggedItem is not null ||
+            (e.AllowedEffects & DragDropEffects.Copy) == 0 ||
+            e.Data.GetDataPresent(InternalDragFormat, autoConvert: false) ||
+            !e.Data.GetDataPresent(DataFormats.FileDrop, autoConvert: false) ||
+            e.Data.GetData(DataFormats.FileDrop, autoConvert: false) is not string[] { Length: > 0 } paths ||
+            paths.Any(path => !File.Exists(path))) return false;
+
+        if (!TryGetDropDestination(e.OriginalSource as DependencyObject, true, out var destination, out target)) return false;
+        request = new FileUploadRequest(paths, destination!);
+        return _viewModel.UploadFilesCommand.CanExecute(request);
+    }
+
+    private bool TryGetDropDestination(DependencyObject? source, bool allowCurrentFolder,
+        out FolderDestination? destination, out FrameworkElement? target)
+    {
+        destination = null;
+        target = null;
         while (source is not null)
         {
             if (source is DataGridRow { Item: FileItemViewModel { IsFolder: true } folder } row)
             {
                 target = row;
                 destination = new FolderDestination(folder.Id, folder.Name);
-                break;
+                return true;
             }
 
             if (source is Button { DataContext: BreadcrumbItem crumb } button)
             {
                 target = button;
                 destination = new FolderDestination(crumb.Id, crumb.Name);
-                break;
+                return true;
             }
 
             if (ReferenceEquals(source, HomeSidebarItem))
             {
                 target = HomeSidebarItem;
                 destination = new FolderDestination(null, "Home");
-                break;
+                return true;
+            }
+
+            if (allowCurrentFolder && ReferenceEquals(source, FileDropSurface) && string.IsNullOrWhiteSpace(_viewModel.SearchText))
+            {
+                target = FileDropSurface;
+                destination = new FolderDestination(_viewModel.Breadcrumbs.Last().Id, _viewModel.CurrentFolderName);
+                return true;
             }
 
             source = GetParent(source);
         }
 
-        if (destination is null)
+        return false;
+    }
+
+    private void ShowDropHighlight(FrameworkElement target, string? uploadHint = null)
+    {
+        if (!ReferenceEquals(_dropHighlight?.AdornedElement, target))
         {
-            return false;
+            ClearDropHighlight();
+            _dropLayer = AdornerLayer.GetAdornerLayer(target);
+            if (_dropLayer is not null)
+            {
+                _dropHighlight = new DropTargetAdorner(target, (Brush)FindResource("AccentBrush")) { IsHitTestVisible = false };
+                _dropLayer.Add(_dropHighlight);
+            }
         }
 
-        request = new ItemMoveRequest(_activeDraggedItem, destination);
-        return _viewModel.MoveToCommand.CanExecute(request);
+        DropUploadHint.Text = uploadHint ?? string.Empty;
+        DropUploadBanner.Visibility = uploadHint is null ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void ClearDropHighlight()
@@ -172,6 +217,7 @@ public partial class MainWindow
 
         _dropHighlight = null;
         _dropLayer = null;
+        DropUploadBanner.Visibility = Visibility.Collapsed;
     }
 
     private sealed class DropTargetAdorner(UIElement target, Brush accent) : Adorner(target)

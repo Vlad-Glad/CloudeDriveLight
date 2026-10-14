@@ -407,6 +407,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         RetryCommand?.NotifyCanExecuteChanged();
         CreateFolderCommand?.NotifyCanExecuteChanged();
         UploadCommand?.NotifyCanExecuteChanged();
+        UploadFilesCommand?.NotifyCanExecuteChanged();
         DownloadCommand?.NotifyCanExecuteChanged();
         RenameCommand?.NotifyCanExecuteChanged();
         DeleteCommand?.NotifyCanExecuteChanged();

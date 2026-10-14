@@ -1,3 +1,5 @@
+using System.IO;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -204,6 +206,8 @@ public sealed class WindowSmokeTests
                 accountSettings.Close();
                 nameDialog.Close();
                 picker.Close();
+                stage = "dropping local files";
+                VerifyLocalFileDrops(main, mainViewModel, api);
                 stage = "creating login window";
 
                 using var loginViewModel = new LoginViewModel(api.Object) { IsRegisterMode = true };
@@ -228,4 +232,81 @@ public sealed class WindowSmokeTests
         }
     }
 
+    private static void VerifyLocalFileDrops(MainWindow main, MainWindowViewModel viewModel, Mock<IDriveApiService> api)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"gdl-drop-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "upload.txt");
+        File.WriteAllText(path, "local original");
+        try
+        {
+            api.Setup(service => service.UploadFileAsync(path, It.IsAny<Guid?>(), It.IsAny<CancellationToken>())).ReturnsAsync(Guid.NewGuid());
+            var surface = Assert.IsType<Grid>(main.FindName("FileDropSurface"));
+            var grid = Assert.IsType<DataGrid>(main.FindName("FileGrid"));
+            var data = new DataObject(DataFormats.FileDrop, new[] { path });
+            var over = RaiseDrag(surface, data, DragDrop.PreviewDragOverEvent);
+            Assert.Equal(DragDropEffects.Copy, over.Effects);
+            Assert.Equal(Visibility.Visible, Assert.IsType<Border>(main.FindName("DropUploadBanner")).Visibility);
+            Assert.Contains("Home", Assert.IsType<TextBlock>(main.FindName("DropUploadHint")).Text);
+            api.Verify(service => service.UploadFileAsync(path, It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Never);
+            RaiseDrag(surface, data, DragDrop.PreviewDragLeaveEvent);
+            Assert.Equal(Visibility.Collapsed, Assert.IsType<Border>(main.FindName("DropUploadBanner")).Visibility);
+            Assert.Equal(DragDropEffects.Copy, RaiseDrag(surface, data, DragDrop.PreviewDropEvent).Effects);
+            api.Verify(service => service.UploadFileAsync(path, null, It.IsAny<CancellationToken>()), Times.Once);
+
+            main.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+            grid.UpdateLayout();
+            var folder = viewModel.VisibleFiles.Single(item => item.IsFolder);
+            var row = Assert.IsType<DataGridRow>(grid.ItemContainerGenerator.ContainerFromItem(folder));
+            Assert.Equal(DragDropEffects.Copy, RaiseDrag(row, data, DragDrop.PreviewDropEvent).Effects);
+            api.Verify(service => service.UploadFileAsync(path, folder.Id, It.IsAny<CancellationToken>()), Times.Once);
+
+            Assert.Equal(DragDropEffects.None, RaiseDrag(surface, data, DragDrop.PreviewDropEvent, DragDropEffects.Move).Effects);
+            Assert.Equal(DragDropEffects.None, RaiseDrag(surface, new DataObject(DataFormats.FileDrop, new[] { directory }), DragDrop.PreviewDropEvent).Effects);
+            var internalData = new DataObject(DataFormats.FileDrop, new[] { path });
+            internalData.SetData("GDriveLight.Desktop.ItemMove", Guid.NewGuid().ToString("D"));
+            Assert.Equal(DragDropEffects.None, RaiseDrag(surface, internalData, DragDrop.PreviewDropEvent).Effects);
+
+            api.Setup(service => service.SearchFoldersAsync("Documents", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new[] { new FolderResponse(folder.Id, folder.Name, null, Guid.NewGuid()) });
+            api.Setup(service => service.SearchFilesAsync("Documents", It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<FileResponse>());
+            viewModel.SearchText = "Documents";
+            viewModel.RefreshAsync().GetAwaiter().GetResult();
+            Assert.Equal(DragDropEffects.None, RaiseDrag(surface, data, DragDrop.PreviewDropEvent).Effects);
+            main.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+            grid.UpdateLayout();
+            row = Assert.IsType<DataGridRow>(grid.ItemContainerGenerator.ContainerFromItem(viewModel.VisibleFiles.Single()));
+            Assert.Equal(DragDropEffects.Copy, RaiseDrag(row, data, DragDrop.PreviewDropEvent).Effects);
+            api.Verify(service => service.UploadFileAsync(path, folder.Id, It.IsAny<CancellationToken>()), Times.Exactly(2));
+
+            api.Setup(service => service.GetFolderContentAsync(null, It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<FolderResponse>());
+            api.Setup(service => service.GetFilesAsync(null, It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<FileResponse>());
+            viewModel.SearchText = string.Empty;
+            viewModel.RefreshAsync().GetAwaiter().GetResult();
+            main.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+            Assert.True(viewModel.IsEmpty);
+            Assert.Equal(Visibility.Collapsed, grid.Visibility);
+            Assert.True(surface.AllowDrop);
+            Assert.True(surface.ActualHeight > 0);
+            Assert.Equal(DragDropEffects.Copy, RaiseDrag(surface, data, DragDrop.PreviewDropEvent).Effects);
+            api.Verify(service => service.UploadFileAsync(path, null, It.IsAny<CancellationToken>()), Times.Exactly(2));
+            Assert.Equal("local original", File.ReadAllText(path));
+        }
+        finally
+        {
+            File.Delete(path);
+            Directory.Delete(directory);
+        }
+    }
+
+    private static DragEventArgs RaiseDrag(UIElement target, IDataObject data, RoutedEvent routedEvent,
+        DragDropEffects allowedEffects = DragDropEffects.Copy)
+    {
+        // WPF creates DragEventArgs internally; exercise its routed handlers without a real OLE drag loop.
+        var args = (DragEventArgs)Activator.CreateInstance(typeof(DragEventArgs), BindingFlags.Instance | BindingFlags.NonPublic,
+            null, new object[] { data, DragDropKeyStates.LeftMouseButton, allowedEffects, target, new Point() }, null)!;
+        args.RoutedEvent = routedEvent;
+        target.RaiseEvent(args);
+        return args;
+    }
 }
