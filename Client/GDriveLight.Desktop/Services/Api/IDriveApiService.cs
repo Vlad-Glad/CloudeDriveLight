@@ -10,7 +10,9 @@ public interface IDriveApiService
     Task<IEnumerable<FolderResponse>> GetFolderContentAsync(Guid? parentFolderId, CancellationToken cancellationToken = default);
     Task<IEnumerable<FileResponse>> GetFilesAsync(Guid? folderId, CancellationToken cancellationToken = default);
     Task<Guid> CreateFolderAsync(string name, Guid? parentFolderId, CancellationToken cancellationToken = default);
+    Task<Guid> CreateFolderAsync(string name, Guid? parentFolderId, bool deviceOrigin, CancellationToken cancellationToken = default);
     Task<Guid> UploadFileAsync(string filePath, Guid? folderId, CancellationToken cancellationToken = default);
+    Task<Guid> UploadFileAsync(string filePath, Guid? folderId, bool deviceOrigin, CancellationToken cancellationToken = default);
     Task DownloadFileAsync(Guid fileId, string destination, CancellationToken cancellationToken = default);
     Task<IEnumerable<FolderResponse>> GetFolderPathAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IEnumerable<FolderResponse>> SearchFoldersAsync(string name, CancellationToken cancellationToken = default);
@@ -18,6 +20,7 @@ public interface IDriveApiService
 
     Task RenameAsync(Guid id, bool isFolder, string name, CancellationToken cancellationToken = default);
     Task DeleteAsync(Guid id, bool isFolder, CancellationToken cancellationToken = default);
+    Task DeleteAsync(Guid id, bool isFolder, bool deviceOrigin, CancellationToken cancellationToken = default);
     Task MoveAsync(Guid id, bool isFolder, Guid? destinationFolderId, CancellationToken cancellationToken = default);
 
     void SetAuthToken(string? token);

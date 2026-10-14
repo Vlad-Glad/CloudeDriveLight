@@ -201,6 +201,41 @@ public sealed class DriveApiServiceTests
         await service.DeleteAsync(Guid.NewGuid(), false);
     }
 
+    [Fact]
+    public async Task SyncMutationsIncludeOriginAndPermitEmptyFileUploads()
+    {
+        var device = Guid.NewGuid();
+        var identifier = new Moq.Mock<GDriveLight.Desktop.Services.IDeviceIdentifierService>();
+        identifier.Setup(d => d.GetDeviceId()).Returns(device);
+        var path = Path.Combine(Path.GetTempPath(), $"gdl-empty-{Guid.NewGuid():N}.txt");
+        await System.IO.File.WriteAllTextAsync(path, string.Empty);
+        var requests = 0;
+        using var client = new HttpClient(new StubHandler(async (request, _) =>
+        {
+            requests++;
+            Assert.Equal(device.ToString(), request.Headers.GetValues("X-Device-Id").Single());
+            if (request.Content is MultipartFormDataContent multipart)
+                Assert.Empty(await multipart.First().ReadAsByteArrayAsync());
+            var id = Guid.NewGuid();
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent($"{{\"folderId\":\"{id}\",\"id\":\"{id}\"}}", Encoding.UTF8, "application/json")
+            };
+        }));
+        var service = new DriveApiService(client, identifier.Object);
+        try
+        {
+            await service.CreateFolderAsync("Docs", Guid.NewGuid(), true);
+            await service.UploadFileAsync(path, Guid.NewGuid(), true);
+            await service.DeleteAsync(Guid.NewGuid(), false, true);
+            Assert.Equal(3, requests);
+        }
+        finally
+        {
+            System.IO.File.Delete(path);
+        }
+    }
+
     private sealed class StubHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>

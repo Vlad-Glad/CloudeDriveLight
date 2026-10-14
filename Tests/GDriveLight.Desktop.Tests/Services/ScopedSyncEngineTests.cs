@@ -12,6 +12,7 @@ namespace GDriveLight.Desktop.Tests.Services;
 
 public sealed class ScopedSyncEngineTests : IDisposable
 {
+    private static string CloudHash => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("cloud"))).ToLowerInvariant();
     private readonly Guid _user = Guid.NewGuid();
     private readonly Guid _root = Guid.NewGuid();
     private readonly string _directory = Path.Combine(Path.GetTempPath(), $"gdl-scope-{Guid.NewGuid():N}");
@@ -35,7 +36,7 @@ public sealed class ScopedSyncEngineTests : IDisposable
     }
 
     private ChangeResponse Change(long id, Guid resource, ResourceType type, ChangeType eventType, string name, Guid? parent)
-        => new(id, resource, type, eventType, null, parent, name, "hash", 5, DateTime.UtcNow);
+        => new(id, resource, type, eventType, null, parent, name, CloudHash, 5, DateTime.UtcNow);
 
     private void Delta(params ChangeResponse[] changes) =>
         _api.Setup(a => a.GetChangesAsync(10, 100, It.IsAny<CancellationToken>()))
@@ -78,7 +79,7 @@ public sealed class ScopedSyncEngineTests : IDisposable
         var file = Guid.NewGuid();
         _api.Setup(a => a.GetFilesAsync(_root, It.IsAny<CancellationToken>())).ReturnsAsync(new[]
         {
-            new FileResponse(file, "notes.txt", 1, "hash", 5, _root, _user, DateTime.UtcNow, null, "internal")
+            new FileResponse(file, "notes.txt", 1, CloudHash, 5, _root, _user, DateTime.UtcNow, null, "internal")
         });
         Assert.True((await _engine.SynchronizeAsync(_user, LocalPath, default, _root)).Success);
         var newPath = Path.Combine(_directory, "new-local");
@@ -118,7 +119,7 @@ public sealed class ScopedSyncEngineTests : IDisposable
         var file = Guid.NewGuid();
         _api.Setup(a => a.GetFilesAsync(_root, It.IsAny<CancellationToken>())).ReturnsAsync(new[]
         {
-            new FileResponse(file, "notes.txt", 1, "hash", 5, _root, _user, DateTime.UtcNow, null, "internal")
+            new FileResponse(file, "notes.txt", 1, CloudHash, 5, _root, _user, DateTime.UtcNow, null, "internal")
         });
         _api.SetupSequence(a => a.DownloadFileAsync(file, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new IOException("locked"))

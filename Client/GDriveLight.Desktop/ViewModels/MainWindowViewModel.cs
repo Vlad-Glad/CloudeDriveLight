@@ -130,10 +130,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public string ErrorMessage { get => _errorMessage; private set => SetProperty(ref _errorMessage, value); }
     public bool IsEmpty => !IsLoading && !IsError && VisibleFiles.Count == 0;
     public bool IsContentVisible => !IsLoading && !IsError && VisibleFiles.Count > 0;
-    public string EmptyTitle => IsSyncedFoldersView && !HasSyncRoot ? "No synced folder configured" : string.IsNullOrWhiteSpace(SearchText) ? "This folder is empty" : "No matching files";
+    public string EmptyTitle => IsSyncedFoldersView && !HasSyncRoot ? "No synced folder configured"
+        : string.IsNullOrWhiteSpace(SearchText) ? IsSyncedFoldersView ? "No synchronized items yet" : "This folder is empty" : "No matching files";
     public string EmptyDescription => IsSyncedFoldersView && !HasSyncRoot
         ? "Configure a local sync folder on this device to get started."
-        : string.IsNullOrWhiteSpace(SearchText) ? "Use New to add folders and files." : "Try another name or clear the search.";
+        : IsSyncedFoldersView && IsCurrentDevice && string.IsNullOrWhiteSpace(SearchText)
+            ? "No items are in this device's cloud folder yet. Press Synchronize to upload local files."
+            : string.IsNullOrWhiteSpace(SearchText) ? "Use New to add folders and files." : "Try another name or clear the search.";
 
     public FileItemViewModel? SelectedFile
     {

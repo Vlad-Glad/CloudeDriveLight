@@ -29,9 +29,9 @@ public class FilesController : ControllerBase
         IFormFile file,
         [FromForm] Guid? folderId)
     {
-        if (file == null || file.Length == 0)
+        if (file == null)
         {
-            return BadRequest(new { error = "File is empty or not provided." });
+            return BadRequest(new { error = "File was not provided." });
         }
 
         var userId = _currentUserService.UserId;
@@ -127,9 +127,9 @@ public class FilesController : ControllerBase
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UpdateContent(Guid id, IFormFile file)
     {
-        if (file == null || file.Length == 0)
+        if (file == null)
         {
-            return BadRequest(new { error = "File is empty or not provided." });
+            return BadRequest(new { error = "File was not provided." });
         }
 
         var userId = _currentUserService.UserId;

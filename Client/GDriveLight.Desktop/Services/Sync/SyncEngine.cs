@@ -10,8 +10,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GDriveLight.Desktop.Services.Sync;
 
-public class SyncEngine : ISyncEngine
+public partial class SyncEngine : ISyncEngine
 {
+    private readonly SemaphoreSlim _syncGate = new(1, 1);
     private readonly IDriveApiService _apiService;
     private readonly ILocalSyncDbContextFactory _dbContextFactory;
     private readonly IDeviceIdentifierService _deviceIdentifierService;
@@ -33,13 +34,10 @@ public class SyncEngine : ISyncEngine
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(localFolderPath);
 
+        if (!await _syncGate.WaitAsync(0, cancellationToken))
+            return new SyncResult(false, 0, "Synchronization is already running.", FailedCount: 1);
         try
         {
-            if (!Directory.Exists(localFolderPath))
-            {
-                Directory.CreateDirectory(localFolderPath);
-            }
-
             using var dbContext = _dbContextFactory.CreateDbContext(userId);
 
             SyncScope? scope = null;
@@ -47,6 +45,9 @@ public class SyncEngine : ISyncEngine
             {
                 var normalizedPath = Path.GetFullPath(localFolderPath).TrimEnd(Path.DirectorySeparatorChar);
                 scope = await dbContext.Scopes.FindAsync(new object[] { 1 }, cancellationToken);
+                if (scope is { InitialSyncCompleted: true } && scope.ServerRootFolderId == serverRootFolderId &&
+                    string.Equals(scope.LocalPath, normalizedPath, StringComparison.OrdinalIgnoreCase) && !Directory.Exists(localFolderPath))
+                    return new SyncResult(false, 0, "The local sync folder is unavailable. Restore it or choose a new location.", FailedCount: 1);
                 if (scope is null || scope.ServerRootFolderId != serverRootFolderId ||
                     !string.Equals(scope.LocalPath, normalizedPath, StringComparison.OrdinalIgnoreCase))
                 {
@@ -64,6 +65,8 @@ public class SyncEngine : ISyncEngine
                     await dbContext.SaveChangesAsync(cancellationToken);
                 }
             }
+
+            Directory.CreateDirectory(localFolderPath);
 
             var cursor = await dbContext.Cursors.FindAsync(new object[] { 1 }, cancellationToken);
             if (cursor == null)
@@ -89,10 +92,15 @@ public class SyncEngine : ISyncEngine
                     scope.InitialSyncCompleted = result.Success;
                     await dbContext.SaveChangesAsync(cancellationToken);
                 }
+                if (scope is not null && result.Success)
+                    return CombineResults(result, await RunLocalSyncAsync(localFolderPath, dbContext, scope.ServerRootFolderId, cancellationToken));
                 return result;
             }
 
-            return await RunDeltaSyncAsync(userId, localFolderPath, dbContext, cursor, myDeviceId, cancellationToken, serverRootFolderId);
+            var downloadResult = await RunDeltaSyncAsync(userId, localFolderPath, dbContext, cursor, myDeviceId, cancellationToken, serverRootFolderId);
+            if (scope is not null)
+                return CombineResults(downloadResult, await RunLocalSyncAsync(localFolderPath, dbContext, scope.ServerRootFolderId, cancellationToken));
+            return downloadResult;
         }
         catch (OperationCanceledException)
         {
@@ -109,6 +117,10 @@ public class SyncEngine : ISyncEngine
         catch (Exception ex)
         {
             return new SyncResult(false, 0, $"Sync failed: {ex.Message}", FailedCount: 1, Errors: new[] { ex.Message });
+        }
+        finally
+        {
+            _syncGate.Release();
         }
     }
 
@@ -226,6 +238,7 @@ public class SyncEngine : ISyncEngine
 
                     var localFilePath = ResolveLocalPath(localFolderPath, fileRelPath);
                     var needsDownload = true;
+                    var hasConflict = false;
 
                     if (File.Exists(localFilePath))
                     {
@@ -233,6 +246,13 @@ public class SyncEngine : ISyncEngine
                         if (string.Equals(localHash, file.ContentHash, StringComparison.OrdinalIgnoreCase))
                         {
                             needsDownload = false;
+                        }
+                        else if (serverRootFolderId.HasValue)
+                        {
+                            hasConflict = true;
+                            needsDownload = false;
+                            failedCount++;
+                            errors.Add($"Both local and cloud versions exist for '{fileRelPath}'. Neither version was overwritten.");
                         }
                     }
 
@@ -256,7 +276,7 @@ public class SyncEngine : ISyncEngine
                         LocalSize = fileInfo.Length,
                         LastSyncedHash = file.ContentHash,
                         LocalModifiedAtUtc = fileInfo.LastWriteTimeUtc,
-                        Status = SyncStatus.Synced
+                        Status = hasConflict ? SyncStatus.Conflict : SyncStatus.Synced
                     });
 
                     count++;
@@ -277,7 +297,8 @@ public class SyncEngine : ISyncEngine
         var isSuccess = failedCount == 0;
         var message = isSuccess
             ? $"Initial sync completed. Processed {count} items."
-            : $"Initial sync completed with {failedCount} errors. Processed {count} items.";
+            : $"Initial sync completed with {failedCount} errors. Processed {count} items." +
+                (serverRootFolderId.HasValue ? "\n" + string.Join("\n", errors.Take(5)) : string.Empty);
 
         return new SyncResult(isSuccess, count, message, failedCount, errors);
     }
@@ -310,6 +331,10 @@ public class SyncEngine : ISyncEngine
                     {
                         if (change.ResourceId == serverRootFolderId.Value) continue;
                         var tracked = await dbContext.Items.FirstOrDefaultAsync(x => x.ServerResourceId == change.ResourceId, cancellationToken);
+                        if (tracked?.Status == SyncStatus.Conflict)
+                            throw new IOException("This item has an unresolved synchronization conflict.");
+                        if (change.OriginDeviceId != myDeviceId)
+                            await EnsureCloudChangeDoesNotOverwriteLocalAsync(change, tracked, localFolderPath, dbContext, cancellationToken);
                         var parentTracked = change.ParentFolderId.HasValue &&
                             await dbContext.Items.AnyAsync(x => x.ServerResourceId == change.ParentFolderId && x.IsDirectory, cancellationToken);
                         if (!parentTracked)

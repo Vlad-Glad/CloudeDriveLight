@@ -23,13 +23,14 @@ public sealed class ConfigureSyncFolderCommandHandler(
         {
             var root = new DriveFolder($"Sync {device.Id:N}", request.UserId);
             await folders.AddAsync(root, cancellationToken);
-            syncFolder = new SyncFolder(root.Id, device.Id, SyncMode.CloudToLocal);
+            syncFolder = new SyncFolder(root.Id, device.Id, SyncMode.TwoWay);
             syncFolder.SetLocalPath(request.LocalPath);
             await syncFolders.AddAsync(syncFolder, cancellationToken);
         }
         else
         {
             syncFolder.SetLocalPath(request.LocalPath);
+            syncFolder.ChangeSyncMode(SyncMode.TwoWay);
             syncFolders.Update(syncFolder);
         }
         await unitOfWork.SaveChangesAsync(cancellationToken);

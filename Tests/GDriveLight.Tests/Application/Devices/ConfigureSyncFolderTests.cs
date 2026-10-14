@@ -29,6 +29,7 @@ public class ConfigureSyncFolderTests
         Assert.True(result.IsSuccess);
         Assert.Equal(createdRoot!.Id, createdBinding!.DriveFolderId);
         Assert.Equal(device.Id, createdBinding.DeviceId);
+        Assert.Equal(SyncMode.TwoWay, createdBinding.SyncMode);
         Assert.Equal(@"C:\Sync", result.Value.LocalPath);
         unit.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -51,6 +52,7 @@ public class ConfigureSyncFolderTests
         Assert.True(result.IsSuccess);
         Assert.Equal(rootId, result.Value.SyncRootFolderId);
         Assert.Equal(@"D:\New", binding.LocalPath);
+        Assert.Equal(SyncMode.TwoWay, binding.SyncMode);
         roots.Verify(r => r.Update(binding), Times.Once);
     }
 

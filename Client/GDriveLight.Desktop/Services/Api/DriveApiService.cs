@@ -102,9 +102,12 @@ public sealed class DriveApiService : IDriveApiService
         }
     }
 
-    public async Task<Guid> CreateFolderAsync(string name, Guid? parentFolderId, CancellationToken cancellationToken = default)
+    public Task<Guid> CreateFolderAsync(string name, Guid? parentFolderId, CancellationToken cancellationToken = default)
+        => CreateFolderAsync(name, parentFolderId, false, cancellationToken);
+
+    public async Task<Guid> CreateFolderAsync(string name, Guid? parentFolderId, bool deviceOrigin, CancellationToken cancellationToken = default)
     {
-        using var request = CreateRequest(HttpMethod.Post, "api/folders");
+        using var request = CreateRequest(HttpMethod.Post, "api/folders", deviceOrigin: deviceOrigin);
         request.Content = JsonContent.Create(new { Name = name, ParentFolderId = parentFolderId });
         using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
         var result = await response.Content.ReadFromJsonAsync<CreatedFolderResponse>(cancellationToken).ConfigureAwait(false);
@@ -112,16 +115,14 @@ public sealed class DriveApiService : IDriveApiService
             ? id : throw new JsonException("The server returned an invalid folder ID.");
     }
 
-    public async Task<Guid> UploadFileAsync(string filePath, Guid? folderId, CancellationToken cancellationToken = default)
+    public Task<Guid> UploadFileAsync(string filePath, Guid? folderId, CancellationToken cancellationToken = default)
+        => UploadFileAsync(filePath, folderId, false, cancellationToken);
+
+    public async Task<Guid> UploadFileAsync(string filePath, Guid? folderId, bool deviceOrigin, CancellationToken cancellationToken = default)
     {
         await using var file = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read,
             65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
-        if (file.Length == 0)
-        {
-            throw new ArgumentException("Empty files cannot be uploaded.", nameof(filePath));
-        }
-
-        using var request = CreateRequest(HttpMethod.Post, "api/files");
+        using var request = CreateRequest(HttpMethod.Post, "api/files", deviceOrigin: deviceOrigin);
         var content = new MultipartFormDataContent();
         request.Content = content;
         content.Add(new StreamContent(file), "file", Path.GetFileName(filePath));
@@ -170,9 +171,12 @@ public sealed class DriveApiService : IDriveApiService
         using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task DeleteAsync(Guid id, bool isFolder, CancellationToken cancellationToken = default)
+    public Task DeleteAsync(Guid id, bool isFolder, CancellationToken cancellationToken = default)
+        => DeleteAsync(id, isFolder, false, cancellationToken);
+
+    public async Task DeleteAsync(Guid id, bool isFolder, bool deviceOrigin, CancellationToken cancellationToken = default)
     {
-        using var request = CreateRequest(HttpMethod.Delete, $"api/{(isFolder ? "folders" : "files")}/{id}");
+        using var request = CreateRequest(HttpMethod.Delete, $"api/{(isFolder ? "folders" : "files")}/{id}", deviceOrigin: deviceOrigin);
         using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
