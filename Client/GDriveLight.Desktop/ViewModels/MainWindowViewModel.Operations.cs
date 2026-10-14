@@ -61,6 +61,7 @@ public sealed partial class MainWindowViewModel
     public AsyncRelayCommand SyncCommand { get; private set; } = null!;
     public AsyncRelayCommand ChangeSyncFolderCommand { get; private set; } = null!;
     public RelayCommand OpenSyncFolderInExplorerCommand { get; private set; } = null!;
+    public RelayCommand OpenDatabaseLocationCommand { get; private set; } = null!;
     public RelayCommand DismissNotificationCommand { get; private set; } = null!;
     public RelayCommand CancelOperationCommand { get; private set; } = null!;
 
@@ -109,6 +110,7 @@ public sealed partial class MainWindowViewModel
         SyncCommand = new AsyncRelayCommand(SyncAsync, HandleOperationError, () => !_disposed && !IsBusy && _syncEngine is not null && (IsHomeView || IsCurrentDevice));
         ChangeSyncFolderCommand = new AsyncRelayCommand(ChangeSyncFolderAsync, HandleOperationError, () => !_disposed && !IsBusy && _syncSettings is not null && (IsHomeView || IsCurrentDevice));
         OpenSyncFolderInExplorerCommand = new RelayCommand(OpenSyncFolderInExplorer, () => !_disposed && !IsBusy && (IsHomeView || IsCurrentDevice) && !string.IsNullOrWhiteSpace(CurrentSyncFolderPath));
+        OpenDatabaseLocationCommand = new RelayCommand(OpenDatabaseLocation, () => !_disposed && _apiService.CurrentUserId.HasValue);
         DismissNotificationCommand = new RelayCommand(() => NotificationMessage = string.Empty);
         CancelOperationCommand = new RelayCommand(() => _activeOperation?.Cancel(), () => IsOperating);
     }
@@ -405,6 +407,57 @@ public sealed partial class MainWindowViewModel
         catch (Exception ex)
         {
             NotificationMessage = $"Could not open folder: {ex.Message}";
+            IsNotificationError = true;
+        }
+    }
+
+    private void OpenDatabaseLocation()
+    {
+        var userId = _apiService.CurrentUserId;
+        if (!userId.HasValue)
+        {
+            NotificationMessage = "You must be logged in to inspect the database.";
+            IsNotificationError = true;
+            return;
+        }
+
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var dbPath = Path.Combine(localAppData, "GDriveLight", $"sync_{userId.Value}.db");
+        var dir = Path.GetDirectoryName(dbPath);
+
+        if (File.Exists(dbPath))
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = $"/select,\"{dbPath}\"",
+                    UseShellExecute = true
+                });
+
+                NotificationMessage = $"Database selected in Explorer: sync_{userId.Value}.db";
+                IsNotificationError = false;
+            }
+            catch (Exception ex)
+            {
+                NotificationMessage = $"Could not open database location: {ex.Message}";
+                IsNotificationError = true;
+            }
+        }
+        else if (Directory.Exists(dir))
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = dir,
+                UseShellExecute = true
+            });
+            NotificationMessage = "Database directory opened in Explorer.";
+            IsNotificationError = false;
+        }
+        else
+        {
+            NotificationMessage = "Database file does not exist yet. Run synchronization first.";
             IsNotificationError = true;
         }
     }

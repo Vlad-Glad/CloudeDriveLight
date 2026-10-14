@@ -14,4 +14,5 @@ public sealed class FileItemViewModel : ViewModelBase
     
     public bool IsFolder { get; init; }
     public Guid? FolderId { get; init; }
+    public string? RelativePath { get; init; }
 }
