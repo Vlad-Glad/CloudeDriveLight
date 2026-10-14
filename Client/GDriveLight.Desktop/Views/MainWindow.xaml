@@ -188,8 +188,8 @@
                         </Button>
                         <TextBlock Text="{Binding SyncStatusSummary}" VerticalAlignment="Center" Margin="0,0,8,0"
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
-                        <Button Style="{StaticResource QuietButton}" Command="{Binding ChangeSyncFolderCommand}" ToolTip="Change local sync folder"
-                                AutomationProperties.Name="Change local sync folder" Margin="0,0,12,0">
+                        <Button Style="{StaticResource QuietButton}" Click="AccountSettingsClick" ToolTip="Account settings"
+                                AutomationProperties.Name="Account settings" Margin="0,0,12,0">
                             <ui:SymbolIcon Symbol="Settings24" FontSize="22" />
                         </Button>
                         <Button x:Name="AvatarButton" Style="{StaticResource QuietButton}" Padding="3"
@@ -217,8 +217,6 @@
                                     <TextBlock Text="{Binding Profile.Email}" Margin="0,6,0,0" FontSize="13"
                                                Foreground="{DynamicResource TextSecondaryBrush}" TextAlignment="Center" TextWrapping="Wrap" />
                                     <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,18,0,10" />
-                                    <Button Content="Account settings" Click="AccountSettingsClick" Margin="0,0,0,4"
-                                            Style="{StaticResource QuietButton}" AutomationProperties.Name="Account settings" />
                                     <Button x:Name="ProfileLogoutButton" Command="{Binding LogoutCommand}"
                                             Style="{StaticResource QuietButton}" HorizontalAlignment="Stretch"
                                             AutomationProperties.Name="Log out">
