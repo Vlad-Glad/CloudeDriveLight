@@ -36,9 +36,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         IUserDialogService dialogs,
         ISyncEngine? syncEngine = null,
         ISyncSettingsService? syncSettings = null,
-        ILocalSyncDbContextFactory? dbContextFactory = null)
+        ILocalSyncDbContextFactory? dbContextFactory = null,
+        UserProfileViewModel? profile = null)
     {
         _apiService = apiService;
+        Profile = profile;
         _fileDialogs = fileDialogs;
         _dialogs = dialogs;
         _syncEngine = syncEngine;
@@ -55,6 +57,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         InitializeOperationCommands();
     }
 
+    public UserProfileViewModel? Profile { get; }
     public string Title => "GDriveLight";
     public ObservableCollection<BreadcrumbItem> Breadcrumbs { get; } = new();
     public IEnumerable<BreadcrumbItem> BreadcrumbTrail => Breadcrumbs.Take(Math.Max(0, Breadcrumbs.Count - 1));
@@ -433,6 +436,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         _disposed = true;
+        Profile?.Dispose();
         CancelLoad();
         _searchDebounce?.Cancel();
         _activeOperation?.Cancel();

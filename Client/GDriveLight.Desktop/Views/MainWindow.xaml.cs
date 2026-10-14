@@ -20,7 +20,17 @@ public partial class MainWindow : Window
         InitializeComponent();
         _viewModel = viewModel;
         DataContext = viewModel;
-        Loaded += async (_, _) => await viewModel.InitializeAsync();
+        Loaded += async (_, _) => await Task.WhenAll(viewModel.InitializeAsync(),
+            viewModel.Profile?.LoadAvatarAsync() ?? Task.CompletedTask);
+        Deactivated += (_, _) => ProfilePopup.IsOpen = false;
+        PreviewMouseDown += (_, e) =>
+        {
+            if (!IsWithin(e.OriginalSource as DependencyObject, AvatarButton) &&
+                !IsWithin(e.OriginalSource as DependencyObject, ProfileCard))
+            {
+                ProfilePopup.IsOpen = false;
+            }
+        };
         Closed += (_, _) =>
         {
             if (_openMenu is not null)
@@ -28,9 +38,26 @@ public partial class MainWindow : Window
                 _openMenu.IsOpen = false;
             }
 
+            ProfilePopup.IsOpen = false;
             ClearDropHighlight();
             viewModel.Dispose();
         };
+    }
+
+    private void ProfileButtonClick(object sender, RoutedEventArgs e)
+    {
+        ProfilePopup.IsOpen = !ProfilePopup.IsOpen;
+        e.Handled = true;
+    }
+
+    private void ProfilePopupOpened(object sender, EventArgs e) => ProfileCard.Focus();
+
+    private void ProfileCardKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape) return;
+        ProfilePopup.IsOpen = false;
+        AvatarButton.Focus();
+        e.Handled = true;
     }
 
     private void NewButtonClick(object sender, RoutedEventArgs e)
@@ -138,6 +165,17 @@ public partial class MainWindow : Window
             }
         };
         menu.IsOpen = true;
+    }
+
+    private static bool IsWithin(DependencyObject? element, DependencyObject ancestor)
+    {
+        while (element is not null)
+        {
+            if (ReferenceEquals(element, ancestor)) return true;
+            element = GetParent(element);
+        }
+
+        return false;
     }
 
     private static T? FindAncestor<T>(DependencyObject? element) where T : DependencyObject

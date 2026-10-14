@@ -2,12 +2,67 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using GDriveLight.Desktop.Services.Api;
 
 namespace GDriveLight.Desktop.Tests.Services;
 
 public sealed class DriveApiServiceTests
 {
+    [Fact]
+    public void ProfileClaimsAreReplacedWithTheSessionAndClearedOnLogout()
+    {
+        using var client = new HttpClient();
+        var service = new DriveApiService(client);
+        var userId = Guid.NewGuid();
+        service.SetAuthToken(CreateToken(new { sub = userId, firstName = "Олена", email = "olena@example.com" }));
+
+        Assert.Equal(userId, service.CurrentUserId);
+        Assert.Equal("Олена", service.CurrentUser!.FirstName);
+        Assert.Equal("olena@example.com", service.CurrentUser.Email);
+
+        var nextId = Guid.NewGuid();
+        service.SetAuthToken(CreateToken(new { nameid = nextId, firstName = "Іван", email = "ivan@example.com" }));
+        Assert.Equal(nextId, service.CurrentUserId);
+        Assert.Equal("Іван", service.CurrentUser!.FirstName);
+
+        service.Logout();
+        Assert.Null(service.CurrentUser);
+        Assert.Null(service.CurrentUserId);
+    }
+
+    [Theory]
+    [InlineData("invalid")]
+    [InlineData("header.%%%.signature")]
+    [InlineData("header.W10.signature")]
+    public void InvalidTokensClearPreviouslyDisplayedProfile(string token)
+    {
+        using var client = new HttpClient();
+        var service = new DriveApiService(client);
+        service.SetAuthToken(CreateToken(new { sub = Guid.NewGuid(), firstName = "Olena", email = "user@example.com" }));
+        service.SetAuthToken(token);
+        Assert.Null(service.CurrentUser);
+        Assert.Null(service.CurrentUserId);
+    }
+
+    [Fact]
+    public void NonStringDisplayClaimsAreIgnoredWithoutLosingTheUserId()
+    {
+        using var client = new HttpClient();
+        var service = new DriveApiService(client);
+        var id = Guid.NewGuid();
+        service.SetAuthToken(CreateToken(new { sub = id, firstName = 42, email = new { invalid = true } }));
+        Assert.Equal(id, service.CurrentUserId);
+        Assert.Equal(string.Empty, service.CurrentUser!.FirstName);
+        Assert.Equal(string.Empty, service.CurrentUser.Email);
+    }
+
+    private static string CreateToken(object claims)
+    {
+        var json = JsonSerializer.SerializeToUtf8Bytes(claims);
+        return "header." + Convert.ToBase64String(json).TrimEnd('=').Replace('+', '-').Replace('/', '_') + ".signature";
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.BadRequest)]
     [InlineData(HttpStatusCode.Unauthorized)]

@@ -15,6 +15,9 @@ public static class DependencyInjection
         services.AddSingleton(_ => new HttpClient());
         services.AddSingleton<IDeviceIdentifierService, DeviceIdentifierService>();
         services.AddSingleton<IDriveApiService, DriveApiService>();
+        services.AddSingleton<IAvatarService>(_ => new GravatarAvatarService(
+            new HttpClient(new HttpClientHandler { UseCookies = false }) { Timeout = TimeSpan.FromSeconds(5) }));
+        services.AddScoped<UserProfileViewModel>();
         services.AddSingleton<IFileDialogService, FileDialogService>();
         services.AddSingleton<IUserDialogService, UserDialogService>();
         services.AddSingleton<Data.ILocalSyncDbContextFactory, Data.LocalSyncDbContextFactory>();

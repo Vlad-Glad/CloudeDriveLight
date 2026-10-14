@@ -15,6 +15,26 @@
     <Window.Resources>
         <converters:StringToBrushConverter x:Key="StringToBrushConverter" />
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <DataTemplate x:Key="ProfileAvatarTemplate">
+            <Grid Width="40" Height="40">
+                <Ellipse Fill="{DynamicResource SidebarSelectedBrush}" />
+                <TextBlock Text="{Binding Initial}" FontSize="17" FontWeight="SemiBold"
+                           Foreground="{DynamicResource SidebarSelectedTextBrush}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <Ellipse>
+                    <Ellipse.Fill><ImageBrush ImageSource="{Binding Avatar}" Stretch="UniformToFill" /></Ellipse.Fill>
+                    <Ellipse.Style>
+                        <Style TargetType="Ellipse">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Avatar}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Ellipse.Style>
+                </Ellipse>
+            </Grid>
+        </DataTemplate>
         <Style x:Key="QuietButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -180,9 +200,42 @@
                                 AutomationProperties.Name="Change local sync folder" Margin="0,0,12,0">
                             <ui:SymbolIcon Symbol="Settings24" FontSize="22" />
                         </Button>
-                        <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource SidebarSelectedBrush}">
-                            <ui:SymbolIcon Symbol="Person24" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
+                        <Button x:Name="AvatarButton" Style="{StaticResource QuietButton}" Padding="3"
+                                ToolTip="User profile" AutomationProperties.Name="User profile" Click="ProfileButtonClick">
+                            <ContentControl Content="{Binding Profile}" ContentTemplate="{StaticResource ProfileAvatarTemplate}"
+                                            IsHitTestVisible="False" Focusable="False" />
+                        </Button>
+                        <Popup x:Name="ProfilePopup" PlacementTarget="{Binding ElementName=AvatarButton}"
+                               Placement="Bottom" HorizontalOffset="-266" VerticalOffset="8"
+                               StaysOpen="True" AllowsTransparency="True"
+                               DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"
+                               Opened="ProfilePopupOpened">
+                            <Border x:Name="ProfileCard" Width="312" Padding="20" CornerRadius="16"
+                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1" Focusable="True" FocusVisualStyle="{x:Null}"
+                                    KeyboardNavigation.TabNavigation="Cycle" PreviewKeyDown="ProfileCardKeyDown"
+                                    AutomationProperties.Name="User profile">
+                                <StackPanel>
+                                    <Viewbox Width="64" Height="64" HorizontalAlignment="Center" Margin="0,0,0,14">
+                                        <ContentControl Content="{Binding Profile}" ContentTemplate="{StaticResource ProfileAvatarTemplate}"
+                                                        Focusable="False" />
+                                    </Viewbox>
+                                    <TextBlock Text="{Binding Profile.FirstName}" FontSize="18" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" TextAlignment="Center" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding Profile.Email}" Margin="0,6,0,0" FontSize="13"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" TextAlignment="Center" TextWrapping="Wrap" />
+                                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,18,0,10" />
+                                    <Button x:Name="ProfileLogoutButton" Command="{Binding LogoutCommand}"
+                                            Style="{StaticResource QuietButton}" HorizontalAlignment="Stretch"
+                                            AutomationProperties.Name="Log out">
+                                        <StackPanel Orientation="Horizontal">
+                                            <ui:SymbolIcon Symbol="SignOut24" FontSize="18" />
+                                            <TextBlock Text="Log out" Margin="10,0,0,0" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                        </Popup>
                     </StackPanel>
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">

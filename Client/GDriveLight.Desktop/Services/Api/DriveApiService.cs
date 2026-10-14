@@ -25,14 +25,15 @@ public sealed class DriveApiService : IDriveApiService
     }
 
     public Guid DeviceId => _deviceIdentifierService.GetDeviceId();
-    public Guid? CurrentUserId { get; private set; }
+    public Guid? CurrentUserId => CurrentUser?.Id;
+    public UserProfile? CurrentUser { get; private set; }
 
     public void SetAuthToken(string? token)
     {
         lock (_sessionLock)
         {
             _authToken = string.IsNullOrWhiteSpace(token) ? null : token;
-            CurrentUserId = _authToken is not null ? ExtractUserIdFromJwt(_authToken) : null;
+            CurrentUser = _authToken is not null ? ExtractUserFromJwt(_authToken) : null;
         }
     }
 
@@ -213,41 +214,38 @@ public sealed class DriveApiService : IDriveApiService
         using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    private static Guid? ExtractUserIdFromJwt(string jwt)
+    // Claims are used for display only; the API validates authentication and authorization.
+    private static UserProfile? ExtractUserFromJwt(string jwt)
     {
         try
         {
             var parts = jwt.Split('.');
-            if (parts.Length < 2) return null;
+            if (parts.Length != 3) return null;
 
-            var payload = parts[1];
-            payload = payload.Replace('-', '+').Replace('_', '/');
-            switch (payload.Length % 4)
+            var payload = parts[1].Replace('-', '+').Replace('_', '/');
+            payload = payload.PadRight((payload.Length + 3) / 4 * 4, '=');
+            using var document = JsonDocument.Parse(Convert.FromBase64String(payload));
+            var claims = document.RootElement;
+            if (claims.ValueKind != JsonValueKind.Object) return null;
+
+            var id = ReadStringClaim(claims, "sub");
+            if (!Guid.TryParse(id, out var userId) &&
+                !Guid.TryParse(ReadStringClaim(claims, "nameid"), out userId))
             {
-                case 2: payload += "=="; break;
-                case 3: payload += "="; break;
+                return null;
             }
 
-            var jsonBytes = Convert.FromBase64String(payload);
-            using var doc = JsonDocument.Parse(jsonBytes);
-            if (doc.RootElement.TryGetProperty("sub", out var subProp) &&
-                Guid.TryParse(subProp.GetString(), out var subUserId))
-            {
-                return subUserId;
-            }
-
-            if (doc.RootElement.TryGetProperty("nameid", out var nameidProp) &&
-                Guid.TryParse(nameidProp.GetString(), out var nameidUserId))
-            {
-                return nameidUserId;
-            }
+            return new UserProfile(userId, ReadStringClaim(claims, "firstName"), ReadStringClaim(claims, "email"));
         }
-        catch
+        catch (Exception exception) when (exception is FormatException or JsonException)
         {
+            return null;
         }
-
-        return null;
     }
+
+    private static string ReadStringClaim(JsonElement claims, string name) =>
+        claims.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString() ?? string.Empty : string.Empty;
 
     public async Task<Guid> RegisterDeviceAsync(Guid deviceId, string name, CancellationToken cancellationToken = default)
     {
