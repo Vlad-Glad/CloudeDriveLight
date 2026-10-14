@@ -13,6 +13,7 @@ public partial class MainWindow : Window
 {
     private readonly MainWindowViewModel _viewModel;
     private ContextMenu? _openMenu;
+    private AccountSettingsWindow? _accountSettings;
 
     public MainWindow(MainWindowViewModel viewModel)
     {
@@ -39,9 +40,19 @@ public partial class MainWindow : Window
             }
 
             ProfilePopup.IsOpen = false;
+            _accountSettings?.Close();
             ClearDropHighlight();
             viewModel.Dispose();
         };
+    }
+
+    private void AccountSettingsClick(object sender, RoutedEventArgs e)
+    {
+        ProfilePopup.IsOpen = false;
+        if (_accountSettings is not null) { _accountSettings.Activate(); return; }
+        _accountSettings = new AccountSettingsWindow(_viewModel) { Owner = this };
+        _accountSettings.Closed += (_, _) => _accountSettings = null;
+        _accountSettings.Show();
     }
 
     private void ProfileButtonClick(object sender, RoutedEventArgs e)

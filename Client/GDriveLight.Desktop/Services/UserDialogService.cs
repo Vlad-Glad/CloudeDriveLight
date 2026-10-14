@@ -30,6 +30,18 @@ public sealed class UserDialogService(IDriveApiService apiService) : IUserDialog
         return window.ShowDialog() == true ? window.EnteredName : null;
     }
 
+    public bool ConfirmDisconnectDevice()
+    {
+        const string message = "Stop synchronizing this device?\n\nFiles on this computer will stay in place. " +
+            "The cloud sync folder will become a separate folder in Home. Changes that have not synchronized will remain only on this computer. " +
+            "Your account will stay signed in, and another account can connect this device.";
+        var owner = Application.Current?.MainWindow;
+        var result = owner is null
+            ? MessageBox.Show(message, "Disconnect device", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No)
+            : MessageBox.Show(owner, message, "Disconnect device", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+        return result == MessageBoxResult.Yes;
+    }
+
     public bool ConfirmDelete(string name, bool isFolder)
     {
         var message = isFolder

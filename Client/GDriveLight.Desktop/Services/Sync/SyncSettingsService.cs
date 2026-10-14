@@ -37,6 +37,9 @@ public class SyncSettingsService : ISyncSettingsService
         return defaultPath;
     }
 
+    public void ClearSyncFolderPath(Guid userId) =>
+        File.Delete(Path.Combine(_settingsFolder, $"sync_folder_{userId}.txt"));
+
     public void SetSyncFolderPath(Guid userId, string folderPath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(folderPath);

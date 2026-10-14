@@ -6,6 +6,7 @@ using GDriveLight.Desktop.Commands;
 using GDriveLight.Desktop.Models;
 using GDriveLight.Desktop.Services;
 using GDriveLight.Desktop.Services.Api;
+using GDriveLight.Desktop.Services.Sync;
 
 namespace GDriveLight.Desktop.ViewModels;
 
@@ -16,6 +17,7 @@ public sealed partial class MainWindowViewModel
     private readonly IFileDialogService _fileDialogs;
     private readonly IUserDialogService _dialogs;
     private CancellationTokenSource? _activeOperation;
+    private TaskCompletionSource? _operationCompletion;
     private bool _isOperating;
     private string _operationStatus = string.Empty;
     private string _notificationMessage = string.Empty;
@@ -33,8 +35,8 @@ public sealed partial class MainWindowViewModel
         }
     }
 
-    public bool IsBusy => IsLoading || IsOperating;
-    public bool CanNavigate => !_disposed && !IsOperating;
+    public bool IsBusy => IsLoading || IsOperating || _isDisconnecting;
+    public bool CanNavigate => !_disposed && !IsOperating && !_isDisconnecting;
     public bool CanManageFiles => !_disposed && !IsBusy && !IsError && (IsHomeView || HasSyncRoot);
     public string OperationStatus { get => _operationStatus; private set => SetProperty(ref _operationStatus, value); }
     public bool IsNotificationError { get => _isNotificationError; private set => SetProperty(ref _isNotificationError, value); }
@@ -85,6 +87,7 @@ public sealed partial class MainWindowViewModel
         {
             try
             {
+                if (!IsSyncedFoldersView && !IsDeviceSyncEnabled) return string.Empty;
                 return IsSyncedFoldersView ? SelectedDevice?.LocalPath ?? string.Empty : _apiService.CurrentUserId.HasValue && _syncSettings is not null
                     ? _syncSettings.GetSyncFolderPath(_apiService.CurrentUserId.Value)
                     : string.Empty;
@@ -107,8 +110,8 @@ public sealed partial class MainWindowViewModel
         MoveCommand = new AsyncRelayCommand<FileItemViewModel>(MoveAsync, HandleOperationError, CanActOn);
         MoveToCommand = new AsyncRelayCommand<ItemMoveRequest>(MoveItemToAsync, HandleOperationError,
             request => request is not null && CanMoveTo(request.Item, request.Destination));
-        SyncCommand = new AsyncRelayCommand(SyncAsync, HandleOperationError, () => !_disposed && !IsBusy && _syncEngine is not null && (IsHomeView || IsCurrentDevice));
-        ChangeSyncFolderCommand = new AsyncRelayCommand(ChangeSyncFolderAsync, HandleOperationError, () => !_disposed && !IsBusy && _syncSettings is not null && (IsHomeView || IsCurrentDevice));
+        SyncCommand = new AsyncRelayCommand(SyncAsync, HandleOperationError, () => !_disposed && !IsBusy && _syncEngine is not null && IsDeviceSyncEnabled && (IsHomeView || IsCurrentDevice));
+        ChangeSyncFolderCommand = new AsyncRelayCommand(ChangeSyncFolderAsync, HandleOperationError, () => !_disposed && !IsBusy && _syncSettings is not null && (IsHomeView || IsCurrentDevice || !IsDeviceSyncEnabled));
         OpenSyncFolderInExplorerCommand = new RelayCommand(OpenSyncFolderInExplorer, () => !_disposed && !IsBusy && (IsHomeView || IsCurrentDevice) && !string.IsNullOrWhiteSpace(CurrentSyncFolderPath));
         OpenDatabaseLocationCommand = new RelayCommand(OpenDatabaseLocation, () => !_disposed && _apiService.CurrentUserId.HasValue);
         DismissNotificationCommand = new RelayCommand(() => NotificationMessage = string.Empty);
@@ -314,7 +317,7 @@ public sealed partial class MainWindowViewModel
 
     private async Task SyncAsync()
     {
-        if (_syncEngine is null)
+        if (_syncEngine is null || !IsDeviceSyncEnabled)
         {
             return;
         }
@@ -363,14 +366,22 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
-        var current = _syncSettings?.GetSyncFolderPath(userId.Value);
+        var current = IsDeviceSyncEnabled ? _syncSettings?.GetSyncFolderPath(userId.Value) : null;
         var selected = _fileDialogs.SelectFolder(current);
         if (!string.IsNullOrWhiteSpace(selected))
         {
             await RunOperationAsync("Changing sync folder...", async token =>
             {
-                await _apiService.ConfigureSyncFolderAsync(selected, token);
-                _syncSettings!.SetSyncFolderPath(userId.Value, Path.GetFullPath(selected));
+                if (_deviceConnection is not null)
+                {
+                    await _deviceConnection.ConnectAsync(userId.Value, Path.GetFullPath(selected), token);
+                    UpdateConnectionState(userId.Value);
+                }
+                else
+                {
+                    await _apiService.ConfigureSyncFolderAsync(selected, token);
+                    _syncSettings!.SetSyncFolderPath(userId.Value, Path.GetFullPath(selected));
+                }
                 OnPropertyChanged(nameof(CurrentSyncFolderPath));
                 return $"Sync folder changed to '{selected}'. Synchronize to populate it.";
             });
@@ -474,6 +485,8 @@ public sealed partial class MainWindowViewModel
         IsLoading = false;
         using var cancellation = new CancellationTokenSource();
         _activeOperation = cancellation;
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _operationCompletion = completion;
         IsOperating = true;
         OperationStatus = status;
         NotificationMessage = string.Empty;
@@ -515,6 +528,8 @@ public sealed partial class MainWindowViewModel
             _activeOperation = null;
             OperationStatus = string.Empty;
             IsOperating = false;
+            _operationCompletion = null;
+            completion.TrySetResult();
         }
     }
 
@@ -537,6 +552,7 @@ public sealed partial class MainWindowViewModel
 
     private static string GetOperationError(Exception exception) => exception switch
     {
+        DeviceConnectionException => exception.Message,
         DriveApiException => exception.Message,
         OperationCanceledException => "The request timed out. Check the result before trying again.",
         HttpRequestException => "Could not complete the request. Check the connection and refresh before trying again.",

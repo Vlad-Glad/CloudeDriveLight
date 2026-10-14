@@ -2,12 +2,14 @@ using System.Net.Http;
 using System.Text.Json;
 using GDriveLight.Desktop.Commands;
 using GDriveLight.Desktop.Services.Api;
+using GDriveLight.Desktop.Services.Sync;
 
 namespace GDriveLight.Desktop.ViewModels;
 
 public sealed class LoginViewModel : ViewModelBase, IDisposable
 {
     private readonly IDriveApiService _apiService;
+    private readonly IDeviceSyncConnection? _deviceConnection;
     private readonly CancellationTokenSource _lifetime = new();
     private bool _disposed;
     private string _email = string.Empty;
@@ -17,9 +19,10 @@ public sealed class LoginViewModel : ViewModelBase, IDisposable
     private bool _isLoading;
     private string _errorMessage = string.Empty;
 
-    public LoginViewModel(IDriveApiService apiService)
+    public LoginViewModel(IDriveApiService apiService, IDeviceSyncConnection? deviceConnection = null)
     {
         _apiService = apiService;
+        _deviceConnection = deviceConnection;
         ToggleModeCommand = new RelayCommand(() =>
         {
             IsRegisterMode = !IsRegisterMode;
@@ -110,7 +113,10 @@ public sealed class LoginViewModel : ViewModelBase, IDisposable
 
             _apiService.SetAuthToken(token);
             tokenSet = true;
-            await _apiService.EnsureDeviceRegisteredAsync(_lifetime.Token);
+            if (_deviceConnection is not null && _apiService.CurrentUserId is Guid userId)
+                await _deviceConnection.InitializeAsync(userId, _lifetime.Token);
+            else
+                await _apiService.EnsureDeviceRegisteredAsync(_lifetime.Token);
             Password = string.Empty;
             LoginSucceeded?.Invoke(this, EventArgs.Empty);
         }
@@ -140,6 +146,7 @@ public sealed class LoginViewModel : ViewModelBase, IDisposable
 
         ErrorMessage = exception switch
         {
+            DeviceConnectionException => exception.Message,
             DriveApiException => exception.Message,
             ArgumentException => "Enter a valid HTTP or HTTPS server address.",
             OperationCanceledException => "The request timed out. Please try again.",

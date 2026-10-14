@@ -37,9 +37,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         ISyncEngine? syncEngine = null,
         ISyncSettingsService? syncSettings = null,
         ILocalSyncDbContextFactory? dbContextFactory = null,
-        UserProfileViewModel? profile = null)
+        UserProfileViewModel? profile = null,
+        IDeviceSyncConnection? deviceConnection = null)
     {
         _apiService = apiService;
+        _deviceConnection = deviceConnection;
         Profile = profile;
         _fileDialogs = fileDialogs;
         _dialogs = dialogs;
@@ -53,8 +55,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         NavigateBackCommand = new AsyncRelayCommand<BreadcrumbItem>(NavigateBackAsync, HandleError,
             crumb => !_disposed && !IsBusy && crumb is not null &&
                 Breadcrumbs.Contains(crumb) && !ReferenceEquals(crumb, Breadcrumbs.LastOrDefault()));
-        LogoutCommand = new RelayCommand(Logout, () => !_disposed);
+        LogoutCommand = new RelayCommand(Logout, () => !_disposed && !_isDisconnecting);
         InitializeOperationCommands();
+        DisconnectDeviceCommand = new AsyncRelayCommand(DisconnectDeviceAsync, HandleOperationError,
+            () => !_disposed && !_isDisconnecting && _deviceConnection is not null && _deviceConnectionState != DeviceConnectionState.Disconnected);
     }
 
     public UserProfileViewModel? Profile { get; }
@@ -157,9 +161,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            await _apiService.EnsureDeviceRegisteredAsync();
-            if (_syncSettings is not null && _apiService.CurrentUserId is Guid userId)
-                await _apiService.ConfigureSyncFolderAsync(_syncSettings.GetSyncFolderPath(userId));
+            if (_deviceConnection is not null && _apiService.CurrentUserId is Guid accountId)
+            {
+                UpdateConnectionState(accountId);
+                await _deviceConnection.InitializeAsync(accountId, _connectionLifetime.Token);
+                UpdateConnectionState(accountId);
+            }
+            else
+            {
+                await _apiService.EnsureDeviceRegisteredAsync();
+                if (_syncSettings is not null && _apiService.CurrentUserId is Guid userId)
+                    await _apiService.ConfigureSyncFolderAsync(_syncSettings.GetSyncFolderPath(userId));
+            }
         }
         catch (Exception exception)
         {
@@ -363,6 +376,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         IsError = true;
         ErrorMessage = exception switch
         {
+            DeviceConnectionException => exception.Message,
             DriveApiException => exception.Message,
             OperationCanceledException => "The request timed out. Please retry.",
             HttpRequestException => "Could not connect to the server. Check the connection and retry.",
@@ -390,6 +404,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(EmptyDescription));
         OpenFolderCommand?.NotifyCanExecuteChanged();
         NavigateBackCommand?.NotifyCanExecuteChanged();
+        DisconnectDeviceCommand?.NotifyCanExecuteChanged();
+        LogoutCommand?.NotifyCanExecuteChanged();
         RetryCommand?.NotifyCanExecuteChanged();
         CreateFolderCommand?.NotifyCanExecuteChanged();
         UploadCommand?.NotifyCanExecuteChanged();
@@ -437,6 +453,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         _disposed = true;
         Profile?.Dispose();
+        _connectionLifetime.Cancel();
+        _connectionLifetime.Dispose();
         CancelLoad();
         _searchDebounce?.Cancel();
         _activeOperation?.Cancel();

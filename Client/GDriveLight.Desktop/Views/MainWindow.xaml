@@ -217,6 +217,8 @@
                                     <TextBlock Text="{Binding Profile.Email}" Margin="0,6,0,0" FontSize="13"
                                                Foreground="{DynamicResource TextSecondaryBrush}" TextAlignment="Center" TextWrapping="Wrap" />
                                     <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,18,0,10" />
+                                    <Button Content="Account settings" Click="AccountSettingsClick" Margin="0,0,0,4"
+                                            Style="{StaticResource QuietButton}" AutomationProperties.Name="Account settings" />
                                     <Button x:Name="ProfileLogoutButton" Command="{Binding LogoutCommand}"
                                             Style="{StaticResource QuietButton}" HorizontalAlignment="Stretch"
                                             AutomationProperties.Name="Log out">

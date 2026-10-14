@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddSingleton<Data.ILocalSyncDbContextFactory, Data.LocalSyncDbContextFactory>();
         services.AddSingleton<Services.Sync.ISyncSettingsService, Services.Sync.SyncSettingsService>();
         services.AddSingleton<Services.Sync.ISyncEngine, Services.Sync.SyncEngine>();
+        services.AddSingleton<Services.Sync.IDeviceSyncConnection, Services.Sync.DeviceSyncConnection>();
         services.AddScoped<LoginViewModel>();
         services.AddScoped<LoginWindow>();
         services.AddScoped<MainWindowViewModel>();

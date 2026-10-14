@@ -1,6 +1,7 @@
 using GDriveLight.Api.Contracts.Devices;
 using GDriveLight.Application.Abstractions.Services;
 using GDriveLight.Application.Devices.Commands.RegisterDevice;
+using GDriveLight.Application.Devices.Commands.DisconnectDevice;
 using MediatR;
 using GDriveLight.Application.Devices.Queries;
 using GDriveLight.Application.Devices.Commands.ConfigureSyncFolder;
@@ -21,6 +22,13 @@ public class DevicesController : ControllerBase
     {
         _mediator = mediator;
         _currentUserService = currentUserService;
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DisconnectDevice(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new DisconnectDeviceCommand(_currentUserService.UserId, id), cancellationToken);
+        return result.IsFailure ? BadRequest(new { error = result.Error }) : NoContent();
     }
 
     [HttpGet]

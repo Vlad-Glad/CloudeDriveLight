@@ -123,6 +123,13 @@ public sealed class WindowSmokeTests
                 Assert.Equal("ConfirmCommand", moveButton.GetBindingExpression(Button.CommandProperty)?.ParentBinding.Path.Path);
                 var nameDialog = new NameDialogWindow("Rename", "New name", "notes.txt");
                 Assert.Equal("notes.txt", ((TextBox)nameDialog.FindName("NameInput")).Text);
+                var accountSettings = new AccountSettingsWindow(mainViewModel);
+                var disconnectButton = Assert.IsType<Button>(accountSettings.FindName("DisconnectDeviceButton"));
+                accountSettings.GetBindingExpression(FrameworkElement.DataContextProperty)?.UpdateTarget();
+                disconnectButton.GetBindingExpression(Button.CommandProperty)!.UpdateTarget();
+                main.Dispatcher.Invoke(() => { }, DispatcherPriority.DataBind);
+                Assert.Same(mainViewModel.DisconnectDeviceCommand, disconnectButton.Command);
+                accountSettings.Close();
                 nameDialog.Close();
                 picker.Close();
                 stage = "creating login window";

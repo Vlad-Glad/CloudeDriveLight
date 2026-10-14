@@ -35,5 +35,6 @@ public interface IDriveApiService
     Task UpdateFileContentAsync(Guid fileId, Stream stream, string fileName, CancellationToken cancellationToken = default);
     Task<Guid> RegisterDeviceAsync(Guid deviceId, string name, CancellationToken cancellationToken = default);
     Task<Guid> EnsureDeviceRegisteredAsync(CancellationToken cancellationToken = default);
+    Task DisconnectDeviceAsync(CancellationToken cancellationToken = default);
 }
 

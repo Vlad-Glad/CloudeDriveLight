@@ -269,6 +269,12 @@ public sealed class DriveApiService : IDriveApiService
             ?? throw new JsonException("The server returned an invalid device configuration.");
     }
 
+    public async Task DisconnectDeviceAsync(CancellationToken cancellationToken = default)
+    {
+        using var request = CreateRequest(HttpMethod.Delete, $"api/devices/{DeviceId}");
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
     public Task<Guid> EnsureDeviceRegisteredAsync(CancellationToken cancellationToken = default) =>
         RegisterDeviceAsync(DeviceId, Environment.MachineName, cancellationToken);
 

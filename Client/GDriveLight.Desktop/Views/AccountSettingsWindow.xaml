@@ -1,0 +1,24 @@
+<Window x:Class="GDriveLight.Desktop.Views.AccountSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Account settings" Width="460" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource AppBackgroundBrush}"
+        FontFamily="{DynamicResource AppFontFamily}" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}">
+    <StackPanel Margin="24">
+        <TextBlock Text="Account settings" FontSize="22" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding Profile.FirstName}" Margin="0,20,0,4" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding Profile.Email}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+        <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,20" />
+        <TextBlock Text="This device" FontSize="16" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding DeviceConnectionStatus}" Margin="0,8,0,12" TextWrapping="Wrap" />
+        <TextBlock Text="Disconnect to stop syncing and make this device available to another account. Local files stay in place. The cloud folder becomes a separate folder in Home, and your account stays signed in."
+                   TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" />
+        <Button x:Name="DisconnectDeviceButton" Content="Stop syncing this device" Command="{Binding DisconnectDeviceCommand}"
+                Padding="14,10" HorizontalAlignment="Left" Margin="0,18,0,8" AutomationProperties.Name="Stop syncing this device" />
+        <Button Content="Choose sync folder..." Command="{Binding ChangeSyncFolderCommand}" Padding="14,10"
+                HorizontalAlignment="Left" AutomationProperties.Name="Choose sync folder" />
+        <TextBlock Text="Choose a folder explicitly to connect synchronization again." Margin="0,8,0,0" FontSize="12"
+                   TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" />
+        <TextBlock Text="{Binding NotificationMessage}" Margin="0,16,0,0" TextWrapping="Wrap" />
+    </StackPanel>
+</Window>

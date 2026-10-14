@@ -57,6 +57,24 @@ public sealed class DriveApiServiceTests
         Assert.Equal(string.Empty, service.CurrentUser.Email);
     }
 
+    [Fact]
+    public async Task DisconnectUsesTheAuthenticatedDeviceEndpointWithoutLoggingOut()
+    {
+        var identity = new Moq.Mock<GDriveLight.Desktop.Services.IDeviceIdentifierService>();
+        var id = Guid.NewGuid();
+        identity.Setup(d => d.GetDeviceId()).Returns(id);
+        using var client = new HttpClient(new StubHandler((request, _) =>
+        {
+            Assert.Equal(HttpMethod.Delete, request.Method);
+            Assert.Equal($"/api/devices/{id}", request.RequestUri!.AbsolutePath);
+            Assert.Equal("session-token", request.Headers.Authorization!.Parameter);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
+        }));
+        var service = new DriveApiService(client, identity.Object);
+        service.SetAuthToken("session-token");
+        await service.DisconnectDeviceAsync();
+    }
+
     private static string CreateToken(object claims)
     {
         var json = JsonSerializer.SerializeToUtf8Bytes(claims);

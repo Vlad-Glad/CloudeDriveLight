@@ -1,4 +1,5 @@
 using GDriveLight.Desktop.Services.Api;
+using GDriveLight.Desktop.Services.Sync;
 using GDriveLight.Desktop.ViewModels;
 using Moq;
 
@@ -6,6 +7,24 @@ namespace GDriveLight.Desktop.Tests.ViewModels;
 
 public sealed class LoginViewModelTests
 {
+    [Fact]
+    public async Task ADisconnectedAccountCanSignInThroughItsConnectionLifecycle()
+    {
+        var user = Guid.NewGuid();
+        var api = new Mock<IDriveApiService>(MockBehavior.Strict);
+        api.Setup(a => a.LoginAsync("a@b.com", "password", It.IsAny<CancellationToken>())).ReturnsAsync("token");
+        api.Setup(a => a.SetAuthToken("token"));
+        api.SetupGet(a => a.CurrentUserId).Returns(user);
+        var connection = new Mock<IDeviceSyncConnection>(MockBehavior.Strict);
+        connection.Setup(c => c.InitializeAsync(user, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        using var vm = new LoginViewModel(api.Object, connection.Object) { Email = "a@b.com", Password = "password" };
+        var signedIn = false;
+        vm.LoginSucceeded += (_, _) => signedIn = true;
+        await vm.SubmitCommand.ExecuteAsync();
+        Assert.True(signedIn);
+        api.Verify(a => a.EnsureDeviceRegisteredAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Fact]
     public async Task ALoginResponseAfterClosingTheWindowCannotRestoreTheSession()
     {
