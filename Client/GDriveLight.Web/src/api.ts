@@ -7,7 +7,7 @@ export async function errorMessage(response: Response): Promise<string> {
     return body.error || body.detail || body.title || `Request failed (${response.status}).`;
   } catch { return response.status === 413 ? 'This file exceeds the server upload limit.' : `Request failed (${response.status}). Please try again.`; }
 }
-export async function request<T>(path: string, options: RequestInit = {}, authenticated = true): Promise<T> {
+export async function apiResponse(path: string, options: RequestInit = {}, authenticated = true): Promise<Response> {
   const token = authenticated ? getSession()?.token : undefined;
   const headers = new Headers(options.headers);
   if (token) headers.set('Authorization', `Bearer ${token}`);
@@ -22,6 +22,10 @@ export async function request<T>(path: string, options: RequestInit = {}, authen
     if (response.status === 401 && token) expireSession(token);
     throw new ApiError(await errorMessage(response), response.status);
   }
+  return response;
+}
+export async function request<T>(path: string, options: RequestInit = {}, authenticated = true): Promise<T> {
+  const response = await apiResponse(path, options, authenticated);
   if (response.status === 204 || response.headers.get('content-length') === '0') return undefined as T;
   const text = await response.text();
   return text ? JSON.parse(text) as T : undefined as T;
