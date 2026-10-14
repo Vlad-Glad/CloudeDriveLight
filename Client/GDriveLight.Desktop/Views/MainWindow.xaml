@@ -109,7 +109,6 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <StackPanel Orientation="Horizontal" Margin="12,12,0,28">
                 <ui:SymbolIcon Symbol="Cloud48" Foreground="{DynamicResource PrimaryBrandBrush}" FontSize="30" />
@@ -167,13 +166,6 @@
                     </StackPanel>
                 </ListBoxItem>
             </ListBox>
-            <Button Grid.Row="3" Command="{Binding LogoutCommand}" Style="{StaticResource QuietButton}"
-                    HorizontalAlignment="Left" Margin="12,0,0,12">
-                <StackPanel Orientation="Horizontal">
-                    <ui:SymbolIcon Symbol="SignOut24" FontSize="20" />
-                    <TextBlock Text="Log out" Margin="14,0,0,0" VerticalAlignment="Center" />
-                </StackPanel>
-            </Button>
         </Grid>
         <Border Grid.Column="1" Background="White" CornerRadius="20" Margin="0,16,16,16">
             <Grid Margin="24">
