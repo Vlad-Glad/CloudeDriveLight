@@ -104,14 +104,42 @@ public sealed class WindowSmokeTests
                     RoutedEvent = Mouse.PreviewMouseDownEvent
                 });
                 Assert.False(popup.IsOpen);
-                Assert.Equal(4, grid.Columns.Count);
+                Assert.Equal(5, grid.Columns.Count);
                 Assert.Equal(2, mainViewModel.VisibleFiles.Count);
                 var selector = Assert.IsType<ComboBox>(main.FindName("DeviceSelector"));
                 Assert.Equal("SelectedDevice", selector.GetBindingExpression(ComboBox.SelectedItemProperty)!.ParentBinding.Path.Path);
                 Assert.Equal("VisibleFiles", grid.GetBindingExpression(ItemsControl.ItemsSourceProperty)?.ParentBinding.Path.Path);
                 Assert.Equal("Name", grid.Columns[0].Header);
-                Assert.Equal("Modified", grid.Columns[1].Header);
-                Assert.Equal("Size", grid.Columns[2].Header);
+                Assert.Equal("Created", grid.Columns[1].Header);
+                Assert.Equal("Modified", grid.Columns[2].Header);
+                Assert.Equal("Size", grid.Columns[3].Header);
+                var columnsButton = Assert.IsType<Button>(main.FindName("ColumnsButton"));
+                columnsButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                var columnsMenu = Assert.IsType<ContextMenu>(columnsButton.ContextMenu);
+                columnsMenu.Opacity = 0;
+                var requiredName = Assert.IsType<MenuItem>(columnsMenu.Items[0]);
+                Assert.True(requiredName.IsChecked);
+                Assert.False(requiredName.IsEnabled);
+                for (var index = 1; index < grid.Columns.Count; index++)
+                {
+                    var option = Assert.IsType<MenuItem>(columnsMenu.Items[index]);
+                    Assert.True(option.IsChecked);
+                    option.IsChecked = false;
+                    option.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+                    Assert.Equal(Visibility.Collapsed, grid.Columns[index].Visibility);
+                }
+                Assert.Equal(Visibility.Visible, grid.Columns[0].Visibility);
+                mainViewModel.RefreshAsync().GetAwaiter().GetResult();
+                Assert.All(grid.Columns.Skip(1), column => Assert.Equal(Visibility.Collapsed, column.Visibility));
+                var showAll = Assert.IsType<MenuItem>(columnsMenu.Items[columnsMenu.Items.Count - 1]);
+                showAll.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+                Assert.All(grid.Columns, column => Assert.Equal(Visibility.Visible, column.Visibility));
+                columnsMenu.IsOpen = false;
+                var folderItem = mainViewModel.VisibleFiles.Single(item => item.IsFolder);
+                Assert.Equal("—", folderItem.DateCreated);
+                Assert.Equal("—", folderItem.DateModified);
+                Assert.Empty(folderItem.TimeCreated);
+                Assert.Empty(folderItem.TimeModified);
                 Assert.IsAssignableFrom<Brush>(main.FindResource("SurfaceBackgroundBrush"));
                 Assert.Contains(grid.InputBindings.OfType<KeyBinding>(), binding => binding.Key == Key.F2);
                 Assert.Contains(grid.InputBindings.OfType<KeyBinding>(), binding => binding.Key == Key.Delete);

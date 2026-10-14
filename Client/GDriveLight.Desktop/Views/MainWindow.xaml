@@ -365,12 +365,20 @@
                     </Border>
                 </StackPanel>
                 <Grid Grid.Row="4">
-                    <DataGrid x:Name="FileGrid" ItemsSource="{Binding VisibleFiles}" SelectedItem="{Binding SelectedFile}"
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Button x:Name="ColumnsButton" Content="Columns ▾" Click="ColumnsButtonClick"
+                            HorizontalAlignment="Right" Margin="0,0,0,6" Padding="10,6"
+                            Style="{StaticResource QuietButton}" Foreground="{DynamicResource TextSecondaryBrush}"
+                            ToolTip="Show or hide columns" AutomationProperties.Name="Show or hide columns" />
+                    <DataGrid x:Name="FileGrid" Grid.Row="1" ItemsSource="{Binding VisibleFiles}" SelectedItem="{Binding SelectedFile}"
                               IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"
                               CanUserDeleteRows="False" CanUserSortColumns="False" CanUserResizeRows="False"
                               SelectionMode="Single" SelectionUnit="FullRow" HeadersVisibility="Column"
                               GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource BorderBrush}"
-                              RowHeight="50" BorderThickness="0" Background="{DynamicResource SurfaceBrush}"
+                              RowHeight="56" BorderThickness="0" Background="{DynamicResource SurfaceBrush}"
                               AllowDrop="True" PreviewMouseLeftButtonDown="FileGridMouseDown" PreviewMouseMove="FileGridMouseMove"
                               PreviewMouseRightButtonUp="FileGridRightClick" PreviewKeyDown="FileGridKeyDown"
                               MouseDoubleClick="FileGridDoubleClick" PreviewDragOver="ItemDragOver"
@@ -395,7 +403,28 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Modified" Width="140" Binding="{Binding DateModified}" />
+                            <DataGridTemplateColumn Header="Created" Width="155" MinWidth="140">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel ToolTip="{Binding CreatedTimestamp}">
+                                            <TextBlock Text="{Binding DateCreated}" FontSize="13" />
+                                            <TextBlock Text="{Binding TimeCreated}" FontSize="12" Margin="0,2,0,0"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="Modified" Width="155" MinWidth="140">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel ToolTip="{Binding ModifiedTimestamp}">
+                                            <TextBlock Text="{Binding DateModified}" FontSize="13" />
+                                            <TextBlock Text="{Binding TimeModified}" FontSize="12" Margin="0,2,0,0"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTextColumn Header="Size" Width="90" Binding="{Binding Size}" />
                             <DataGridTemplateColumn Width="48">
                                 <DataGridTemplateColumn.CellTemplate>
@@ -409,16 +438,16 @@
                             </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
-                    <ui:ProgressRing IsIndeterminate="True" Width="44" Height="44" HorizontalAlignment="Center"
+                    <ui:ProgressRing Grid.Row="1" IsIndeterminate="True" Width="44" Height="44" HorizontalAlignment="Center"
                                      VerticalAlignment="Center" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                    <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center"
                                 Visibility="{Binding IsEmpty, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <ui:SymbolIcon Symbol="FolderOpen24" FontSize="56" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,16" />
                         <TextBlock Text="{Binding EmptyTitle}" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
                         <TextBlock Text="{Binding EmptyDescription}" Margin="0,8,0,0" TextWrapping="Wrap"
                                    MaxWidth="380" TextAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                    <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center"
                                 Visibility="{Binding IsError, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <ui:SymbolIcon Symbol="Warning24" FontSize="48" Foreground="{DynamicResource PdfIconBrush}" Margin="0,0,0,16" />
                         <TextBlock Text="Could not load this folder" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />

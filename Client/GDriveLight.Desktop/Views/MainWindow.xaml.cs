@@ -80,6 +80,42 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    private void ColumnsButtonClick(object sender, RoutedEventArgs e)
+    {
+        var menu = new ContextMenu();
+        var options = new List<(DataGridColumn Column, MenuItem Item)>();
+        foreach (var column in FileGrid.Columns)
+        {
+            var item = new MenuItem
+            {
+                Header = column.Header as string ?? "Actions",
+                IsCheckable = true,
+                IsChecked = column.Visibility == Visibility.Visible,
+                IsEnabled = column != FileGrid.Columns[0],
+                StaysOpenOnClick = true
+            };
+            item.Click += (_, _) => column.Visibility = item.IsChecked ? Visibility.Visible : Visibility.Collapsed;
+            menu.Items.Add(item);
+            options.Add((column, item));
+        }
+
+        menu.Items.Add(new Separator());
+        var showAll = new MenuItem { Header = "Show all columns" };
+        showAll.Click += (_, _) =>
+        {
+            foreach (var (column, item) in options)
+            {
+                column.Visibility = Visibility.Visible;
+                item.IsChecked = true;
+            }
+        };
+        menu.Items.Add(showAll);
+        ColumnsButton.ContextMenu = menu;
+        OpenMenu(ColumnsButton, menu);
+        menu.HorizontalOffset = ColumnsButton.ActualWidth - menu.MinWidth;
+        e.Handled = true;
+    }
+
     private void RowActionsClick(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: FileItemViewModel item } button)

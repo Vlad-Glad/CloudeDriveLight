@@ -109,12 +109,14 @@ public sealed class MainWindowViewModelTests
         api.Verify(service => service.Logout(), Times.Once);
     }
 
-    [Fact]
-    public async Task FileAppearanceUsesTheExtensionAndModifiedDateInsteadOfGuessedTypeIds()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task FileAppearanceUsesTheExtensionAndLocalCreationAndModificationTimes(bool wasEdited)
     {
         var edited = new DateTime(2026, 10, 7, 12, 0, 0, DateTimeKind.Utc);
         var file = new FileResponse(Guid.NewGuid(), "photo.png", 12, "hash", 1024L, null, Guid.NewGuid(),
-            edited.AddDays(-1), edited, "server-path");
+            edited.AddDays(-1), wasEdited ? edited : null, "server-path");
         var api = new Mock<IDriveApiService>(MockBehavior.Strict);
         api.Setup(service => service.EnsureDeviceRegisteredAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Guid.NewGuid());
         api.Setup(service => service.GetFolderContentAsync(null, It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<FolderResponse>());
@@ -126,6 +128,13 @@ public sealed class MainWindowViewModelTests
 
         var item = Assert.Single(viewModel.Files);
         Assert.Equal(SymbolRegular.Image24, item.Icon);
-        Assert.Equal(edited.ToLocalTime().ToString("d"), item.DateModified);
+        var created = file.UploadedAtUtc.ToLocalTime();
+        var modified = (file.EditedAtUtc ?? file.UploadedAtUtc).ToLocalTime();
+        Assert.Equal(created.ToString("d"), item.DateCreated);
+        Assert.Equal(created.ToString("HH:mm"), item.TimeCreated);
+        Assert.Equal(created.ToString("F"), item.CreatedTimestamp);
+        Assert.Equal(modified.ToString("d"), item.DateModified);
+        Assert.Equal(modified.ToString("HH:mm"), item.TimeModified);
+        Assert.Equal(modified.ToString("F"), item.ModifiedTimestamp);
     }
 }

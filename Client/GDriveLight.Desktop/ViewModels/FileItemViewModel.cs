@@ -6,7 +6,14 @@ public sealed class FileItemViewModel : ViewModelBase
 {
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
-    public string DateModified { get; init; } = string.Empty;
+    public DateTime? CreatedAtUtc { get; init; }
+    public DateTime? ModifiedAtUtc { get; init; }
+    public string DateCreated => CreatedAtUtc?.ToLocalTime().ToString("d") ?? "—";
+    public string TimeCreated => CreatedAtUtc?.ToLocalTime().ToString("HH:mm") ?? string.Empty;
+    public string CreatedTimestamp => CreatedAtUtc?.ToLocalTime().ToString("F") ?? "—";
+    public string DateModified => (ModifiedAtUtc ?? CreatedAtUtc)?.ToLocalTime().ToString("d") ?? "—";
+    public string TimeModified => (ModifiedAtUtc ?? CreatedAtUtc)?.ToLocalTime().ToString("HH:mm") ?? string.Empty;
+    public string ModifiedTimestamp => (ModifiedAtUtc ?? CreatedAtUtc)?.ToLocalTime().ToString("F") ?? "—";
     public string Size { get; init; } = string.Empty;
     
     public SymbolRegular Icon { get; init; } = SymbolRegular.Document24;

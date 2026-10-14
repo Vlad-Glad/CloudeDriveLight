@@ -237,7 +237,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 Files.Add(new FileItemViewModel
                 {
-                    Id = folder.Id, Name = folder.Name, IsFolder = true, DateModified = "—", Size = "—",
+                    Id = folder.Id, Name = folder.Name, IsFolder = true, Size = "—",
                     Icon = SymbolRegular.Folder24, IconColorBrushKey = "#5F6368", FolderId = folder.ParentFolderId
                 });
             }
@@ -247,7 +247,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 var (icon, color) = GetFileAppearance(file.Name);
                 Files.Add(new FileItemViewModel
                 {
-                    Id = file.Id, Name = file.Name, DateModified = (file.EditedAtUtc ?? file.UploadedAtUtc).ToLocalTime().ToString("d"),
+                    Id = file.Id, Name = file.Name, CreatedAtUtc = file.UploadedAtUtc, ModifiedAtUtc = file.EditedAtUtc,
                     Size = FormatFileSize(file.SizeBytes), Icon = icon, IconColorBrushKey = color, FolderId = file.FolderId
                 });
             }
