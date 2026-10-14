@@ -25,6 +25,7 @@
     <ProjectReference Include="../../Server/GDriveLight.Domain/GDriveLight.Domain.csproj" />
     <ProjectReference Include="../../Server/GDriveLight.Application/GDriveLight.Application.csproj" />
     <ProjectReference Include="../../Server/GDriveLight.Infrastructure/GDriveLight.Infrastructure.csproj" />
+    <ProjectReference Include="../../Server/GDriveLight.Api/GDriveLight.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>

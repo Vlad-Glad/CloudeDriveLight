@@ -52,7 +52,8 @@ public sealed class WindowSmokeTests
                     });
                 api.SetupSequence(service => service.GetFileTypesAsync(It.IsAny<CancellationToken>()))
                     .ReturnsAsync(new[] { new FileTypeResponse(2, "Text", ".txt") })
-                    .ReturnsAsync(new[] { new FileTypeResponse(2, "Text", ".txt"), new FileTypeResponse(99, "Markdown", ".md") });
+                    .ReturnsAsync(new[] { new FileTypeResponse(2, "Text", ".txt"), new FileTypeResponse(99, "Markdown", ".md") }
+                        .Concat(Enumerable.Range(100, 10).Select(id => new FileTypeResponse(id, $"Custom {id}", $".custom{id}"))));
                 api.SetupGet(service => service.CurrentUser).Returns(new UserProfile(Guid.NewGuid(), "Olena", "olena@example.com"));
                 using var profile = new UserProfileViewModel(api.Object, new Mock<IAvatarService>().Object);
                 using var mainViewModel = new MainWindowViewModel(api.Object,
@@ -148,7 +149,7 @@ public sealed class WindowSmokeTests
                 filterButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 var filterMenu = Assert.IsType<ContextMenu>(filterButton.ContextMenu);
                 filterMenu.Opacity = 0;
-                var textType = Assert.IsType<MenuItem>(filterMenu.Items[2]);
+                var textType = Assert.IsType<MenuItem>(filterMenu.Items[1]);
                 Assert.Equal("Text (.txt)", textType.Header);
                 textType.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
                 Assert.Equal(2, mainViewModel.SelectedFileType?.Id);
@@ -156,8 +157,24 @@ public sealed class WindowSmokeTests
                 filterButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 filterMenu = Assert.IsType<ContextMenu>(filterButton.ContextMenu);
                 filterMenu.Opacity = 0;
-                Assert.Equal("Markdown (.md)", Assert.IsType<MenuItem>(filterMenu.Items[2]).Header);
-                Assert.True(Assert.IsType<MenuItem>(filterMenu.Items[3]).IsChecked);
+                Assert.Contains(filterMenu.Items.OfType<MenuItem>(), item => Equals(item.Header, "Markdown (.md)"));
+                Assert.True(Assert.Single(filterMenu.Items.OfType<MenuItem>(), item => Equals(item.Header, "Text (.txt)")).IsChecked);
+                filterMenu.UpdateLayout();
+                var typeScroller = Assert.IsType<ScrollViewer>(filterMenu.Template.FindName("TypeOptionsScroller", filterMenu));
+                Assert.InRange(typeScroller.ViewportHeight, 179, 181);
+                Assert.True(typeScroller.ScrollableHeight > 0);
+                Assert.Equal(36, Assert.IsType<MenuItem>(filterMenu.Items[1]).ActualHeight);
+                Assert.IsType<MenuItem>(filterMenu.Items[1]).RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, -120)
+                {
+                    RoutedEvent = Mouse.MouseWheelEvent
+                });
+                main.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+                Assert.True(typeScroller.VerticalOffset > 0);
+                typeScroller.ScrollToBottom();
+                main.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+                Assert.Equal(typeScroller.ScrollableHeight, typeScroller.VerticalOffset);
+                Assert.IsType<MenuItem>(filterMenu.Items[filterMenu.Items.Count - 1]).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+                Assert.Equal(2, mainViewModel.SelectedFileType?.Id);
                 Assert.IsType<MenuItem>(filterMenu.Items[0]).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
                 Assert.Null(mainViewModel.SelectedFileType);
                 filterMenu.IsOpen = false;
