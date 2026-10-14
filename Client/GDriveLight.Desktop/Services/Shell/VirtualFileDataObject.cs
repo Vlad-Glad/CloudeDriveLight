@@ -11,7 +11,7 @@ public sealed class VirtualFileDataObject : IDataObject, IDataObjectAsyncCapabil
     public const string DescriptorFormat = "FileGroupDescriptorW";
     public const string ContentsFormat = "FileContents";
     public const string PreferredEffectFormat = "Preferred DropEffect";
-    private readonly VirtualFileContent _content;
+    private readonly VirtualFileContent[] _contents;
     private readonly Dictionary<short, byte[]> _metadata;
     private readonly short _contentsFormat = ShellNative.RegisterFormat(ContentsFormat);
     private readonly object _gate = new();
@@ -22,18 +22,27 @@ public sealed class VirtualFileDataObject : IDataObject, IDataObjectAsyncCapabil
     private bool _contentsRequested;
 
     public VirtualFileDataObject(VirtualFile file, string internalFormat, CancellationToken cancellationToken = default)
+        : this(new[] { file }, internalFormat, cancellationToken) { }
+
+    public VirtualFileDataObject(IReadOnlyList<VirtualFile> files, string internalFormat, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(file);
-        if (string.IsNullOrWhiteSpace(file.Name) || file.Name is "." or ".." || file.Name.Length >= 260 ||
-            file.Name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || file.SizeBytes < 0)
-            throw new ArgumentException("The file name or size is not valid for Windows.", nameof(file));
-        _content = new VirtualFileContent(file, cancellationToken);
+        ArgumentNullException.ThrowIfNull(files);
+        if (files.Count == 0) throw new ArgumentException("Select at least one file.", nameof(files));
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var exported = files.Select(file =>
+        {
+            if (string.IsNullOrWhiteSpace(file.Name) || file.Name is "." or ".." || file.Name.Length >= 260 ||
+                file.Name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || file.SizeBytes < 0)
+                throw new ArgumentException("The file name or size is not valid for Windows.", nameof(files));
+            return file with { Name = GetUniqueName(file.Name, names) };
+        }).ToArray();
         _metadata = new Dictionary<short, byte[]>
         {
-            [ShellNative.RegisterFormat(DescriptorFormat)] = CreateDescriptor(file),
+            [ShellNative.RegisterFormat(DescriptorFormat)] = CreateDescriptor(exported),
             [ShellNative.RegisterFormat(PreferredEffectFormat)] = BitConverter.GetBytes(1), // DROPEFFECT_COPY
-            [ShellNative.RegisterFormat(internalFormat)] = Encoding.Unicode.GetBytes(file.Id.ToString("D") + '\0')
+            [ShellNative.RegisterFormat(internalFormat)] = Encoding.Unicode.GetBytes(string.Join("\n", exported.Select(file => file.Id.ToString("D"))) + '\0')
         };
+        _contents = exported.Select(file => new VirtualFileContent(file, cancellationToken)).ToArray();
     }
 
     public bool IsExternalTransfer { get { lock (_gate) return _contentsRequested || _operationStarted; } }
@@ -47,9 +56,9 @@ public sealed class VirtualFileDataObject : IDataObject, IDataObjectAsyncCapabil
             if (pending) await _finished.Task.WaitAsync(token).ConfigureAwait(false);
             else if (_finished.Task.IsCompleted) await _finished.Task.ConfigureAwait(false);
         }
-        catch { _content.ThrowIfFailed(); throw; }
+        catch { ThrowIfFailed(); throw; }
         token.ThrowIfCancellationRequested();
-        _content.ThrowIfFailed();
+        ThrowIfFailed();
     }
 
     public void GetData(ref FORMATETC format, out STGMEDIUM medium)
@@ -58,7 +67,7 @@ public sealed class VirtualFileDataObject : IDataObject, IDataObjectAsyncCapabil
         if (format.cfFormat == _contentsFormat)
         {
             lock (_gate) _contentsRequested = true;
-            var stream = _content.CreateStream();
+            var stream = _contents[format.lindex].CreateStream();
             medium = new STGMEDIUM { tymed = TYMED.TYMED_ISTREAM, unionmember = Marshal.GetComInterfaceForObject(stream, typeof(IWindowsFileStream)) };
             return;
         }
@@ -73,7 +82,7 @@ public sealed class VirtualFileDataObject : IDataObject, IDataObjectAsyncCapabil
         if (format.dwAspect != DVASPECT.DVASPECT_CONTENT) return ShellNative.AspectError;
         if (format.cfFormat == _contentsFormat)
         {
-            if (format.lindex != 0) return ShellNative.IndexError;
+            if (format.lindex < 0 || format.lindex >= _contents.Length) return ShellNative.IndexError;
             return (format.tymed & TYMED.TYMED_ISTREAM) != 0 ? 0 : ShellNative.MediumError;
         }
         lock (_gate)
@@ -91,10 +100,10 @@ public sealed class VirtualFileDataObject : IDataObject, IDataObjectAsyncCapabil
             return new FormatEnumerator(_metadata.Keys.Select(id => new FORMATETC
             {
                 cfFormat = id, dwAspect = DVASPECT.DVASPECT_CONTENT, lindex = -1, tymed = TYMED.TYMED_HGLOBAL
-            }).Append(new FORMATETC
+            }).Concat(Enumerable.Range(0, _contents.Length).Select(index => new FORMATETC
             {
-                cfFormat = _contentsFormat, dwAspect = DVASPECT.DVASPECT_CONTENT, lindex = 0, tymed = TYMED.TYMED_ISTREAM
-            }).ToArray());
+                cfFormat = _contentsFormat, dwAspect = DVASPECT.DVASPECT_CONTENT, lindex = index, tymed = TYMED.TYMED_ISTREAM
+            })).ToArray());
         }
     }
 
@@ -137,25 +146,50 @@ public sealed class VirtualFileDataObject : IDataObject, IDataObjectAsyncCapabil
         return 0;
     }
 
-    public ValueTask DisposeAsync() => _content.DisposeAsync();
+    public async ValueTask DisposeAsync() => await Task.WhenAll(_contents.Select(content => content.DisposeAsync().AsTask())).ConfigureAwait(false);
 
-    private static byte[] CreateDescriptor(VirtualFile file)
+    private void ThrowIfFailed()
     {
-        var bytes = new byte[4 + 592]; // FILEGROUPDESCRIPTORW with one FILEDESCRIPTORW
+        foreach (var content in _contents) content.ThrowIfFailed();
+    }
+
+    private static string GetUniqueName(string name, HashSet<string> names)
+    {
+        var candidate = name;
+        var extension = Path.GetExtension(name);
+        var stem = Path.GetFileNameWithoutExtension(name);
+        for (var index = 2; !names.Add(candidate); index++)
+        {
+            var suffix = $" ({index})";
+            var length = Math.Min(stem.Length, 259 - extension.Length - suffix.Length);
+            if (length <= 0) throw new ArgumentException("The file name is too long to distinguish duplicate names.", nameof(name));
+            candidate = stem[..length] + suffix + extension;
+        }
+        return candidate;
+    }
+
+    private static byte[] CreateDescriptor(IReadOnlyList<VirtualFile> files)
+    {
+        var bytes = new byte[checked(4 + 592 * files.Count)]; // FILEGROUPDESCRIPTORW followed by FILEDESCRIPTORW entries
         using var writer = new BinaryWriter(new MemoryStream(bytes));
-        uint flags = 0x80004044; // FD_UNICODE | FD_PROGRESSUI | FD_FILESIZE | FD_ATTRIBUTES
-        if (file.CreatedAtUtc.HasValue) flags |= 0x8;
-        if (file.ModifiedAtUtc.HasValue) flags |= 0x20;
-        writer.Write(1u);
-        writer.Write(flags);
-        writer.Write(new byte[32]); // CLSID, SIZEL, POINTL
-        writer.Write(0x80u); // FILE_ATTRIBUTE_NORMAL
-        writer.Write(file.CreatedAtUtc?.ToFileTimeUtc() ?? 0);
-        writer.Write(0L);
-        writer.Write(file.ModifiedAtUtc?.ToFileTimeUtc() ?? 0);
-        writer.Write((uint)(file.SizeBytes >> 32));
-        writer.Write((uint)file.SizeBytes);
-        writer.Write(Encoding.Unicode.GetBytes(file.Name));
+        writer.Write((uint)files.Count);
+        foreach (var file in files)
+        {
+            var start = writer.BaseStream.Position;
+            uint flags = 0x80004044; // FD_UNICODE | FD_PROGRESSUI | FD_FILESIZE | FD_ATTRIBUTES
+            if (file.CreatedAtUtc.HasValue) flags |= 0x8;
+            if (file.ModifiedAtUtc.HasValue) flags |= 0x20;
+            writer.Write(flags);
+            writer.Write(new byte[32]); // CLSID, SIZEL, POINTL
+            writer.Write(0x80u); // FILE_ATTRIBUTE_NORMAL
+            writer.Write(file.CreatedAtUtc?.ToFileTimeUtc() ?? 0);
+            writer.Write(0L);
+            writer.Write(file.ModifiedAtUtc?.ToFileTimeUtc() ?? 0);
+            writer.Write((uint)(file.SizeBytes >> 32));
+            writer.Write((uint)file.SizeBytes);
+            writer.Write(Encoding.Unicode.GetBytes(file.Name));
+            writer.BaseStream.Position = start + 592;
+        }
         return bytes;
     }
 

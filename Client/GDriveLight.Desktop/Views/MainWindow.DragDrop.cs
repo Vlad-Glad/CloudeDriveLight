@@ -16,24 +16,44 @@ public partial class MainWindow
     private const string InternalDragFormat = "GDriveLight.Desktop.ItemMove";
     private Point _dragStart;
     private FileItemViewModel? _dragCandidate;
-    private FileItemViewModel? _activeDraggedItem;
+    private IReadOnlyList<FileItemViewModel>? _activeDraggedItems;
+    private bool _deferSelection;
     private AdornerLayer? _dropLayer;
     private DropTargetAdorner? _dropHighlight;
 
     private void FileGridMouseDown(object sender, MouseButtonEventArgs e)
     {
         _dragCandidate = null;
+        _deferSelection = false;
         var source = e.OriginalSource as DependencyObject;
         if (e.ClickCount != 1 || !_viewModel.CanManageFiles || FindAncestor<ButtonBase>(source) is not null)
         {
             return;
         }
 
-        if (FindAncestor<DataGridRow>(source)?.Item is FileItemViewModel item)
+        if (FindAncestor<DataGridRow>(source) is { Item: FileItemViewModel { IsFolder: false } item } row)
         {
             _dragStart = e.GetPosition(FileGrid);
             _dragCandidate = item;
+            if (row.IsSelected && FileGrid.SelectedItems.Count > 1 && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                // Keep the group selected until a mouse-up confirms this was just a click.
+                _deferSelection = true;
+                e.Handled = true;
+            }
         }
+    }
+
+    private void FileGridMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_deferSelection && _dragCandidate is { } item)
+        {
+            FileGrid.SelectedItems.Clear();
+            FileGrid.SelectedItem = item;
+            e.Handled = true;
+        }
+        _deferSelection = false;
+        _dragCandidate = null;
     }
 
     private async void FileGridMouseMove(object sender, MouseEventArgs e)
@@ -54,25 +74,25 @@ public partial class MainWindow
 
         var item = _dragCandidate;
         _dragCandidate = null;
-        FileGrid.SelectedItem = item;
+        _deferSelection = false;
+        var items = FileGrid.SelectedItems.OfType<FileItemViewModel>().ToArray();
+        if (!items.Contains(item) || items.Any(selected => selected.IsFolder)) return;
         if (_openMenu is not null)
         {
             _openMenu.IsOpen = false;
         }
 
-        _activeDraggedItem = item;
-        var data = new DataObject(InternalDragFormat, item.Id.ToString("D"), autoConvert: false);
+        _activeDraggedItems = items;
         try
         {
             e.Handled = true;
-            if (item.IsFolder) DragDrop.DoDragDrop(FileGrid, data, DragDropEffects.Move | DragDropEffects.Copy);
-            else await _viewModel.DragFileAsync(item, InternalDragFormat);
+            await _viewModel.DragFilesAsync(items, InternalDragFormat);
         }
         finally
         {
             ClearDropHighlight();
             _dragCandidate = null;
-            _activeDraggedItem = null;
+            _activeDraggedItems = null;
         }
 
         e.Handled = true;
@@ -106,7 +126,7 @@ public partial class MainWindow
         if (TryGetMoveRequest(e, out var request, out _))
         {
             e.Effects = _viewModel.IsSyncedFoldersView && request?.Destination.Id is null ? DragDropEffects.Copy : DragDropEffects.Move;
-            _viewModel.MoveToCommand.Execute(request);
+            _viewModel.MoveFilesToCommand.Execute(request);
         }
         else if (TryGetUploadRequest(e, out var upload, out _))
         {
@@ -119,11 +139,11 @@ public partial class MainWindow
 
     private void ItemDragLeave(object sender, DragEventArgs e) => ClearDropHighlight();
 
-    private bool TryGetMoveRequest(DragEventArgs e, out ItemMoveRequest? request, out FrameworkElement? target)
+    private bool TryGetMoveRequest(DragEventArgs e, out FilesMoveRequest? request, out FrameworkElement? target)
     {
         request = null;
         target = null;
-        if (_activeDraggedItem is null || (e.AllowedEffects & DragDropEffects.Move) == 0 ||
+        if (_activeDraggedItems is null || (e.AllowedEffects & DragDropEffects.Move) == 0 ||
             !e.Data.GetDataPresent(InternalDragFormat, autoConvert: false))
         {
             return false;
@@ -135,19 +155,19 @@ public partial class MainWindow
             MemoryStream stream => Encoding.Unicode.GetString(stream.ToArray()).TrimEnd('\0'),
             _ => null
         };
-        if (draggedId != _activeDraggedItem.Id.ToString("D")) return false;
+        if (draggedId != string.Join("\n", _activeDraggedItems.Select(item => item.Id.ToString("D")))) return false;
 
         if (!TryGetDropDestination(e.OriginalSource as DependencyObject, false, out var destination, out target)) return false;
 
-        request = new ItemMoveRequest(_activeDraggedItem, destination!);
-        return _viewModel.MoveToCommand.CanExecute(request);
+        request = new FilesMoveRequest(_activeDraggedItems, destination!);
+        return _viewModel.MoveFilesToCommand.CanExecute(request);
     }
 
     private bool TryGetUploadRequest(DragEventArgs e, out FileUploadRequest? request, out FrameworkElement? target)
     {
         request = null;
         target = null;
-        if (!_viewModel.CanManageFiles || _activeDraggedItem is not null ||
+        if (!_viewModel.CanManageFiles || _activeDraggedItems is not null ||
             (e.AllowedEffects & DragDropEffects.Copy) == 0 ||
             e.Data.GetDataPresent(InternalDragFormat, autoConvert: false) ||
             !e.Data.GetDataPresent(DataFormats.FileDrop, autoConvert: false) ||

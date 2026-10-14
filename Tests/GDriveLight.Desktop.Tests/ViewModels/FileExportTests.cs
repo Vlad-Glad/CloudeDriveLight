@@ -18,7 +18,7 @@ public sealed class FileExportTests
         transfer.SetupGet(value => value.IsExternalTransfer).Returns(false);
         transfer.Setup(value => value.DisposeAsync()).Returns(ValueTask.CompletedTask);
         var drag = new Mock<IVirtualFileDragService>(MockBehavior.Strict);
-        drag.Setup(value => value.BeginDrag(It.IsAny<VirtualFile>(), "internal", It.IsAny<CancellationToken>())).Returns(transfer.Object);
+        drag.Setup(value => value.BeginDrag(It.IsAny<IReadOnlyList<VirtualFile>>(), "internal", It.IsAny<CancellationToken>())).Returns(transfer.Object);
         using var viewModel = CreateViewModel(api, drag);
         await viewModel.RefreshAsync();
 
@@ -31,34 +31,37 @@ public sealed class FileExportTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ExternalTransferUsesExistingDownloadAndSupportsCancellation(bool cancel)
+    [InlineData(false, 1)]
+    [InlineData(true, 1)]
+    [InlineData(false, 3)]
+    [InlineData(true, 3)]
+    public async Task ExternalTransferUsesExistingDownloadAndSupportsCancellation(bool cancel, int count)
     {
-        var api = CreateApi();
+        var api = CreateApi(count);
         var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var transfer = new Mock<IVirtualFileDragOperation>(MockBehavior.Strict);
         transfer.SetupGet(value => value.IsExternalTransfer).Returns(true);
         transfer.Setup(value => value.DisposeAsync()).Returns(ValueTask.CompletedTask);
         transfer.Setup(value => value.CompleteAsync(It.IsAny<CancellationToken>()))
             .Returns<CancellationToken>(token => pending.Task.WaitAsync(token));
-        VirtualFile? exported = null;
+        IReadOnlyList<VirtualFile>? exported = null;
         CancellationToken exportToken = default;
         var drag = new Mock<IVirtualFileDragService>(MockBehavior.Strict);
-        drag.Setup(value => value.BeginDrag(It.IsAny<VirtualFile>(), "internal", It.IsAny<CancellationToken>()))
-            .Callback<VirtualFile, string, CancellationToken>((file, _, token) => { exported = file; exportToken = token; })
+        drag.Setup(value => value.BeginDrag(It.IsAny<IReadOnlyList<VirtualFile>>(), "internal", It.IsAny<CancellationToken>()))
+            .Callback<IReadOnlyList<VirtualFile>, string, CancellationToken>((files, _, token) => { exported = files; exportToken = token; })
             .Returns(transfer.Object);
         using var viewModel = CreateViewModel(api, drag);
         await viewModel.RefreshAsync();
-        var item = viewModel.Files.Single();
-        api.Setup(value => value.DownloadFileAsync(item.Id, "cache", It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var items = viewModel.Files.ToArray();
+        api.Setup(value => value.DownloadFileAsync(It.IsAny<Guid>(), "cache", It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
-        var operation = viewModel.DragFileAsync(item, "internal");
+        var operation = viewModel.DragFilesAsync(items, "internal");
         Assert.True(viewModel.IsOperating);
         Assert.False(viewModel.CanManageFiles);
-        Assert.Equal(item.Name, exported!.Name);
-        Assert.Equal(6, exported.SizeBytes);
-        await exported.DownloadAsync("cache", exportToken);
+        Assert.Equal(count, exported!.Count);
+        Assert.Equal(items.Select(item => item.Id), exported.Select(file => file.Id));
+        Assert.All(exported, file => Assert.Equal(6, file.SizeBytes));
+        foreach (var file in exported) await file.DownloadAsync("cache", exportToken);
         if (cancel) viewModel.CancelOperationCommand.Execute(null);
         else pending.SetResult();
         await operation;
@@ -79,7 +82,7 @@ public sealed class FileExportTests
         transfer.Setup(value => value.CompleteAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new DriveApiException(HttpStatusCode.InternalServerError, "Download failed."));
         var drag = new Mock<IVirtualFileDragService>();
-        drag.Setup(value => value.BeginDrag(It.IsAny<VirtualFile>(), "internal", It.IsAny<CancellationToken>())).Returns(transfer.Object);
+        drag.Setup(value => value.BeginDrag(It.IsAny<IReadOnlyList<VirtualFile>>(), "internal", It.IsAny<CancellationToken>())).Returns(transfer.Object);
         using var viewModel = CreateViewModel(api, drag);
         await viewModel.RefreshAsync();
 
@@ -94,14 +97,32 @@ public sealed class FileExportTests
     private static MainWindowViewModel CreateViewModel(Mock<IDriveApiService> api, Mock<IVirtualFileDragService> drag) =>
         new(api.Object, new Mock<IFileDialogService>().Object, new Mock<IUserDialogService>().Object, virtualFileDrag: drag.Object);
 
-    private static Mock<IDriveApiService> CreateApi()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FolderOnlyAndMixedSelectionsCannotStartADrag(bool mixed)
+    {
+        var api = CreateApi();
+        var drag = new Mock<IVirtualFileDragService>(MockBehavior.Strict);
+        using var viewModel = CreateViewModel(api, drag);
+        await viewModel.RefreshAsync();
+        var folder = new FileItemViewModel { Id = Guid.NewGuid(), Name = "Documents", IsFolder = true };
+        viewModel.Files.Add(folder);
+        var items = mixed ? viewModel.Files.ToArray() : new[] { folder };
+
+        await viewModel.DragFilesAsync(items, "internal");
+
+        drag.Verify(value => value.BeginDrag(It.IsAny<IReadOnlyList<VirtualFile>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        Assert.False(viewModel.IsOperating);
+        Assert.False(viewModel.HasNotification);
+    }
+
+    private static Mock<IDriveApiService> CreateApi(int count = 1)
     {
         var api = new Mock<IDriveApiService>(MockBehavior.Strict);
         api.Setup(value => value.GetFolderContentAsync(null, It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<FolderResponse>());
-        api.Setup(value => value.GetFilesAsync(null, It.IsAny<CancellationToken>())).ReturnsAsync(new[]
-        {
-            new FileResponse(Guid.NewGuid(), "notes.txt", 2, "hash", 6, null, Guid.NewGuid(), DateTime.UtcNow, null, "server-path")
-        });
+        api.Setup(value => value.GetFilesAsync(null, It.IsAny<CancellationToken>())).ReturnsAsync(Enumerable.Range(0, count).Select(index =>
+            new FileResponse(Guid.NewGuid(), $"notes{index}.txt", 2, "hash", 6, null, Guid.NewGuid(), DateTime.UtcNow, null, "server-path")).ToArray());
         return api;
     }
 }

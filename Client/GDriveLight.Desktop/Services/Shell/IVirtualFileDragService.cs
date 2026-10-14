@@ -11,5 +11,5 @@ public interface IVirtualFileDragOperation : IAsyncDisposable
 
 public interface IVirtualFileDragService
 {
-    IVirtualFileDragOperation BeginDrag(VirtualFile file, string internalFormat, CancellationToken cancellationToken);
+    IVirtualFileDragOperation BeginDrag(IReadOnlyList<VirtualFile> files, string internalFormat, CancellationToken cancellationToken);
 }

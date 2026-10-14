@@ -417,6 +417,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         DeleteCommand?.NotifyCanExecuteChanged();
         MoveCommand?.NotifyCanExecuteChanged();
         MoveToCommand?.NotifyCanExecuteChanged();
+        MoveFilesToCommand?.NotifyCanExecuteChanged();
         SyncCommand?.NotifyCanExecuteChanged();
         ChangeSyncFolderCommand?.NotifyCanExecuteChanged();
         OpenSyncFolderInExplorerCommand?.NotifyCanExecuteChanged();

@@ -11,6 +11,7 @@ using GDriveLight.Desktop.Services.Sync;
 namespace GDriveLight.Desktop.ViewModels;
 
 public sealed record ItemMoveRequest(FileItemViewModel Item, FolderDestination Destination);
+public sealed record FilesMoveRequest(IReadOnlyList<FileItemViewModel> Items, FolderDestination Destination);
 public sealed record FileUploadRequest(IReadOnlyList<string> Paths, FolderDestination Destination);
 
 public sealed partial class MainWindowViewModel
@@ -62,6 +63,7 @@ public sealed partial class MainWindowViewModel
     public AsyncRelayCommand<FileItemViewModel> DeleteCommand { get; private set; } = null!;
     public AsyncRelayCommand<FileItemViewModel> MoveCommand { get; private set; } = null!;
     public AsyncRelayCommand<ItemMoveRequest> MoveToCommand { get; private set; } = null!;
+    public AsyncRelayCommand<FilesMoveRequest> MoveFilesToCommand { get; private set; } = null!;
     public AsyncRelayCommand SyncCommand { get; private set; } = null!;
     public AsyncRelayCommand ChangeSyncFolderCommand { get; private set; } = null!;
     public RelayCommand OpenSyncFolderInExplorerCommand { get; private set; } = null!;
@@ -114,6 +116,8 @@ public sealed partial class MainWindowViewModel
         MoveCommand = new AsyncRelayCommand<FileItemViewModel>(MoveAsync, HandleOperationError, CanActOn);
         MoveToCommand = new AsyncRelayCommand<ItemMoveRequest>(MoveItemToAsync, HandleOperationError,
             request => request is not null && CanMoveTo(request.Item, request.Destination));
+        MoveFilesToCommand = new AsyncRelayCommand<FilesMoveRequest>(MoveFilesToAsync, HandleOperationError,
+            request => request is { Items.Count: > 0 } && request.Items.All(item => !item.IsFolder && CanMoveTo(item, request.Destination)));
         SyncCommand = new AsyncRelayCommand(SyncAsync, HandleOperationError, () => !_disposed && !IsBusy && _syncEngine is not null && IsDeviceSyncEnabled && (IsHomeView || IsCurrentDevice));
         ChangeSyncFolderCommand = new AsyncRelayCommand(ChangeSyncFolderAsync, HandleOperationError, () => !_disposed && !IsBusy && _syncSettings is not null && (IsHomeView || IsCurrentDevice || !IsDeviceSyncEnabled));
         OpenSyncFolderInExplorerCommand = new RelayCommand(OpenSyncFolderInExplorer, () => !_disposed && !IsBusy && (IsHomeView || IsCurrentDevice) && !string.IsNullOrWhiteSpace(CurrentSyncFolderPath));
@@ -289,6 +293,38 @@ public sealed partial class MainWindowViewModel
             }
             await _apiService.MoveAsync(request.Item.Id, request.Item.IsFolder, request.Destination.Id, token);
             return $"Moved '{request.Item.Name}' to '{request.Destination.Name}'.";
+        });
+    }
+
+    private async Task MoveFilesToAsync(FilesMoveRequest? request)
+    {
+        if (request is null) return;
+        var items = request.Items.DistinctBy(item => item.Id).ToArray();
+        await RunOperationAsync("Transferring files...", async token =>
+        {
+            var copy = IsSyncedFoldersView && !await IsWithinSelectedSyncTreeAsync(request.Destination.Id, token);
+            var transferred = 0;
+            var failures = new List<string>();
+            foreach (var item in items)
+            {
+                token.ThrowIfCancellationRequested();
+                OperationStatus = $"Transferring {transferred + failures.Count + 1} of {items.Length}...";
+                try
+                {
+                    if (copy) await CopyToCloudAsync(item.Id, item.Name, false, request.Destination.Id, token);
+                    else await _apiService.MoveAsync(item.Id, false, request.Destination.Id, token);
+                    transferred++;
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException &&
+                    exception is not DriveApiException { StatusCode: HttpStatusCode.Unauthorized })
+                {
+                    failures.Add($"{item.Name}: {GetOperationError(exception)}");
+                }
+            }
+            IsNotificationError = failures.Count > 0;
+            var action = copy ? "Copied" : "Moved";
+            return failures.Count == 0 ? $"{action} {transferred} file(s) to '{request.Destination.Name}'."
+                : $"{action} {transferred} of {items.Length} file(s).\n" + string.Join("\n", failures.Take(5));
         });
     }
 

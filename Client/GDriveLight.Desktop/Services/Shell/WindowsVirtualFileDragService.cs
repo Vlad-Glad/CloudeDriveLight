@@ -4,9 +4,9 @@ namespace GDriveLight.Desktop.Services.Shell;
 
 public sealed class WindowsVirtualFileDragService : IVirtualFileDragService
 {
-    public IVirtualFileDragOperation BeginDrag(VirtualFile file, string internalFormat, CancellationToken cancellationToken)
+    public IVirtualFileDragOperation BeginDrag(IReadOnlyList<VirtualFile> files, string internalFormat, CancellationToken cancellationToken)
     {
-        var data = new VirtualFileDataObject(file, internalFormat, cancellationToken);
+        var data = new VirtualFileDataObject(files, internalFormat, cancellationToken);
         try
         {
             Marshal.ThrowExceptionForHR(ShellNative.OleInitialize(IntPtr.Zero));

@@ -206,6 +206,8 @@ public sealed class WindowSmokeTests
                 accountSettings.Close();
                 nameDialog.Close();
                 picker.Close();
+                stage = "selecting multiple files";
+                VerifyMultipleSelection(main, mainViewModel);
                 stage = "dropping local files";
                 VerifyLocalFileDrops(main, mainViewModel, api);
                 stage = "creating login window";
@@ -230,6 +232,33 @@ public sealed class WindowSmokeTests
         {
             System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
         }
+    }
+
+    private static void VerifyMultipleSelection(MainWindow main, MainWindowViewModel viewModel)
+    {
+        var grid = Assert.IsType<DataGrid>(main.FindName("FileGrid"));
+        Assert.Equal(DataGridSelectionMode.Extended, grid.SelectionMode);
+        var first = viewModel.VisibleFiles.Single(item => !item.IsFolder);
+        var second = new FileItemViewModel { Id = Guid.NewGuid(), Name = "second.txt" };
+        viewModel.Files.Add(second);
+        viewModel.VisibleFiles.Add(second);
+        grid.SelectedItems.Clear();
+        grid.SelectedItems.Add(first);
+        grid.SelectedItems.Add(second);
+        grid.UpdateLayout();
+        var row = Assert.IsType<DataGridRow>(grid.ItemContainerGenerator.ContainerFromItem(first));
+        var down = new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+        {
+            RoutedEvent = Mouse.PreviewMouseDownEvent
+        };
+        row.RaiseEvent(down);
+        Assert.True(down.Handled);
+        Assert.Equal(2, grid.SelectedItems.Count);
+        row.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+        {
+            RoutedEvent = Mouse.PreviewMouseUpEvent
+        });
+        Assert.Same(first, Assert.Single(grid.SelectedItems.Cast<FileItemViewModel>()));
     }
 
     private static void VerifyLocalFileDrops(MainWindow main, MainWindowViewModel viewModel, Mock<IDriveApiService> api)

@@ -10,8 +10,10 @@ namespace GDriveLight.Desktop.Tests.Services;
 
 public sealed class NativeVirtualFileTests
 {
-    [Fact]
-    public async Task NativeConsumerCanReadFromAnotherApartmentWithoutBlockingTheDragThreadsMessageLoop()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task NativeConsumerCanReadFromAnotherApartmentWithoutBlockingTheDragThreadsMessageLoop(int count)
     {
         var marshaled = new TaskCompletionSource<IntPtr>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var finished = new ManualResetEventSlim();
@@ -25,7 +27,8 @@ public sealed class NativeVirtualFileTests
                 {
                     var file = new VirtualFile(Guid.NewGuid(), "notes.txt", 6, null, null,
                         (path, token) => File.WriteAllTextAsync(path, "abcdef", token));
-                    var data = new VirtualFileDataObject(file, "internal");
+                    var data = new VirtualFileDataObject(Enumerable.Range(0, count).Select(index =>
+                        file with { Id = Guid.NewGuid(), Name = $"notes{index}.txt" }).ToArray(), "internal");
                     var pointer = Marshal.GetComInterfaceForObject(data, typeof(ComDataObject));
                     try
                     {
@@ -59,7 +62,7 @@ public sealed class NativeVirtualFileTests
                     Marshal.ThrowExceptionForHR(CoGetInterfaceAndReleaseStream(packet, in id, out var dataPointer));
                     try
                     {
-                        VerifyNativeFormats(dataPointer);
+                        VerifyNativeFormats(dataPointer, count);
                         var capabilityId = typeof(IDataObjectAsyncCapability).GUID;
                         Marshal.ThrowExceptionForHR(Marshal.QueryInterface(dataPointer, in capabilityId, out var capability));
                         var asyncMode = Marshal.GetDelegateForFunctionPointer<GetAsyncMode>(Marshal.ReadIntPtr(Marshal.ReadIntPtr(capability), 4 * IntPtr.Size));
@@ -70,7 +73,7 @@ public sealed class NativeVirtualFileTests
                         var format = new FORMATETC
                         {
                             cfFormat = unchecked((short)DataFormats.GetDataFormat(VirtualFileDataObject.ContentsFormat).Id),
-                            dwAspect = DVASPECT.DVASPECT_CONTENT, lindex = 0, tymed = TYMED.TYMED_ISTREAM
+                            dwAspect = DVASPECT.DVASPECT_CONTENT, lindex = count - 1, tymed = TYMED.TYMED_ISTREAM
                         };
                         var getData = Marshal.GetDelegateForFunctionPointer<GetData>(Marshal.ReadIntPtr(Marshal.ReadIntPtr(dataPointer), 3 * IntPtr.Size));
                         Marshal.ThrowExceptionForHR(getData(dataPointer, ref format, out var medium));
@@ -116,20 +119,22 @@ public sealed class NativeVirtualFileTests
         Assert.Null(sourceFailure);
     }
 
-    private static void VerifyNativeFormats(IntPtr data)
+    private static void VerifyNativeFormats(IntPtr data, int fileCount)
     {
         var enumerate = Marshal.GetDelegateForFunctionPointer<EnumFormats>(Marshal.ReadIntPtr(Marshal.ReadIntPtr(data), 8 * IntPtr.Size));
         Marshal.ThrowExceptionForHR(enumerate(data, 1, out var enumerator));
         var size = Marshal.SizeOf<FORMATETC>();
-        var buffer = Marshal.AllocCoTaskMem(4 * size);
+        var count = 3 + fileCount;
+        var buffer = Marshal.AllocCoTaskMem(count * size);
         try
         {
             var next = Marshal.GetDelegateForFunctionPointer<NextFormat>(Marshal.ReadIntPtr(Marshal.ReadIntPtr(enumerator), 3 * IntPtr.Size));
-            Assert.Equal(0, next(enumerator, 4, buffer, out var fetched));
-            Assert.Equal(4, fetched);
-            var formats = Enumerable.Range(0, 4).Select(index => Marshal.PtrToStructure<FORMATETC>(buffer + index * size)).ToArray();
-            Assert.Contains(formats, format => format.cfFormat == unchecked((short)DataFormats.GetDataFormat(VirtualFileDataObject.ContentsFormat).Id)
-                && format.lindex == 0 && format.tymed == TYMED.TYMED_ISTREAM);
+            Assert.Equal(0, next(enumerator, count, buffer, out var fetched));
+            Assert.Equal(count, fetched);
+            var formats = Enumerable.Range(0, count).Select(index => Marshal.PtrToStructure<FORMATETC>(buffer + index * size)).ToArray();
+            var contents = formats.Where(format => format.cfFormat == unchecked((short)DataFormats.GetDataFormat(VirtualFileDataObject.ContentsFormat).Id)).ToArray();
+            Assert.Equal(Enumerable.Range(0, fileCount), contents.Select(format => format.lindex));
+            Assert.All(contents, format => Assert.Equal(TYMED.TYMED_ISTREAM, format.tymed));
         }
         finally { Marshal.FreeCoTaskMem(buffer); Marshal.Release(enumerator); }
     }

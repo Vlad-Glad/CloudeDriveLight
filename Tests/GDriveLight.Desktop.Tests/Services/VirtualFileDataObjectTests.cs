@@ -187,6 +187,64 @@ public sealed class VirtualFileDataObjectTests
         Assert.True(asyncMode);
     }
 
+    [Fact]
+    public async Task MultipleFilesHaveDistinctDescriptorsIndexedContentsAndIndependentLazyCaches()
+    {
+        var requests = new int[2];
+        var paths = new string?[2];
+        var files = Enumerable.Range(0, 2).Select(index =>
+            new VirtualFile(Guid.NewGuid(), "notes.txt", index == 0 ? 6 : 4, null, null, async (path, token) =>
+            {
+                requests[index]++;
+                paths[index] = path;
+                await File.WriteAllTextAsync(path, index == 0 ? "abcdef" : "wxyz", token);
+            })).ToArray();
+        var data = new VirtualFileDataObject(files, InternalFormat);
+        var descriptor = Format(VirtualFileDataObject.DescriptorFormat);
+        data.GetData(ref descriptor, out var metadata);
+        try
+        {
+            var bytes = ReadGlobal(metadata.unionmember, 4 + 592 * 2);
+            Assert.Equal(2u, BinaryPrimitives.ReadUInt32LittleEndian(bytes));
+            Assert.Equal("notes.txt", Encoding.Unicode.GetString(bytes, 76, 520).TrimEnd('\0'));
+            Assert.Equal("notes (2).txt", Encoding.Unicode.GetString(bytes, 76 + 592, 520).TrimEnd('\0'));
+            Assert.Equal(4u, BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(72 + 592)));
+            Assert.Equal(new[] { 0, 0 }, requests);
+        }
+        finally { ReleaseStgMedium(ref metadata); }
+
+        data.StartOperation(IntPtr.Zero);
+        var completion = data.CompleteAsync(CancellationToken.None);
+        var first = Format(VirtualFileDataObject.ContentsFormat, TYMED.TYMED_ISTREAM, 0);
+        var second = Format(VirtualFileDataObject.ContentsFormat, TYMED.TYMED_ISTREAM, 1);
+        data.GetData(ref first, out var firstMedium);
+        data.GetData(ref second, out var secondMedium);
+        try
+        {
+            var secondStream = (IWindowsFileStream)Marshal.GetObjectForIUnknown(secondMedium.unionmember);
+            Assert.Equal("wxyz", Read(secondStream, 4));
+            Assert.Equal(new[] { 0, 1 }, requests);
+            var firstStream = (IWindowsFileStream)Marshal.GetObjectForIUnknown(firstMedium.unionmember);
+            Assert.Equal("abcdef", Read(firstStream, 6));
+            secondStream.Seek(0, 0, IntPtr.Zero);
+            Assert.Equal("wxyz", Read(secondStream, 4));
+            Assert.Equal(new[] { 1, 1 }, requests);
+            var invalid = Format(VirtualFileDataObject.ContentsFormat, TYMED.TYMED_ISTREAM, 2);
+            Assert.True(data.QueryGetData(ref invalid) < 0);
+            Assert.False(completion.IsCompleted);
+            data.EndOperation(0, IntPtr.Zero, 1);
+            await completion;
+            Assert.All(paths, path => Assert.True(File.Exists(path)));
+        }
+        finally
+        {
+            ReleaseStgMedium(ref firstMedium);
+            ReleaseStgMedium(ref secondMedium);
+            await data.DisposeAsync();
+        }
+        Assert.All(paths, path => Assert.False(Directory.Exists(Path.GetDirectoryName(path))));
+    }
+
     private static VirtualFile CreateFile(Func<string, CancellationToken, Task> download) =>
         new(Guid.NewGuid(), "notes.txt", 6, DateTime.UtcNow, null, download);
 

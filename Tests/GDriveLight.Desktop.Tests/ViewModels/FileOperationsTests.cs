@@ -318,6 +318,28 @@ public sealed class FileOperationsTests
         api.Verify(service => service.GetFolderContentAsync(null, It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
+    [Fact]
+    public async Task DraggingMultipleCloudFilesMovesEachAndReportsPartialFailures()
+    {
+        var api = ReadableApi();
+        using var model = CreateModel(api);
+        await model.InitializeAsync();
+        var first = model.Files.Single(item => !item.IsFolder);
+        var second = new FileItemViewModel { Id = Guid.NewGuid(), Name = "second.txt" };
+        model.Files.Add(second);
+        var target = new FolderDestination(model.Files.Single(item => item.IsFolder).Id, "Documents");
+        api.Setup(service => service.MoveAsync(first.Id, false, target.Id, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DriveApiException(HttpStatusCode.BadRequest, "Already exists."));
+        api.Setup(service => service.MoveAsync(second.Id, false, target.Id, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        await model.MoveFilesToCommand.ExecuteAsync(new FilesMoveRequest(new[] { first, second }, target));
+
+        api.Verify(service => service.MoveAsync(second.Id, false, target.Id, It.IsAny<CancellationToken>()), Times.Once);
+        Assert.True(model.IsNotificationError);
+        Assert.Contains("Moved 1 of 2", model.NotificationMessage);
+        Assert.False(model.MoveFilesToCommand.CanExecute(new FilesMoveRequest(model.Files.ToArray(), new FolderDestination(Guid.NewGuid(), "Other"))));
+    }
+
     private static MainWindowViewModel CreateModel(Mock<IDriveApiService> api,
         Mock<IFileDialogService>? files = null, Mock<IUserDialogService>? dialogs = null) =>
         new(api.Object, (files ?? new Mock<IFileDialogService>(MockBehavior.Strict)).Object,
