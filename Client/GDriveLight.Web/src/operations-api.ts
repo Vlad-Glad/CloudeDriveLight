@@ -46,17 +46,3 @@ export async function downloadItem(item: DriveItem, signal?: AbortSignal) {
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
-export async function uploadFile(
-  file: File,
-  folderId: string | null,
-  signal: AbortSignal,
-) {
-  const data = new FormData();
-  data.append("file", file);
-  if (folderId) data.append("folderId", folderId);
-  return request<{ id: string }>("files", {
-    method: "POST",
-    body: data,
-    signal,
-  });
-}

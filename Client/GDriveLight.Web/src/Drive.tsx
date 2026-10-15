@@ -36,6 +36,7 @@ import { OperationDialog, type Operation } from "./OperationDialog";
 import { downloadItem } from "./operations-api";
 import { useUploads } from "./useUploads";
 import { UploadQueue } from "./UploadQueue";
+import { useFileDrop } from "./useFileDrop";
 import type { DriveItem } from "./drive-api";
 export default function Drive() {
   const { folderId: routeId } = useParams();
@@ -53,6 +54,10 @@ export default function Drive() {
   const [downloading, setDownloading] = useState(false);
   const downloadController = useRef<AbortController | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const pickerDestination = useRef<{
+    folderId: string | null;
+    folderName: string;
+  } | null>(null);
   const uploads = useUploads();
   const newButton = useRef<HTMLButtonElement>(null);
   const menuTrigger = useRef<HTMLElement | null>(null);
@@ -127,6 +132,16 @@ export default function Drive() {
     </button>
   );
   const currentName = path.data?.at(-1)?.name || "Home";
+  const drop = useFileDrop(
+    !error && !loading && !operation,
+    (files, foldersSkipped) => {
+      if (files.length) uploads.enqueue(files, folderId, currentName);
+      if (foldersSkipped)
+        setActionError(
+          "Folder uploads are not supported. Open the local folder and select its files.",
+        );
+    },
+  );
   const rowMenu = (item: DriveItem) => (
     <Menu.Root>
       <Menu.Trigger
@@ -216,7 +231,13 @@ export default function Drive() {
             </Menu.Item>
             <Menu.Item
               className="menuItem"
-              onSelect={() => input.current?.click()}
+              onSelect={() => {
+                pickerDestination.current = {
+                  folderId,
+                  folderName: currentName,
+                };
+                input.current?.click();
+              }}
             >
               <Upload size={18} />
               Upload files
@@ -229,13 +250,19 @@ export default function Drive() {
         type="file"
         multiple
         hidden
+        disabled={loading || !!error}
         aria-label="Upload files"
         onChange={(event) => {
+          const destination = pickerDestination.current || {
+            folderId,
+            folderName: currentName,
+          };
           uploads.enqueue(
             Array.from(event.target.files || []),
-            folderId,
-            currentName,
+            destination.folderId,
+            destination.folderName,
           );
+          pickerDestination.current = null;
           event.target.value = "";
         }}
       />
@@ -243,331 +270,362 @@ export default function Drive() {
   );
   return (
     <Shell actions={actions}>
-      <header className={styles.header}>
-        <nav aria-label="Folder path" className={styles.breadcrumb}>
-          <Link to="/">Home</Link>
-          {path.data?.map((folder) => (
-            <span key={folder.id}>
-              <ChevronRight size={18} />
-              <Link
-                to={folderUrl(folder.id)}
-                aria-current={folder.id === folderId ? "page" : undefined}
-              >
-                {folder.name}
-              </Link>
-            </span>
-          ))}
-        </nav>
-        <div className={styles.headerActions}>
-          <button
-            className="iconButton"
-            aria-label="Refresh"
-            title="Refresh"
-            onClick={() =>
-              void client.invalidateQueries({ queryKey: ["drive"] })
-            }
-          >
-            <RefreshCw size={20} className={content.isFetching ? "spin" : ""} />
-          </button>
-          <Profile />
-        </div>
-      </header>
-      <form
-        key={`${folderId}:${search}`}
-        onSubmit={submitSearch}
-        className={styles.search}
+      <div
+        data-testid="upload-surface"
+        className={styles.dropSurface}
+        {...drop.handlers}
       >
-        <button aria-label="Search" className="iconButton">
-          <Search size={20} />
-        </button>
-        <input
-          name="search"
-          aria-label="Search files and folders"
-          placeholder="Search files and folders"
-          defaultValue={search}
-        />
-        {search && (
-          <button
-            type="button"
-            aria-label="Clear search"
-            className="iconButton"
-            onClick={() =>
-              setParams((previous) => {
-                previous.delete("q");
-                return previous;
-              })
-            }
-          >
-            <X size={18} />
-          </button>
+        {drop.dragging && (
+          <div className={styles.dropOverlay} role="status">
+            <Upload size={48} />
+            <strong>Drop files to upload to {currentName}</strong>
+            <span>Files will be added to this cloud folder.</span>
+          </div>
         )}
-      </form>
-      <div className={styles.toolbar}>
-        <label className={styles.filter}>
-          Type:
-          <select
-            aria-label="File type"
-            value={type}
-            onChange={(event) =>
-              setParams((previous) => {
-                if (event.target.value)
-                  previous.set("type", event.target.value);
-                else previous.delete("type");
-                return previous;
-              })
-            }
-          >
-            <option value="">All types</option>
-            {types.data?.map((fileType) => (
-              <option key={fileType.id} value={fileType.id}>
-                {fileType.extension}
-              </option>
+        <header className={styles.header}>
+          <nav aria-label="Folder path" className={styles.breadcrumb}>
+            <Link to="/">Home</Link>
+            {path.data?.map((folder) => (
+              <span key={folder.id}>
+                <ChevronRight size={18} />
+                <Link
+                  to={folderUrl(folder.id)}
+                  aria-current={folder.id === folderId ? "page" : undefined}
+                >
+                  {folder.name}
+                </Link>
+              </span>
             ))}
-          </select>
-        </label>
-        <span className={styles.count}>
-          {search
-            ? `Results for “${search}” across your cloud`
-            : `${items.length} items`}
-        </span>
-        {selected && (
-          <div className="selectionActions" aria-label="Selected item actions">
-            {selected.kind === "file" && (
-              <button
-                className="iconButton"
-                title="Download"
-                aria-label="Download selected file"
-                disabled={downloading}
-                onClick={() => void download(selected)}
-              >
-                <Download size={18} />
-              </button>
-            )}
+          </nav>
+          <div className={styles.headerActions}>
             <button
               className="iconButton"
-              title="Rename"
-              aria-label="Rename selected item"
-              onClick={() => openOperation({ mode: "rename", item: selected })}
+              aria-label="Refresh"
+              title="Refresh"
+              onClick={() =>
+                void client.invalidateQueries({ queryKey: ["drive"] })
+              }
             >
-              <Pencil size={18} />
+              <RefreshCw
+                size={20}
+                className={content.isFetching ? "spin" : ""}
+              />
             </button>
+            <Profile />
+          </div>
+        </header>
+        <form
+          key={`${folderId}:${search}`}
+          onSubmit={submitSearch}
+          className={styles.search}
+        >
+          <button aria-label="Search" className="iconButton">
+            <Search size={20} />
+          </button>
+          <input
+            name="search"
+            aria-label="Search files and folders"
+            placeholder="Search files and folders"
+            defaultValue={search}
+          />
+          {search && (
             <button
+              type="button"
+              aria-label="Clear search"
               className="iconButton"
-              title="Move"
-              aria-label="Move selected item"
-              onClick={() => openOperation({ mode: "move", item: selected })}
-            >
-              <FolderInput size={18} />
-            </button>
-            <button
-              className="iconButton"
-              title="Delete"
-              aria-label="Delete selected item"
-              onClick={() => openOperation({ mode: "delete", item: selected })}
-            >
-              <Trash2 size={18} />
-            </button>
-            <button
-              className="iconButton"
-              aria-label="Clear selection"
-              onClick={() => setSelectedId(null)}
+              onClick={() =>
+                setParams((previous) => {
+                  previous.delete("q");
+                  return previous;
+                })
+              }
             >
               <X size={18} />
             </button>
+          )}
+        </form>
+        <div className={styles.toolbar}>
+          <label className={styles.filter}>
+            Type:
+            <select
+              aria-label="File type"
+              value={type}
+              onChange={(event) =>
+                setParams((previous) => {
+                  if (event.target.value)
+                    previous.set("type", event.target.value);
+                  else previous.delete("type");
+                  return previous;
+                })
+              }
+            >
+              <option value="">All types</option>
+              {types.data?.map((fileType) => (
+                <option key={fileType.id} value={fileType.id}>
+                  {fileType.extension}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className={styles.count}>
+            {search
+              ? `Results for “${search}” across your cloud`
+              : `${items.length} items`}
+          </span>
+          {selected && (
+            <div
+              className="selectionActions"
+              aria-label="Selected item actions"
+            >
+              {selected.kind === "file" && (
+                <button
+                  className="iconButton"
+                  title="Download"
+                  aria-label="Download selected file"
+                  disabled={downloading}
+                  onClick={() => void download(selected)}
+                >
+                  <Download size={18} />
+                </button>
+              )}
+              <button
+                className="iconButton"
+                title="Rename"
+                aria-label="Rename selected item"
+                onClick={() =>
+                  openOperation({ mode: "rename", item: selected })
+                }
+              >
+                <Pencil size={18} />
+              </button>
+              <button
+                className="iconButton"
+                title="Move"
+                aria-label="Move selected item"
+                onClick={() => openOperation({ mode: "move", item: selected })}
+              >
+                <FolderInput size={18} />
+              </button>
+              <button
+                className="iconButton"
+                title="Delete"
+                aria-label="Delete selected item"
+                onClick={() =>
+                  openOperation({ mode: "delete", item: selected })
+                }
+              >
+                <Trash2 size={18} />
+              </button>
+              <button
+                className="iconButton"
+                aria-label="Clear selection"
+                onClick={() => setSelectedId(null)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+          )}
+        </div>
+        {notice && (
+          <div className="notice" role="status">
+            {notice}
+            <button
+              className="iconButton"
+              aria-label="Dismiss notification"
+              onClick={() => setNotice("")}
+            >
+              <X size={16} />
+            </button>
           </div>
         )}
-      </div>
-      {notice && (
-        <div className="notice" role="status">
-          {notice}
-          <button
-            className="iconButton"
-            aria-label="Dismiss notification"
-            onClick={() => setNotice("")}
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
-      {actionError && (
-        <div className="error" role="alert">
-          {actionError}
-          <button className="textButton" onClick={() => setActionError("")}>
-            Dismiss
-          </button>
-        </div>
-      )}
-      {downloading && (
-        <div className="notice" role="status">
-          Preparing download…
-          <button
-            className="textButton"
-            onClick={() => downloadController.current?.abort()}
-          >
-            Cancel
-          </button>
-        </div>
-      )}
-      {types.error && (
-        <div className="error" role="alert">
-          File type filter unavailable.{" "}
-          <button className="textButton" onClick={() => void types.refetch()}>
-            Retry
-          </button>
-        </div>
-      )}
-      {error ? (
-        <div className="error" role="alert">
-          {error.message}
-          <button
-            className="textButton"
-            onClick={() =>
-              void client.invalidateQueries({ queryKey: ["drive"] })
-            }
-          >
-            Try again
-          </button>
-          <Link to="/">Go to Home</Link>
-        </div>
-      ) : loading ? (
-        <div className={styles.empty} role="status">
-          <LoaderCircle className="spin" size={32} />
-          <p>Loading your files…</p>
-        </div>
-      ) : items.length === 0 ? (
-        <div className={styles.empty}>
-          <Cloud size={52} />
-          <h1>
-            {search || type ? "No matching items" : "This folder is empty"}
-          </h1>
-          <p>
-            {search || type
-              ? "Try a different search or file type."
-              : "Choose New to create a folder or upload files."}
-          </p>
-        </div>
-      ) : (
-        <div className={styles.tableScroll}>
-          <table className={styles.table} aria-label="Files and folders">
-            <thead>
-              <tr>
-                <th className={styles.checkColumn}>
-                  <span className="srOnly">Select</span>
-                </th>
-                <th
-                  aria-sort={
-                    sort === "name"
-                      ? descending
-                        ? "descending"
-                        : "ascending"
-                      : "none"
-                  }
-                >
-                  {sortHeader("name", "Name")}
-                </th>
-                <th className={styles.ownerColumn}>Owner</th>
-                <th
-                  className={styles.dateColumn}
-                  aria-sort={
-                    sort === "modified"
-                      ? descending
-                        ? "descending"
-                        : "ascending"
-                      : "none"
-                  }
-                >
-                  {sortHeader("modified", "Date modified")}
-                </th>
-                <th
-                  aria-sort={
-                    sort === "size"
-                      ? descending
-                        ? "descending"
-                        : "ascending"
-                      : "none"
-                  }
-                >
-                  {sortHeader("size", "File size")}
-                </th>
-                <th className="rowActions">
-                  <span className="srOnly">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr
-                  key={item.id}
-                  className={selected?.id === item.id ? styles.selected : ""}
-                  onClick={() => setSelectedId(item.id)}
-                >
-                  <td>
-                    <input
-                      type="checkbox"
-                      aria-label={`Select ${item.name}`}
-                      checked={selected?.id === item.id}
-                      onClick={(event) => event.stopPropagation()}
-                      onChange={() =>
-                        setSelectedId(selected?.id === item.id ? null : item.id)
-                      }
-                    />
-                  </td>
-                  <td>
-                    <div className={styles.name}>
-                      <FileIcon
-                        name={item.name}
-                        folder={item.kind === "folder"}
-                      />
-                      {item.kind === "folder" ? (
-                        <Link to={folderUrl(item.id)} title={item.name}>
-                          {item.name}
-                        </Link>
-                      ) : (
-                        <button
-                          className="downloadName"
-                          title={`Download ${item.name}`}
-                          onClick={() => void download(item)}
-                          disabled={downloading}
-                        >
-                          {item.name}
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                  <td className={styles.ownerColumn}>me</td>
-                  <td className={styles.dateColumn}>
-                    {item.kind === "file"
-                      ? new Date(
-                          item.editedAtUtc || item.uploadedAtUtc,
-                        ).toLocaleDateString(undefined, {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        })
-                      : "—"}
-                  </td>
-                  <td>
-                    {item.kind === "file" ? formatSize(item.sizeBytes) : "—"}
-                  </td>
-                  <td className="rowActions">{rowMenu(item)}</td>
+        {actionError && (
+          <div className="error" role="alert">
+            {actionError}
+            <button className="textButton" onClick={() => setActionError("")}>
+              Dismiss
+            </button>
+          </div>
+        )}
+        {downloading && (
+          <div className="notice" role="status">
+            Preparing download…
+            <button
+              className="textButton"
+              onClick={() => downloadController.current?.abort()}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+        {types.error && (
+          <div className="error" role="alert">
+            File type filter unavailable.{" "}
+            <button className="textButton" onClick={() => void types.refetch()}>
+              Retry
+            </button>
+          </div>
+        )}
+        {error ? (
+          <div className="error" role="alert">
+            {error.message}
+            <button
+              className="textButton"
+              onClick={() =>
+                void client.invalidateQueries({ queryKey: ["drive"] })
+              }
+            >
+              Try again
+            </button>
+            <Link to="/">Go to Home</Link>
+          </div>
+        ) : loading ? (
+          <div className={styles.empty} role="status">
+            <LoaderCircle className="spin" size={32} />
+            <p>Loading your files…</p>
+          </div>
+        ) : items.length === 0 ? (
+          <div className={styles.empty}>
+            <Cloud size={52} />
+            <h1>
+              {search || type ? "No matching items" : "This folder is empty"}
+            </h1>
+            <p>
+              {search || type
+                ? "Try a different search or file type."
+                : "Choose New to create a folder or upload files."}
+            </p>
+          </div>
+        ) : (
+          <div className={styles.tableScroll}>
+            <table className={styles.table} aria-label="Files and folders">
+              <thead>
+                <tr>
+                  <th className={styles.checkColumn}>
+                    <span className="srOnly">Select</span>
+                  </th>
+                  <th
+                    aria-sort={
+                      sort === "name"
+                        ? descending
+                          ? "descending"
+                          : "ascending"
+                        : "none"
+                    }
+                  >
+                    {sortHeader("name", "Name")}
+                  </th>
+                  <th className={styles.ownerColumn}>Owner</th>
+                  <th
+                    className={styles.dateColumn}
+                    aria-sort={
+                      sort === "modified"
+                        ? descending
+                          ? "descending"
+                          : "ascending"
+                        : "none"
+                    }
+                  >
+                    {sortHeader("modified", "Date modified")}
+                  </th>
+                  <th
+                    aria-sort={
+                      sort === "size"
+                        ? descending
+                          ? "descending"
+                          : "ascending"
+                        : "none"
+                    }
+                  >
+                    {sortHeader("size", "File size")}
+                  </th>
+                  <th className="rowActions">
+                    <span className="srOnly">Actions</span>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <UploadQueue {...uploads} />
-      {operation && (
-        <OperationDialog
-          restoreFocus={restoreFocus}
-          operation={operation}
-          close={() => setOperation(null)}
-          completed={(message) => {
-            setNotice(message);
-            setSelectedId(null);
-          }}
-        />
-      )}
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr
+                    key={item.id}
+                    className={selected?.id === item.id ? styles.selected : ""}
+                    onClick={() => setSelectedId(item.id)}
+                  >
+                    <td>
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${item.name}`}
+                        checked={selected?.id === item.id}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={() =>
+                          setSelectedId(
+                            selected?.id === item.id ? null : item.id,
+                          )
+                        }
+                      />
+                    </td>
+                    <td>
+                      <div className={styles.name}>
+                        <FileIcon
+                          name={item.name}
+                          folder={item.kind === "folder"}
+                        />
+                        {item.kind === "folder" ? (
+                          <Link to={folderUrl(item.id)} title={item.name}>
+                            {item.name}
+                          </Link>
+                        ) : (
+                          <button
+                            className="downloadName"
+                            title={`Download ${item.name}`}
+                            onClick={() => void download(item)}
+                            disabled={downloading}
+                          >
+                            {item.name}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td className={styles.ownerColumn}>me</td>
+                    <td className={styles.dateColumn}>
+                      {item.kind === "file"
+                        ? new Date(
+                            item.editedAtUtc || item.uploadedAtUtc,
+                          ).toLocaleDateString(undefined, {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })
+                        : "—"}
+                    </td>
+                    <td>
+                      {item.kind === "file" ? formatSize(item.sizeBytes) : "—"}
+                    </td>
+                    <td className="rowActions">{rowMenu(item)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {!error && !loading && (
+          <div className={styles.dropHint}>
+            <Upload size={16} />
+            Drop files here to upload to {currentName}
+          </div>
+        )}
+        <UploadQueue {...uploads} />
+        {operation && (
+          <OperationDialog
+            restoreFocus={restoreFocus}
+            operation={operation}
+            close={() => setOperation(null)}
+            completed={(message) => {
+              setNotice(message);
+              setSelectedId(null);
+            }}
+          />
+        )}
+      </div>
     </Shell>
   );
 }

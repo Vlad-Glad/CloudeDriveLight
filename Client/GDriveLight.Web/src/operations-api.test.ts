@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { moveItem, uploadFile, deleteItem } from "./operations-api";
+import { moveItem, deleteItem } from "./operations-api";
 import type { DriveItem } from "./drive-api";
 afterEach(() => vi.unstubAllGlobals());
 it("uses distinct file and folder move contracts", async () => {
@@ -18,21 +18,6 @@ it("uses distinct file and folder move contracts", async () => {
   expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
     newParentFolderId: "parent",
   });
-});
-it("uploads multipart with folderId and lets the browser set the boundary", async () => {
-  const fetchMock = vi
-    .fn()
-    .mockResolvedValue(new Response('{"id":"uploaded"}'));
-  vi.stubGlobal("fetch", fetchMock);
-  await uploadFile(
-    new File(["hello"], "test.txt"),
-    "folder",
-    new AbortController().signal,
-  );
-  const init = fetchMock.mock.calls[0][1];
-  expect(init.body.get("folderId")).toBe("folder");
-  expect(init.body.get("file").name).toBe("test.txt");
-  expect(init.headers.has("Content-Type")).toBe(false);
 });
 it("does not hide deletion failures", async () => {
   vi.stubGlobal(

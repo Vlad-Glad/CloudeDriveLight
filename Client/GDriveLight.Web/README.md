@@ -27,7 +27,8 @@ The API needs its existing database and JWT configuration. This client does not 
 - Sign in, registration, profile and logout.
 - Folder URLs, browser back/forward, breadcrumbs, global search, file type filter and sorting.
 - Create, rename, move and permanently delete files/folders. Folder deletion includes its descendants and requires confirmation.
-- Authenticated downloads and multiple-file uploads through New → Upload files. Uploads keep their original destination when navigating to another folder.
+- Authenticated downloads and multiple-file uploads through New → Upload files or drag-and-drop onto the file area. Uploads keep their original destination when navigating to another folder.
+- Upload progress, per-file cancellation and explicit retry. 100% means bytes have been sent; completion waits for the API response. Dropped directories are rejected with a helpful message. Closing/reloading the tab ends its queue; navigating between cloud folders preserves it.
 - Responsive layout, keyboard menus/dialogs, empty/loading/error states, retry controls and a session-scoped upload queue.
 
 Synchronization folders and device management are intentionally outside this browser client's scope.
@@ -36,7 +37,7 @@ Synchronization folders and device management are intentionally outside this bro
 
 JWTs are stored in sessionStorage for this tab, with a memory-only fallback when storage is blocked. Claims are decoded only for display and expiry; the API validates authorization. Logout clears the query cache. Expired JWTs and HTTP 401 return the user to sign-in. The current API has no refresh-token endpoint.
 
-The file type catalog comes from `/api/files/types`. Unsupported types, duplicate names and permission failures use the server's error response. Uploads do not overwrite existing files. Upload size limits belong to the API and reverse proxy; HTTP 413 is shown as an upload error. Downloads currently buffer the response as a Blob, so very large downloads consume browser memory.
+The file type catalog comes from `/api/files/types`. Unsupported types, duplicate names and permission failures use the server's error response. Uploads do not overwrite existing files. Cancelling stops the client request but cannot roll back a file already committed by the server. After cancellation or a connection failure, check the destination before retrying. Upload size limits belong to the API and reverse proxy; HTTP 413 is shown as an upload error. Downloads currently buffer the response as a Blob, so very large downloads consume browser memory.
 
 ## Verification
 

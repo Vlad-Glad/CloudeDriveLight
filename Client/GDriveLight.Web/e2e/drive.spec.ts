@@ -20,6 +20,10 @@ test("browse, search and filter without horizontal page overflow", async ({
   await mockApi(page);
   await page.goto("/");
   await expect(page.getByRole("table")).toBeVisible();
+  await page.screenshot({
+    path: test.info().outputPath("file-browser.png"),
+    fullPage: true,
+  });
   await page.getByRole("link", { name: "Documents", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "This folder is empty" }),
@@ -103,13 +107,16 @@ test("upload files into the current folder and download with authorization", asy
   await page.getByRole("button", { name: "Notes.txt", exact: true }).click();
   expect((await download).suggestedFilename()).toBe("Notes.txt");
   await page.getByRole("link", { name: "Documents", exact: true }).click();
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "Upload.txt",
-      mimeType: "text/plain",
-      buffer: Buffer.from("hello"),
-    });
+  await expect(
+    page
+      .getByRole("navigation", { name: "Folder path" })
+      .getByRole("link", { name: "Documents", exact: true }),
+  ).toBeVisible();
+  await page.locator("input[type=file]").setInputFiles({
+    name: "Upload.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("hello"),
+  });
   await expect(
     page.getByRole("button", { name: "Upload.txt", exact: true }),
   ).toBeVisible();

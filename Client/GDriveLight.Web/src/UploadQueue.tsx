@@ -1,20 +1,30 @@
-import { CheckCircle2, LoaderCircle, AlertCircle, Upload } from "lucide-react";
+import {
+  CheckCircle2,
+  LoaderCircle,
+  AlertCircle,
+  Upload,
+  XCircle,
+  X,
+} from "lucide-react";
 import type { UploadJob } from "./useUploads";
+import { formatSize } from "./drive-api";
 import styles from "./Operations.module.css";
 export function UploadQueue({
   jobs,
   retry,
   dismiss,
+  cancel,
 }: {
   jobs: UploadJob[];
   retry: (id: string) => void;
   dismiss: () => void;
+  cancel: (id: string) => void;
 }) {
   if (!jobs.length) return null;
   return (
     <section className={styles.uploads} aria-label="Uploads">
       <header>
-        <strong>
+        <strong aria-live="polite">
           Uploads · {jobs.filter((job) => job.status === "done").length}/
           {jobs.length} complete
         </strong>
@@ -30,6 +40,8 @@ export function UploadQueue({
                 <CheckCircle2 color="#137333" size={20} />
               ) : job.status === "error" ? (
                 <AlertCircle color="#b3261e" size={20} />
+              ) : job.status === "cancelled" ? (
+                <XCircle size={20} />
               ) : job.status === "uploading" ? (
                 <LoaderCircle className="spin" size={20} />
               ) : (
@@ -44,15 +56,40 @@ export function UploadQueue({
                   ? "Complete"
                   : job.status === "error"
                     ? "Failed"
-                    : job.status === "uploading"
-                      ? "Uploading…"
-                      : "Waiting"}
+                    : job.status === "cancelled"
+                      ? "Cancelled"
+                      : job.status === "uploading"
+                        ? job.progress === 100
+                          ? "Processing on server…"
+                          : `Uploading ${job.progress}%`
+                        : "Waiting"}{" "}
+                · {formatSize(job.file.size)}
               </span>
+              {job.status === "uploading" && (
+                <progress
+                  aria-label={`Upload progress for ${job.file.name}`}
+                  value={job.progress}
+                  max={100}
+                />
+              )}
               {job.error && <p role="alert">{job.error}</p>}
             </div>
-            {job.status === "error" && (
-              <button className="textButton" onClick={() => retry(job.id)}>
+            {(job.status === "error" || job.status === "cancelled") && (
+              <button
+                className="textButton"
+                aria-label={`Retry ${job.file.name}`}
+                onClick={() => retry(job.id)}
+              >
                 Retry
+              </button>
+            )}
+            {(job.status === "queued" || job.status === "uploading") && (
+              <button
+                className="iconButton"
+                aria-label={`Cancel upload ${job.file.name}`}
+                onClick={() => cancel(job.id)}
+              >
+                <X size={18} />
               </button>
             )}
           </li>
