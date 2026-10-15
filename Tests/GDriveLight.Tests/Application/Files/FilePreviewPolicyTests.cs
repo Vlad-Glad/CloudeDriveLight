@@ -13,6 +13,7 @@ public sealed class FilePreviewPolicyTests
     [InlineData("image/jpeg", "image", "image/jpeg")]
     [InlineData("image/png", "image", "image/png")]
     [InlineData("application/pdf", "pdf", "application/pdf")]
+    [InlineData("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")]
     [InlineData("image/svg+xml", "none", "image/svg+xml")]
     [InlineData("application/octet-stream", "none", "application/octet-stream")]
     [InlineData("application/zip", "none", "application/zip")]

@@ -17,6 +17,7 @@ public static class FilePreviewPolicy
         {
             "image/jpeg" or "image/png" or "image/gif" or "image/webp" or "image/avif" or "image/bmp" => "image",
             "application/pdf" => "pdf",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => "docx",
             _ => "none"
         };
     }
