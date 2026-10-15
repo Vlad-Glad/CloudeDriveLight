@@ -1,1 +1,152 @@
-.overlay{position:fixed;inset:0;z-index:40;background:#172b4d55}.dialog{position:fixed;z-index:41;top:50%;left:50%;transform:translate(-50%,-50%);width:min(480px,calc(100vw - 32px));max-height:calc(100dvh - 40px);overflow:auto;background:white;border-radius:20px;padding:24px;box-shadow:0 20px 80px #0003}.dialogHeader{display:flex;justify-content:space-between;gap:16px;align-items:center}.dialogHeader h2{margin:0}.description{color:var(--secondary);overflow-wrap:anywhere;margin:12px 0 24px}.fields{border:0;margin:0;padding:0;min-width:0}.nameField{display:grid;gap:8px;margin-bottom:16px}.nameField input{border:1px solid #9aa0a6;border-radius:8px;padding:12px;width:100%}.dialogActions{display:flex;justify-content:flex-end;gap:12px;margin-top:24px}.destinationPath{display:flex;flex-wrap:wrap;margin-bottom:12px}.destinationPath button{padding:8px;max-width:100%;overflow-wrap:anywhere}.folderPicker{height:230px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:6px}.folderPicker>button{display:flex;gap:12px;align-items:center;width:100%;text-align:left;background:transparent;border:0;padding:12px;border-radius:6px;overflow-wrap:anywhere}.folderPicker>button:hover{background:var(--hover)}.folderPicker>button svg{flex-shrink:0}.folderPicker>button svg:last-child{margin-left:auto}.folderPicker p{padding:12px;color:var(--secondary)}.uploads{margin-top:24px;border:1px solid var(--border);border-radius:12px;overflow:hidden}.uploads header{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--background)}.uploads ul{list-style:none;padding:0;margin:0;max-height:260px;overflow:auto}.uploads li{display:flex;align-items:center;gap:12px;padding:14px 16px;border-top:1px solid var(--border)}.uploadIcon{flex-shrink:0;color:var(--accent)}.uploadInfo{min-width:0;flex:1;display:grid;gap:5px}.uploadInfo strong{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.uploadInfo span{color:var(--secondary);font-size:12px}.uploadInfo p{margin:0;color:var(--danger);font-size:13px;overflow-wrap:anywhere}
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: #172b4d55;
+}
+.dialog {
+  position: fixed;
+  z-index: 41;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+  background: white;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 20px 80px #0003;
+}
+.dialogHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+.dialogHeader h2 {
+  margin: 0;
+}
+.description {
+  color: var(--secondary);
+  overflow-wrap: anywhere;
+  margin: 12px 0 24px;
+}
+.fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.nameField {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.nameField input {
+  border: 1px solid #9aa0a6;
+  border-radius: 8px;
+  padding: 12px;
+  width: 100%;
+}
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+.destinationPath {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.destinationPath button {
+  padding: 8px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.folderPicker {
+  height: 230px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+}
+.folderPicker > button {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 12px;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+.folderPicker > button:hover {
+  background: var(--hover);
+}
+.folderPicker > button svg {
+  flex-shrink: 0;
+}
+.folderPicker > button svg:last-child {
+  margin-left: auto;
+}
+.folderPicker p {
+  padding: 12px;
+  color: var(--secondary);
+}
+.uploads {
+  margin-top: 24px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.uploads header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--background);
+}
+.uploads ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+}
+.uploads li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+}
+.uploadIcon {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.uploadInfo {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 5px;
+}
+.uploadInfo strong {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.uploadInfo span {
+  color: var(--secondary);
+  font-size: 12px;
+}
+.uploadInfo p {
+  margin: 0;
+  color: var(--danger);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
