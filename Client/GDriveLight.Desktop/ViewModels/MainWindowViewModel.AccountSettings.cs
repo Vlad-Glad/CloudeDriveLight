@@ -26,6 +26,7 @@ public sealed partial class MainWindowViewModel
         {
             SyncStatusSummary = _deviceConnectionState == DeviceConnectionState.DisconnectPending ? "Disconnect pending" : "Sync disconnected";
             LastSyncTimeText = string.Empty;
+            _lastSuccessfulSyncAt = null;
         }
         else if (SyncStatusSummary is "Sync disconnected" or "Disconnect pending")
         {

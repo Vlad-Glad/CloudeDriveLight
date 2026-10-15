@@ -403,7 +403,8 @@ public sealed partial class MainWindowViewModel
                     token.ThrowIfCancellationRequested();
                     if (result.Success && result.FailedCount == 0)
                     {
-                        LastSyncTimeText = DateTime.Now.ToString("g");
+                        _lastSuccessfulSyncAt = DateTime.Now;
+                        LastSyncTimeText = _lastSuccessfulSyncAt.Value.ToString("g");
                         SyncStatusSummary = $"Last sync completed: {LastSyncTimeText}";
                         return result.Message ?? $"Synchronized {result.ProcessedChangesCount} items.";
                     }

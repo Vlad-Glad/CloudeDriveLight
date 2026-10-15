@@ -21,6 +21,10 @@ public sealed class SyncPresentationTests
     {
         _api.SetupGet(service => service.CurrentUserId).Returns(_user);
         _api.SetupGet(service => service.DeviceId).Returns(_device);
+        _api.Setup(service => service.GetDevicesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new[]
+        {
+            new DeviceResponse(_device, "This computer", _root, @"C:\Sync")
+        });
         _api.Setup(service => service.EnsureDeviceRegisteredAsync(It.IsAny<CancellationToken>())).ReturnsAsync(_device);
         _api.Setup(service => service.ConfigureSyncFolderAsync(@"C:\Sync", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DeviceResponse(_device, "This computer", _root, @"C:\Sync"));
@@ -41,10 +45,16 @@ public sealed class SyncPresentationTests
         await model.RetryCommand.ExecuteAsync();
         Assert.Equal("Not synced in this session", model.SyncStatusText);
         Assert.Contains("only when you click", model.SyncHelpText);
-        Assert.Contains("Refresh list only reloads cloud files", model.SyncHelpText);
-        Assert.True(model.ShowSyncAction);
+        Assert.Contains("Refresh only reloads cloud files", model.SyncHelpText);
+        Assert.False(model.ShowSyncAction);
         Assert.False(model.ShowSyncSetup);
         Assert.True(model.SyncCommand.CanExecute(null));
+        model.SelectedSidebarIndex = 1;
+        await model.RefreshAsync();
+        Assert.True(model.ShowSyncAction);
+        Assert.Equal("Not synced yet", model.SyncHeaderStatusText);
+        model.SelectedSidebarIndex = 0;
+        Assert.False(model.ShowSyncAction);
         _engine.VerifyNoOtherCalls();
     }
 
@@ -67,6 +77,8 @@ public sealed class SyncPresentationTests
         Assert.False(model.HasSyncIssue);
         Assert.StartsWith("Last sync completed:", model.SyncStatusText);
         Assert.NotEqual("Not synced yet", model.LastSyncTimeText);
+        Assert.StartsWith("Last sync:", model.SyncHeaderStatusText);
+        Assert.Contains(model.LastSyncTimeText, model.SyncStatusHelp);
         Assert.Equal("Sync this device", model.SyncActionLabel);
         Assert.True(model.SyncCommand.CanExecute(null));
     }

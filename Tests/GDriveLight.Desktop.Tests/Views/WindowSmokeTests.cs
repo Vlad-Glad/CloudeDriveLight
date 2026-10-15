@@ -95,7 +95,7 @@ public sealed class WindowSmokeTests
                 Assert.Equal(Visibility.Visible, storageProgress.Visibility);
                 Assert.Equal("1 GiB of 2 GiB used", Assert.IsType<TextBlock>(main.FindName("StorageUsageText")).Text);
                 stage = "checking sync and refresh controls";
-                VerifySyncAndRefreshControls(main, mainViewModel, syncEngine);
+                VerifySyncAndRefreshControls(main, mainViewModel, api, syncEngine);
                 popup.GetBindingExpression(Popup.PlacementTargetProperty)!.UpdateTarget();
                 popup.GetBindingExpression(FrameworkElement.DataContextProperty)!.UpdateTarget();
                 logout.GetBindingExpression(Button.CommandProperty)!.UpdateTarget();
@@ -254,42 +254,96 @@ public sealed class WindowSmokeTests
         }
     }
 
-    private static void VerifySyncAndRefreshControls(MainWindow main, MainWindowViewModel model, Mock<ISyncEngine> syncEngine)
+    private static void VerifySyncAndRefreshControls(MainWindow main, MainWindowViewModel model,
+        Mock<IDriveApiService> api, Mock<ISyncEngine> syncEngine)
     {
         var sync = Assert.IsType<Button>(main.FindName("SyncDeviceButton"));
         var refresh = Assert.IsType<Button>(main.FindName("RefreshFilesButton"));
         var status = Assert.IsType<TextBlock>(main.FindName("SyncStatusLabel"));
+        var controls = Assert.IsType<StackPanel>(main.FindName("SyncHeaderControls"));
+        var settings = Assert.IsType<Button>(main.FindName("AccountSettingsButton"));
+        var glyph = Assert.IsType<Wpf.Ui.Controls.SymbolIcon>(main.FindName("SyncGlyph"));
+        var rotation = Assert.IsType<RotateTransform>(glyph.RenderTransform);
         Assert.Same(model.SyncCommand, sync.Command);
         Assert.Same(model.RetryCommand, refresh.Command);
-        Assert.Equal("Not synced in this session", status.Text);
+        Assert.Equal("Not synced yet", status.Text);
+        Assert.False(controls.IsVisible);
+        Assert.False(sync.IsVisible);
+        Assert.False(status.IsVisible);
+        Assert.False(rotation.HasAnimatedProperties);
         Assert.Equal("Sync this device", System.Windows.Automation.AutomationProperties.GetName(sync));
+        Assert.Equal("Refresh", System.Windows.Automation.AutomationProperties.GetName(refresh));
+        Assert.Equal("Refresh", Assert.IsType<TextBlock>(Assert.IsType<StackPanel>(refresh.Content).Children[1]).Text);
         Assert.Contains("Does not sync local files", refresh.ToolTip.ToString());
         model.RetryCommand.ExecuteAsync().GetAwaiter().GetResult();
         syncEngine.VerifyNoOtherCalls();
         var originalWidth = main.Width;
         var originalHeight = main.Height;
+        var device = Guid.NewGuid();
+        var root = Guid.NewGuid();
+        api.SetupGet(service => service.DeviceId).Returns(device);
+        api.Setup(service => service.GetDevicesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { new DeviceResponse(device, "This computer", root, @"C:\Sync") });
+        api.Setup(service => service.GetFolderContentAsync(root, It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<FolderResponse>());
+        api.Setup(service => service.GetFilesAsync(root, It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<FileResponse>());
         try
         {
             main.Width = main.MinWidth;
             main.Height = main.MinHeight;
+            model.SelectedSidebarIndex = 1;
             main.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
             main.UpdateLayout();
             var syncBounds = sync.TransformToAncestor(main).TransformBounds(new Rect(sync.RenderSize));
+            var statusBounds = status.TransformToAncestor(main).TransformBounds(new Rect(status.RenderSize));
+            var settingsBounds = settings.TransformToAncestor(main).TransformBounds(new Rect(settings.RenderSize));
             var refreshBounds = refresh.TransformToAncestor(main).TransformBounds(new Rect(refresh.RenderSize));
+            Assert.True(controls.IsVisible && status.IsVisible);
             Assert.True(sync.IsVisible && sync.IsEnabled);
             Assert.True(refresh.IsVisible && refresh.IsEnabled);
-            Assert.True(status.ActualWidth > 100);
+            Assert.True(syncBounds.Right <= statusBounds.Left);
+            Assert.True(statusBounds.Right <= settingsBounds.Left);
             Assert.True(syncBounds.Bottom < refreshBounds.Top);
             Assert.True(syncBounds.Right <= main.ActualWidth);
             Assert.True(refreshBounds.Right <= main.ActualWidth);
             Assert.True(Assert.IsType<Grid>(main.FindName("FileDropSurface")).ActualHeight > 50);
+
+            var completion = new TaskCompletionSource<SyncResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            syncEngine.Setup(service => service.SynchronizeAsync(It.IsAny<Guid>(), @"C:\Sync", It.IsAny<CancellationToken>(), It.IsAny<Guid?>()))
+                .Returns(completion.Task);
+            var previousContext = SynchronizationContext.Current;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(main.Dispatcher));
+                var syncing = model.SyncCommand.ExecuteAsync();
+                main.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+                Assert.True(rotation.HasAnimatedProperties);
+                completion.SetResult(new SyncResult(true, 0));
+                var frame = new DispatcherFrame();
+                var elapsed = Stopwatch.StartNew();
+                var timer = new DispatcherTimer(DispatcherPriority.Background, main.Dispatcher) { Interval = TimeSpan.FromMilliseconds(5) };
+                timer.Tick += (_, _) => { if (syncing.IsCompleted || elapsed.Elapsed > TimeSpan.FromSeconds(5)) frame.Continue = false; };
+                timer.Start();
+                try { Dispatcher.PushFrame(frame); }
+                finally { timer.Stop(); }
+                Assert.True(syncing.IsCompleted);
+                syncing.GetAwaiter().GetResult();
+                main.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+                Assert.False(rotation.HasAnimatedProperties);
+                Assert.Equal(0, rotation.Angle);
+                Assert.StartsWith("Last sync:", status.Text);
+                model.DismissNotificationCommand.Execute(null);
+            }
+            finally { SynchronizationContext.SetSynchronizationContext(previousContext); }
         }
         finally
         {
+            model.SelectedSidebarIndex = 0;
             main.Width = originalWidth;
             main.Height = originalHeight;
             main.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
             main.UpdateLayout();
+            Assert.False(controls.IsVisible);
+            Assert.False(sync.IsVisible);
         }
     }
 

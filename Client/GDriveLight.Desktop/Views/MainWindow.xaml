@@ -287,7 +287,59 @@
                 </Grid.RowDefinitions>
                 <DockPanel Margin="0,0,0,24">
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="16,0,0,0">
-                        <Button Style="{StaticResource QuietButton}" Click="AccountSettingsClick" ToolTip="Account settings"
+                        <StackPanel x:Name="SyncHeaderControls" Orientation="Horizontal" VerticalAlignment="Center"
+                                    Visibility="{Binding IsSyncedFoldersView, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Button x:Name="SyncDeviceButton" Command="{Binding SyncCommand}" Style="{StaticResource OutlinedActionButtonStyle}"
+                                    ToolTip="{Binding SyncActionHelp}" ToolTipService.ShowOnDisabled="True"
+                                    Visibility="{Binding ShowSyncAction, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                    AutomationProperties.Name="Sync this device">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:SymbolIcon x:Name="SyncGlyph" Symbol="ArrowSync24" FontSize="18" Margin="0,0,8,0"
+                                                   RenderTransformOrigin="0.5,0.5">
+                                        <ui:SymbolIcon.RenderTransform><RotateTransform Angle="0" /></ui:SymbolIcon.RenderTransform>
+                                        <ui:SymbolIcon.Style>
+                                            <Style TargetType="ui:SymbolIcon">
+                                                <Style.Triggers>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding IsSynchronizing}" Value="True" />
+                                                            <Condition Binding="{Binding IsVisible, RelativeSource={RelativeSource Self}}" Value="True" />
+                                                        </MultiDataTrigger.Conditions>
+                                                        <MultiDataTrigger.EnterActions>
+                                                            <BeginStoryboard x:Name="SyncRotation">
+                                                                <Storyboard RepeatBehavior="Forever">
+                                                                    <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                                                                                     From="0" To="360" Duration="0:0:1.2" />
+                                                                </Storyboard>
+                                                            </BeginStoryboard>
+                                                        </MultiDataTrigger.EnterActions>
+                                                        <MultiDataTrigger.ExitActions>
+                                                            <RemoveStoryboard BeginStoryboardName="SyncRotation" />
+                                                        </MultiDataTrigger.ExitActions>
+                                                    </MultiDataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ui:SymbolIcon.Style>
+                                    </ui:SymbolIcon>
+                                    <TextBlock Text="{Binding SyncActionLabel}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <TextBlock x:Name="SyncStatusLabel" Text="{Binding SyncHeaderStatusText}" FontSize="12"
+                                       MaxWidth="130" TextWrapping="Wrap" VerticalAlignment="Center" Margin="10,0,16,0"
+                                       ToolTip="{Binding SyncStatusHelp}" AutomationProperties.LiveSetting="Polite">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasSyncIssue}" Value="True">
+                                                <Setter Property="Foreground" Value="#B06000" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                        <Button x:Name="AccountSettingsButton" Style="{StaticResource QuietButton}" Click="AccountSettingsClick" ToolTip="Account settings"
                                 AutomationProperties.Name="Account settings" Margin="0,0,12,0">
                             <ui:SymbolIcon Symbol="Settings24" FontSize="22" />
                         </Button>
@@ -352,55 +404,6 @@
                     </ScrollViewer>
                 </DockPanel>
                 <StackPanel Grid.Row="1">
-                    <Border x:Name="DeviceSyncPanel" Background="{DynamicResource AppBackgroundBrush}" CornerRadius="10"
-                            Padding="12" Margin="0,0,0,14" AutomationProperties.Name="Device synchronization">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Margin="0,0,12,0">
-                                <TextBlock Text="Device synchronization" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
-                                <TextBlock x:Name="SyncStatusLabel" Text="{Binding SyncStatusText}" FontWeight="SemiBold"
-                                           Margin="0,3,0,0" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding HasSyncIssue}" Value="True">
-                                                    <Setter Property="Foreground" Value="#B06000" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                                <TextBlock Text="{Binding SyncHelpText}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"
-                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                                <ProgressBar x:Name="SyncProgress" IsIndeterminate="True" Height="3" Margin="0,8,0,0"
-                                             Visibility="{Binding IsSynchronizing, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                             AutomationProperties.Name="Synchronizing this device" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <Button x:Name="SyncDeviceButton" Command="{Binding SyncCommand}" Style="{StaticResource OutlinedActionButtonStyle}"
-                                        ToolTip="{Binding SyncActionHelp}" ToolTipService.ShowOnDisabled="True"
-                                        Visibility="{Binding ShowSyncAction, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                        AutomationProperties.Name="Sync this device">
-                                    <StackPanel Orientation="Horizontal">
-                                        <ui:SymbolIcon Symbol="FolderSync24" FontSize="18" Margin="0,0,8,0" />
-                                        <TextBlock Text="{Binding SyncActionLabel}" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                </Button>
-                                <Button Content="Choose local folder…" Command="{Binding ChangeSyncFolderCommand}"
-                                        Style="{StaticResource OutlinedActionButtonStyle}"
-                                        Visibility="{Binding ShowSyncSetup, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                        AutomationProperties.Name="Choose a local sync folder" />
-                                <Button Content="Account settings" Click="AccountSettingsClick" Style="{StaticResource OutlinedActionButtonStyle}"
-                                        IsEnabled="{Binding CanNavigate}"
-                                        Visibility="{Binding ShowSyncSettings, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                        AutomationProperties.Name="Finish disconnecting in Account settings" />
-                            </StackPanel>
-                        </Grid>
-                    </Border>
                 <Border Background="{DynamicResource AppBackgroundBrush}" CornerRadius="10" Padding="12"
                         Margin="0,0,0,14" Visibility="{Binding IsSyncedFoldersView, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid>
@@ -585,10 +588,10 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,6">
                         <Button x:Name="RefreshFilesButton" Command="{Binding RetryCommand}" Style="{StaticResource QuietButton}"
                                 Padding="10,6" Margin="0,0,8,0" ToolTip="Reload this list from the cloud. Does not sync local files."
-                                ToolTipService.ShowOnDisabled="True" AutomationProperties.Name="Refresh file list">
+                                ToolTipService.ShowOnDisabled="True" AutomationProperties.Name="Refresh">
                             <StackPanel Orientation="Horizontal">
                                 <ui:SymbolIcon Symbol="ArrowClockwise24" FontSize="18" Margin="0,0,6,0" />
-                                <TextBlock Text="Refresh list" VerticalAlignment="Center" />
+                                <TextBlock Text="Refresh" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                         <Button x:Name="ColumnsButton" Content="Columns ▾" Click="ColumnsButtonClick" Padding="10,6"
