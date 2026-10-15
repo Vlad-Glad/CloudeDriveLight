@@ -16,6 +16,33 @@ it("keeps folders first when sorting descending and retains them in a type filte
     "b",
     "a",
   ]);
+  const datedItems = [
+    {
+      id: "older",
+      kind: "file",
+      name: "older.txt",
+      fileTypeId: 1,
+      uploadedAtUtc: "2026-01-01T00:00:00Z",
+    },
+    { id: "dir", kind: "folder", name: "Folder" },
+    {
+      id: "newer",
+      kind: "file",
+      name: "newer.txt",
+      fileTypeId: 1,
+      uploadedAtUtc: "2026-05-01T00:00:00Z",
+    },
+  ] as DriveItem[];
+  expect(sortItems(datedItems, "created", false, "").map((x) => x.id)).toEqual([
+    "dir",
+    "older",
+    "newer",
+  ]);
+  expect(sortItems(datedItems, "created", true, "").map((x) => x.id)).toEqual([
+    "dir",
+    "newer",
+    "older",
+  ]);
 });
 it("searches both files and folders with encoded text", async () => {
   const fetchMock = vi

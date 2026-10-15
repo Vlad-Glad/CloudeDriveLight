@@ -76,6 +76,7 @@
   max-width: 160px;
 }
 .columnsButton {
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -200,9 +201,6 @@
 .empty p {
   color: var(--secondary);
   margin: 0;
-}
-.ownerColumn {
-  width: 100px;
 }
 .dateColumn {
   width: 160px;

@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import { Check, Columns3 } from "lucide-react";
 
-const storageKey = "gdrivelight.columns.v1";
+const storageKey = "gdrivelight.columns.v2";
 const columns = [
-  { key: "owner", label: "Owner" },
+  { key: "created", label: "Date created" },
   { key: "modified", label: "Date modified" },
   { key: "size", label: "File size" },
 ] as const;
 export type VisibleColumns = Record<(typeof columns)[number]["key"], boolean>;
-const allVisible: VisibleColumns = { owner: true, modified: true, size: true };
-const allHidden: VisibleColumns = { owner: false, modified: false, size: false };
+const allVisible: VisibleColumns = { created: true, modified: true, size: true };
+const allHidden: VisibleColumns = { created: false, modified: false, size: false };
 
 function restoreColumns(): VisibleColumns {
   try {
@@ -56,7 +56,7 @@ export function ColumnsMenu({
       <Menu.Portal>
         <Menu.Content
           className="menu"
-          align="start"
+          align="end"
           sideOffset={6}
           aria-label="Columns"
         >

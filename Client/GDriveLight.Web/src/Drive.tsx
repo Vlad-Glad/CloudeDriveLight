@@ -8,7 +8,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronRight,
-  RefreshCw,
+  RotateCw,
   Search,
   X,
   Cloud,
@@ -68,6 +68,7 @@ export default function Drive() {
   function changeColumns(next: VisibleColumns) {
     setVisibleColumns(next);
     if (
+      (sort === "created" && !next.created) ||
       (sort === "modified" && !next.modified) ||
       (sort === "size" && !next.size)
     ) {
@@ -518,7 +519,7 @@ export default function Drive() {
                 void client.invalidateQueries({ queryKey: ["drive"] })
               }
             >
-              <RefreshCw
+              <RotateCw
                 size={20}
                 className={content.isFetching ? "spin" : ""}
               />
@@ -579,16 +580,11 @@ export default function Drive() {
               ))}
             </select>
           </label>
-          <ColumnsMenu
-            visible={visibleColumns}
-            onChange={changeColumns}
-            className={styles.columnsButton}
-          />
-          <span className={styles.count}>
-            {search
-              ? `Results for “${search}” across your cloud`
-              : `${items.length} items`}
-          </span>
+          {search && (
+            <span className={styles.count}>
+              Results for “{search}” across your cloud
+            </span>
+          )}
           {!!selection.items.length && (
             <div
               className="selectionActions"
@@ -658,6 +654,11 @@ export default function Drive() {
               </button>
             </div>
           )}
+          <ColumnsMenu
+            visible={visibleColumns}
+            onChange={changeColumns}
+            className={styles.columnsButton}
+          />
         </div>
         {types.error && (
           <div className="error" role="alert">
@@ -714,7 +715,7 @@ export default function Drive() {
               style={{
                 minWidth:
                   240 +
-                  (visibleColumns.owner ? 100 : 0) +
+                  (visibleColumns.created ? 160 : 0) +
                   (visibleColumns.modified ? 160 : 0) +
                   (visibleColumns.size ? 110 : 0),
               }}
@@ -732,8 +733,19 @@ export default function Drive() {
                   >
                     {sortHeader("name", "Name")}
                   </th>
-                  {visibleColumns.owner && (
-                    <th className={styles.ownerColumn}>Owner</th>
+                  {visibleColumns.created && (
+                    <th
+                      className={styles.dateColumn}
+                      aria-sort={
+                        sort === "created"
+                          ? descending
+                            ? "descending"
+                            : "ascending"
+                          : "none"
+                      }
+                    >
+                      {sortHeader("created", "Date created")}
+                    </th>
                   )}
                   {visibleColumns.modified && (
                     <th
@@ -869,8 +881,19 @@ export default function Drive() {
                         )}
                       </div>
                     </td>
-                    {visibleColumns.owner && (
-                      <td className={styles.ownerColumn}>me</td>
+                    {visibleColumns.created && (
+                      <td className={styles.dateColumn}>
+                        {item.kind === "file" && item.uploadedAtUtc
+                          ? new Date(item.uploadedAtUtc).toLocaleDateString(
+                              undefined,
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              },
+                            )
+                          : "—"}
+                      </td>
                     )}
                     {visibleColumns.modified && (
                       <td className={styles.dateColumn}>

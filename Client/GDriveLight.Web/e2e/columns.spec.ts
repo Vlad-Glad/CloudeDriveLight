@@ -31,7 +31,7 @@ test("hide metadata together or individually while retaining names, actions and 
 
   await openColumns(page);
   await page.getByRole("menuitem", { name: "Show all columns", exact: true }).click();
-  await expect(table(page).getByRole("columnheader")).toHaveText(["Name", "Owner", "Date modified", "File size", "Actions"]);
+  await expect(table(page).getByRole("columnheader")).toHaveText(["Name", "Date created", "Date modified", "File size", "Actions"]);
   await expect(fileRow.getByRole("cell")).toHaveCount(5);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
@@ -50,14 +50,14 @@ test("hiding the sorted column returns to name sorting and choices survive navig
   await expect(page.getByRole("heading", { name: "This folder is empty" })).toBeVisible();
   await page.getByRole("link", { name: "Home", exact: true }).last().click();
   await page.reload();
-  await expect(table(page).getByRole("columnheader")).toHaveText(["Name", "Owner", "Date modified", "Actions"]);
+  await expect(table(page).getByRole("columnheader")).toHaveText(["Name", "Date created", "Date modified", "Actions"]);
 });
 
 for (const storage of ["malformed", "blocked"] as const) {
   test(`column controls work with ${storage} browser storage`, async ({ page }) => {
     await mockApi(page);
     await page.addInitScript((mode) => {
-      if (mode === "malformed") localStorage.setItem("gdrivelight.columns.v1", "invalid json");
+      if (mode === "malformed") localStorage.setItem("gdrivelight.columns.v2", "invalid json");
       else Object.defineProperty(window, "localStorage", { get() { throw new Error("Storage blocked"); } });
     }, storage);
     await page.goto("/");

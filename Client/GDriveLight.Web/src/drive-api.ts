@@ -73,7 +73,7 @@ export async function loadItems(
     ...files.map((file) => ({ ...file, kind: "file" as const })),
   ];
 }
-export type SortKey = "name" | "modified" | "size";
+export type SortKey = "name" | "created" | "modified" | "size";
 export function sortItems(
   items: DriveItem[],
   key: SortKey,
@@ -93,6 +93,9 @@ export function sortItems(
       });
       if (a.kind === "file" && b.kind === "file") {
         if (key === "size") result = a.sizeBytes - b.sizeBytes;
+        if (key === "created")
+          result =
+            Date.parse(a.uploadedAtUtc) - Date.parse(b.uploadedAtUtc);
         if (key === "modified")
           result =
             Date.parse(a.editedAtUtc || a.uploadedAtUtc) -
