@@ -403,8 +403,32 @@
                         </StackPanel>
                     </ScrollViewer>
                 </DockPanel>
-                <StackPanel Grid.Row="1">
-                <Border Background="{DynamicResource AppBackgroundBrush}" CornerRadius="10" Padding="12"
+                <Border Grid.Row="1" Background="{DynamicResource SearchBarBackgroundBrush}"
+                        CornerRadius="26" Padding="16,12" Margin="0,0,0,14">
+                    <DockPanel>
+                        <ui:SymbolIcon Symbol="Search24" FontSize="20" Margin="0,0,12,0" />
+                        <TextBox x:Name="SearchInput" IsEnabled="{Binding CanManageFiles}"
+                                    Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                    Background="Transparent" BorderThickness="0" Padding="0"
+                                    Foreground="{DynamicResource TextPrimaryBrush}" AutomationProperties.Name="Search files and folders">
+                            <TextBox.Template>
+                                <ControlTemplate TargetType="TextBox">
+                                    <Grid>
+                                        <ScrollViewer x:Name="PART_ContentHost" />
+                                        <TextBlock x:Name="Placeholder" Text="Search files and folders" IsHitTestVisible="False"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" Visibility="Collapsed" />
+                                    </Grid>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="Text" Value="">
+                                            <Setter TargetName="Placeholder" Property="Visibility" Value="Visible" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </TextBox.Template>
+                        </TextBox>
+                    </DockPanel>
+                </Border>
+                <Border Grid.Row="2" Background="{DynamicResource AppBackgroundBrush}" CornerRadius="10" Padding="12"
                         Margin="0,0,0,14" Visibility="{Binding IsSyncedFoldersView, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -481,32 +505,6 @@
                             </Button>
                         </StackPanel>
                     </Grid>
-                </Border>
-                </StackPanel>
-                <Border Grid.Row="2" Background="{DynamicResource SearchBarBackgroundBrush}"
-                        CornerRadius="26" Padding="16,12" Margin="0,0,0,20">
-                    <DockPanel>
-                        <ui:SymbolIcon Symbol="Search24" FontSize="20" Margin="0,0,12,0" />
-                        <TextBox x:Name="SearchInput" IsEnabled="{Binding CanManageFiles}"
-                                    Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                                    Background="Transparent" BorderThickness="0" Padding="0"
-                                    Foreground="{DynamicResource TextPrimaryBrush}" AutomationProperties.Name="Search files and folders">
-                            <TextBox.Template>
-                                <ControlTemplate TargetType="TextBox">
-                                    <Grid>
-                                        <ScrollViewer x:Name="PART_ContentHost" />
-                                        <TextBlock x:Name="Placeholder" Text="Search files and folders" IsHitTestVisible="False"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}" Visibility="Collapsed" />
-                                    </Grid>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="Text" Value="">
-                                            <Setter TargetName="Placeholder" Property="Visibility" Value="Visible" />
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </TextBox.Template>
-                        </TextBox>
-                    </DockPanel>
                 </Border>
                 <StackPanel Grid.Row="3">
                     <!-- Operation progress bar -->
@@ -631,23 +629,23 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Type" Width="90" Binding="{Binding FileType}" />
-                                <DataGridTemplateColumn Header="Created" Width="155" MinWidth="140">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel ToolTip="{Binding CreatedTimestamp}">
-                                                <TextBlock Text="{Binding DateCreated}" FontSize="13" />
-                                                <TextBlock Text="{Binding TimeCreated}" FontSize="12" Margin="0,2,0,0"
-                                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
                                 <DataGridTemplateColumn Header="Modified" Width="155" MinWidth="140">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel ToolTip="{Binding ModifiedTimestamp}">
                                                 <TextBlock Text="{Binding DateModified}" FontSize="13" />
                                                 <TextBlock Text="{Binding TimeModified}" FontSize="12" Margin="0,2,0,0"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Created" Width="155" MinWidth="140">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel ToolTip="{Binding CreatedTimestamp}">
+                                                <TextBlock Text="{Binding DateCreated}" FontSize="13" />
+                                                <TextBlock Text="{Binding TimeCreated}" FontSize="12" Margin="0,2,0,0"
                                                            Foreground="{DynamicResource TextSecondaryBrush}" />
                                             </StackPanel>
                                         </DataTemplate>
