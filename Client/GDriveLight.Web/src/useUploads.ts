@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { uploadWithProgress } from "./upload-transport";
 import { getSession } from "./session";
+import { typesQuery } from "./drive-api";
+import { validateUploadType } from "./upload-validation";
 
 export interface UploadJob {
   id: string;
   file: File;
   folderId: string | null;
   folderName: string;
-  status: "queued" | "uploading" | "done" | "error" | "cancelled";
+  status: "queued" | "uploading" | "done" | "error" | "cancelled" | "rejected";
   progress: number;
   error?: string;
 }
@@ -19,6 +21,7 @@ export function useUploads() {
   );
   const mounted = useRef(false);
   const client = useQueryClient();
+  const types = useQuery(typesQuery);
   const busy = jobs.some(
     (job) => job.status === "queued" || job.status === "uploading",
   );
@@ -42,6 +45,25 @@ export function useUploads() {
     if (active.current || !getSession()) return;
     const job = jobs.find((job) => job.status === "queued");
     if (!job) return;
+    if (types.isPending || types.isFetching) return;
+    const validationError =
+      types.isError || !types.data
+        ? "Could not verify supported file types. Retry when the file type catalog is available."
+        : validateUploadType(job.file.name, types.data);
+    if (validationError) {
+      setJobs((current) =>
+        current.map((entry) =>
+          entry.id === job.id
+            ? {
+                ...entry,
+                status: types.isError || !types.data ? "error" : "rejected",
+                error: validationError,
+              }
+            : entry,
+        ),
+      );
+      return;
+    }
     const controller = new AbortController();
     active.current = { id: job.id, controller };
     const token = getSession()?.token;
@@ -79,20 +101,34 @@ export function useUploads() {
           void client.invalidateQueries({ queryKey: ["drive"] });
         setJobs((current) => [...current]);
       });
-  }, [jobs, client]);
+  }, [
+    jobs,
+    client,
+    types.data,
+    types.isError,
+    types.isPending,
+    types.isFetching,
+  ]);
   return {
     jobs,
     enqueue: (files: File[], folderId: string | null, folderName: string) =>
       setJobs((current) => [
         ...current,
-        ...files.map((file) => ({
-          id: crypto.randomUUID(),
-          file,
-          folderId,
-          folderName,
-          status: "queued" as const,
-          progress: 0,
-        })),
+        ...files.map((file) => {
+          const error =
+            types.data && !types.isError && !types.isFetching
+              ? validateUploadType(file.name, types.data)
+              : null;
+          return {
+            id: crypto.randomUUID(),
+            file,
+            folderId,
+            folderName,
+            status: error ? ("rejected" as const) : ("queued" as const),
+            error: error || undefined,
+            progress: 0,
+          };
+        }),
       ]),
     cancel: (id: string) => {
       if (active.current?.id === id) active.current.controller.abort();
@@ -105,7 +141,8 @@ export function useUploads() {
           ),
         );
     },
-    retry: (id: string) =>
+    retry: (id: string) => {
+      if (types.isError) void types.refetch();
       setJobs((current) =>
         current.map((job) =>
           job.id === id &&
@@ -113,7 +150,8 @@ export function useUploads() {
             ? { ...job, status: "queued", progress: 0, error: undefined }
             : job,
         ),
-      ),
+      );
+    },
     dismiss: () =>
       setJobs((current) =>
         current.filter(

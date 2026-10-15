@@ -38,7 +38,7 @@ export function UploadQueue({
             <div className={styles.uploadIcon}>
               {job.status === "done" ? (
                 <CheckCircle2 color="#137333" size={20} />
-              ) : job.status === "error" ? (
+              ) : job.status === "error" || job.status === "rejected" ? (
                 <AlertCircle color="#b3261e" size={20} />
               ) : job.status === "cancelled" ? (
                 <XCircle size={20} />
@@ -54,15 +54,17 @@ export function UploadQueue({
                 To {job.folderName} ·{" "}
                 {job.status === "done"
                   ? "Complete"
-                  : job.status === "error"
-                    ? "Failed"
-                    : job.status === "cancelled"
-                      ? "Cancelled"
-                      : job.status === "uploading"
-                        ? job.progress === 100
-                          ? "Processing on server…"
-                          : `Uploading ${job.progress}%`
-                        : "Waiting"}{" "}
+                  : job.status === "rejected"
+                    ? "Rejected"
+                    : job.status === "error"
+                      ? "Failed"
+                      : job.status === "cancelled"
+                        ? "Cancelled"
+                        : job.status === "uploading"
+                          ? job.progress === 100
+                            ? "Processing on server…"
+                            : `Uploading ${job.progress}%`
+                          : "Waiting"}{" "}
                 · {formatSize(job.file.size)}
               </span>
               {job.status === "uploading" && (

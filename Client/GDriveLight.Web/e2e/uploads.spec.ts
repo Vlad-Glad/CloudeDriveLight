@@ -137,3 +137,156 @@ test("ignore text drags and reset the overlay when files leave the surface", asy
   await expect(page.getByText(/Drop files to upload to/)).toHaveCount(0);
   await files.dispose();
 });
+for (const source of ["picker", "drop"] as const) {
+  test(`reject an unsupported PDF before sending from ${source}`, async ({
+    page,
+  }) => {
+    await mockApi(page);
+    await page.route("**/api/files/types", (route) =>
+      route.fulfill({ json: [{ id: 1, name: "Text", extension: ".txt" }] }),
+    );
+    const uploadedNames: string[] = [];
+    page.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        new URL(request.url()).pathname === "/api/files"
+      ) {
+        uploadedNames.push(
+          /filename="([^"]+)"/.exec(
+            request.postDataBuffer()?.toString() || "",
+          )?.[1] || "",
+        );
+      }
+    });
+    await page.goto("/");
+    await expect(
+      page.getByRole("combobox", { name: "File type" }).locator("option"),
+    ).toHaveCount(2);
+    if (source === "drop")
+      await dropFiles(page, ["Report.PDF", "Accepted.TXT"]);
+    else
+      await page.locator("input[type=file]").setInputFiles([
+        {
+          name: "Report.PDF",
+          mimeType: "application/pdf",
+          buffer: Buffer.from("%PDF-1.7"),
+        },
+        {
+          name: "Accepted.TXT",
+          mimeType: "text/plain",
+          buffer: Buffer.from("hello"),
+        },
+      ]);
+    const queue = page.getByRole("region", { name: "Uploads" });
+    const rejected = queue
+      .getByRole("listitem")
+      .filter({ hasText: "Report.PDF" });
+    await expect(rejected).toContainText("Rejected");
+    await expect(rejected).toContainText("File type '.pdf' is not supported.");
+    await expect(rejected.getByRole("progressbar")).toHaveCount(0);
+    await expect(rejected.getByRole("button", { name: /Retry/ })).toHaveCount(
+      0,
+    );
+    await expect(queue).toContainText("1/2 complete");
+    expect(uploadedNames).toEqual(["Accepted.TXT"]);
+    if (source === "picker")
+      await page.screenshot({
+        path: test.info().outputPath("rejected-pdf.png"),
+        fullPage: true,
+      });
+  });
+}
+
+test("wait for the type catalog before sending a dropped file", async ({
+  page,
+}) => {
+  await mockApi(page);
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/files/types", async (route) => {
+    await gate;
+    return route.fulfill({
+      json: [{ id: 1, name: "Text", extension: ".txt" }],
+    });
+  });
+  let uploads = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      new URL(request.url()).pathname === "/api/files"
+    )
+      uploads++;
+  });
+  await page.goto("/");
+  await expect(page.getByRole("table")).toBeVisible();
+  await dropFiles(page, ["Report.pdf", "Accepted.txt"]);
+  const queue = page.getByRole("region", { name: "Uploads" });
+  await expect(queue).toContainText("Waiting");
+  await expect(queue.getByRole("progressbar")).toHaveCount(0);
+  expect(uploads).toBe(0);
+  release();
+  await expect(queue).toContainText("File type '.pdf' is not supported.");
+  await expect(queue).toContainText("1/2 complete");
+  expect(uploads).toBe(1);
+});
+
+test("do not upload when the catalog fails and allow retry after recovery", async ({
+  page,
+}) => {
+  await mockApi(page);
+  let available = false;
+  await page.route("**/api/files/types", (route) =>
+    available
+      ? route.fallback()
+      : route.fulfill({ status: 503, json: { error: "Catalog unavailable" } }),
+  );
+  let uploads = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      new URL(request.url()).pathname === "/api/files"
+    )
+      uploads++;
+  });
+  await page.goto("/");
+  await expect(page.getByRole("alert")).toContainText(
+    "File type filter unavailable",
+  );
+  await dropFiles(page, ["Accepted.txt"]);
+  const queue = page.getByRole("region", { name: "Uploads" });
+  await expect(queue).toContainText("Could not verify supported file types");
+  expect(uploads).toBe(0);
+  available = true;
+  await queue.getByRole("button", { name: "Retry Accepted.txt" }).click();
+  await expect(queue).toContainText("1/1 complete");
+  expect(uploads).toBe(1);
+});
+
+test("allow PDF when present in the catalog and still surface server upload errors", async ({
+  page,
+}) => {
+  await mockApi(page);
+  let uploads = 0;
+  await page.route("**/api/files", (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    uploads++;
+    return route.fulfill({
+      status: 400,
+      json: { error: "Upload permission denied" },
+    });
+  });
+  await page.goto("/");
+  await expect(
+    page.getByRole("combobox", { name: "File type" }).locator("option"),
+  ).toHaveCount(3);
+  await dropFiles(page, ["Report.pdf"]);
+  const queue = page.getByRole("region", { name: "Uploads" });
+  await expect(queue).toContainText("Failed");
+  await expect(queue).toContainText("Upload permission denied");
+  await expect(
+    queue.getByRole("button", { name: "Retry Report.pdf" }),
+  ).toBeVisible();
+  expect(uploads).toBe(1);
+});
