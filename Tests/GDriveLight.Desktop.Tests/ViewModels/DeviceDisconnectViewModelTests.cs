@@ -61,6 +61,9 @@ public sealed class DeviceDisconnectViewModelTests
         Assert.True(vm.ChangeSyncFolderCommand.CanExecute(null));
         Assert.Empty(vm.CurrentSyncFolderPath);
         Assert.Equal("Sync disconnected", vm.SyncStatusSummary);
+        Assert.Equal("Sync is off for this device", vm.SyncStatusText);
+        Assert.True(vm.ShowSyncSetup);
+        Assert.False(vm.ShowSyncAction);
         _api.Verify(a => a.Logout(), Times.Never);
     }
 
@@ -116,6 +119,10 @@ public sealed class DeviceDisconnectViewModelTests
         Assert.False(vm.SyncCommand.CanExecute(null));
         Assert.True(vm.DisconnectDeviceCommand.CanExecute(null));
         Assert.Equal("Disconnect pending", vm.SyncStatusSummary);
+        Assert.True(vm.ShowSyncSettings);
+        Assert.False(vm.ShowSyncSetup);
+        Assert.False(vm.ShowSyncAction);
+        Assert.Contains("finish disconnecting", vm.SyncStatusText);
     }
 
     [Fact]

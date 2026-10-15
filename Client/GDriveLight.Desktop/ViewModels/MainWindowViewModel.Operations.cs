@@ -71,11 +71,14 @@ public sealed partial class MainWindowViewModel
     public RelayCommand DismissNotificationCommand { get; private set; } = null!;
     public RelayCommand CancelOperationCommand { get; private set; } = null!;
 
-    private string _syncStatusSummary = "Ready";
+    private string _syncStatusSummary = "Not synced in this session";
     public string SyncStatusSummary
     {
         get => _syncStatusSummary;
-        private set => SetProperty(ref _syncStatusSummary, value);
+        private set
+        {
+            if (SetProperty(ref _syncStatusSummary, value)) NotifySyncPresentation();
+        }
     }
 
     private string _lastSyncTimeText = "Not synced yet";
@@ -118,7 +121,8 @@ public sealed partial class MainWindowViewModel
             request => request is not null && CanMoveTo(request.Item, request.Destination));
         MoveFilesToCommand = new AsyncRelayCommand<FilesMoveRequest>(MoveFilesToAsync, HandleOperationError,
             request => request is { Items.Count: > 0 } && request.Items.All(item => !item.IsFolder && CanMoveTo(item, request.Destination)));
-        SyncCommand = new AsyncRelayCommand(SyncAsync, HandleOperationError, () => !_disposed && !IsBusy && _syncEngine is not null && IsDeviceSyncEnabled && (IsHomeView || IsCurrentDevice));
+        SyncCommand = new AsyncRelayCommand(SyncAsync, HandleOperationError, () => !_disposed && !IsBusy && _syncEngine is not null && IsDeviceSyncEnabled &&
+            (IsHomeView || IsCurrentDevice) && !string.IsNullOrWhiteSpace(CurrentSyncFolderPath));
         ChangeSyncFolderCommand = new AsyncRelayCommand(ChangeSyncFolderAsync, HandleOperationError, () => !_disposed && !IsBusy && _syncSettings is not null && (IsHomeView || IsCurrentDevice || !IsDeviceSyncEnabled));
         OpenSyncFolderInExplorerCommand = new RelayCommand(OpenSyncFolderInExplorer, () => !_disposed && !IsBusy && (IsHomeView || IsCurrentDevice) && !string.IsNullOrWhiteSpace(CurrentSyncFolderPath));
         OpenDatabaseLocationCommand = new RelayCommand(OpenDatabaseLocation, () => !_disposed && _apiService.CurrentUserId.HasValue);
@@ -384,22 +388,49 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
-        SyncStatusSummary = "Syncing...";
-        await RunOperationAsync("Synchronizing...", async token =>
+        _isSynchronizing = true;
+        _hasSyncIssue = false;
+        SyncStatusSummary = "Syncing this device…";
+        NotifySyncPresentation();
+        try
         {
-            var config = await _apiService.ConfigureSyncFolderAsync(folder, token);
-            var result = await _syncEngine.SynchronizeAsync(userId.Value, folder, token, config.SyncRootFolderId);
-            if (result.Success && result.FailedCount == 0)
+            await RunOperationAsync("Synchronizing this device…", async token =>
             {
-                LastSyncTimeText = DateTime.Now.ToString("HH:mm");
-                SyncStatusSummary = $"Synced ({LastSyncTimeText})";
-                return result.Message ?? $"Synchronized {result.ProcessedChangesCount} items.";
-            }
+                try
+                {
+                    var config = await _apiService.ConfigureSyncFolderAsync(folder, token);
+                    var result = await _syncEngine.SynchronizeAsync(userId.Value, folder, token, config.SyncRootFolderId);
+                    token.ThrowIfCancellationRequested();
+                    if (result.Success && result.FailedCount == 0)
+                    {
+                        LastSyncTimeText = DateTime.Now.ToString("g");
+                        SyncStatusSummary = $"Last sync completed: {LastSyncTimeText}";
+                        return result.Message ?? $"Synchronized {result.ProcessedChangesCount} items.";
+                    }
 
-            SyncStatusSummary = result.FailedCount > 0 ? "Sync warning" : "Sync failed";
-            IsNotificationError = true;
-            return result.Message ?? "Synchronization completed with errors.";
-        }, refreshAfter: true);
+                    _hasSyncIssue = true;
+                    SyncStatusSummary = result.FailedCount > 0 ? "Some files could not sync — try again" : "Sync failed — try again";
+                    IsNotificationError = true;
+                    return result.Message ?? "Synchronization completed with errors.";
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    SyncStatusSummary = "Sync cancelled — run it again to finish";
+                    throw;
+                }
+                catch
+                {
+                    _hasSyncIssue = true;
+                    SyncStatusSummary = "Sync failed — try again";
+                    throw;
+                }
+            }, refreshAfter: true);
+        }
+        finally
+        {
+            _isSynchronizing = false;
+            NotifySyncPresentation();
+        }
     }
 
     private async Task ChangeSyncFolderAsync()
@@ -429,7 +460,7 @@ public sealed partial class MainWindowViewModel
                     _syncSettings!.SetSyncFolderPath(userId.Value, Path.GetFullPath(selected));
                 }
                 OnPropertyChanged(nameof(CurrentSyncFolderPath));
-                return $"Sync folder changed to '{selected}'. Synchronize to populate it.";
+                return $"Sync folder changed to '{selected}'. Click Sync this device to exchange files with the cloud.";
             });
         }
     }
@@ -572,7 +603,6 @@ public sealed partial class MainWindowViewModel
         }
         finally
         {
-            if (SyncStatusSummary == "Syncing...") SyncStatusSummary = IsNotificationError ? "Sync failed" : "Ready";
             _activeOperation = null;
             OperationStatus = string.Empty;
             IsOperating = false;

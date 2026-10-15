@@ -151,7 +151,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         ? "Configure a local sync folder on this device to get started."
         : SelectedFileType is not null ? "Try another file type or select All types."
         : IsSyncedFoldersView && IsCurrentDevice && string.IsNullOrWhiteSpace(SearchText)
-            ? "No items are in this device's cloud folder yet. Press Synchronize to upload local files."
+            ? "No items are in this device's cloud folder yet. Click Sync this device to upload local files."
             : string.IsNullOrWhiteSpace(SearchText) ? "Use New to add folders and files." : "Try another name or clear the search.";
 
     public FileItemViewModel? SelectedFile
@@ -402,6 +402,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void NotifyState()
     {
+        NotifySyncPresentation();
         OnPropertyChanged(nameof(BreadcrumbTrail));
         OnPropertyChanged(nameof(CurrentFolderName));
         OnPropertyChanged(nameof(IsHomeView));

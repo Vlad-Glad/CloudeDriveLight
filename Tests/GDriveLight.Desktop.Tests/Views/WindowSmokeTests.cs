@@ -12,6 +12,7 @@ using System.Windows.Threading;
 using GDriveLight.Desktop.Models.Api;
 using GDriveLight.Desktop.Services.Api;
 using GDriveLight.Desktop.Services;
+using GDriveLight.Desktop.Services.Sync;
 using GDriveLight.Desktop.ViewModels;
 using GDriveLight.Desktop.Views;
 using Moq;
@@ -61,9 +62,15 @@ public sealed class WindowSmokeTests
                 api.SetupGet(service => service.CurrentUserId).Returns(Guid.NewGuid());
                 api.Setup(service => service.GetStorageUsageAsync(It.IsAny<CancellationToken>()))
                     .ReturnsAsync(new StorageUsageResponse(2L * 1024 * 1024 * 1024, 1024L * 1024 * 1024, 1024L * 1024 * 1024, false));
+                var syncSettings = new Mock<ISyncSettingsService>();
+                syncSettings.Setup(service => service.GetSyncFolderPath(It.IsAny<Guid>())).Returns(@"C:\Sync");
+                api.Setup(service => service.ConfigureSyncFolderAsync(@"C:\Sync", It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new DeviceResponse(Guid.NewGuid(), "This computer", Guid.NewGuid(), @"C:\Sync"));
+                var syncEngine = new Mock<ISyncEngine>(MockBehavior.Strict);
                 using var profile = new UserProfileViewModel(api.Object, new Mock<IAvatarService>().Object);
                 using var mainViewModel = new MainWindowViewModel(api.Object,
-                    new Mock<IFileDialogService>().Object, new Mock<IUserDialogService>().Object, profile: profile);
+                    new Mock<IFileDialogService>().Object, new Mock<IUserDialogService>().Object,
+                    syncEngine: syncEngine.Object, syncSettings: syncSettings.Object, profile: profile);
                 stage = "loading folder data";
                 mainViewModel.InitializeAsync().GetAwaiter().GetResult();
                 stage = "creating main window";
@@ -87,6 +94,8 @@ public sealed class WindowSmokeTests
                 Assert.Equal(50, storageProgress.Value);
                 Assert.Equal(Visibility.Visible, storageProgress.Visibility);
                 Assert.Equal("1 GiB of 2 GiB used", Assert.IsType<TextBlock>(main.FindName("StorageUsageText")).Text);
+                stage = "checking sync and refresh controls";
+                VerifySyncAndRefreshControls(main, mainViewModel, syncEngine);
                 popup.GetBindingExpression(Popup.PlacementTargetProperty)!.UpdateTarget();
                 popup.GetBindingExpression(FrameworkElement.DataContextProperty)!.UpdateTarget();
                 logout.GetBindingExpression(Button.CommandProperty)!.UpdateTarget();
@@ -242,6 +251,45 @@ public sealed class WindowSmokeTests
         if (failure is not null)
         {
             System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+        }
+    }
+
+    private static void VerifySyncAndRefreshControls(MainWindow main, MainWindowViewModel model, Mock<ISyncEngine> syncEngine)
+    {
+        var sync = Assert.IsType<Button>(main.FindName("SyncDeviceButton"));
+        var refresh = Assert.IsType<Button>(main.FindName("RefreshFilesButton"));
+        var status = Assert.IsType<TextBlock>(main.FindName("SyncStatusLabel"));
+        Assert.Same(model.SyncCommand, sync.Command);
+        Assert.Same(model.RetryCommand, refresh.Command);
+        Assert.Equal("Not synced in this session", status.Text);
+        Assert.Equal("Sync this device", System.Windows.Automation.AutomationProperties.GetName(sync));
+        Assert.Contains("Does not sync local files", refresh.ToolTip.ToString());
+        model.RetryCommand.ExecuteAsync().GetAwaiter().GetResult();
+        syncEngine.VerifyNoOtherCalls();
+        var originalWidth = main.Width;
+        var originalHeight = main.Height;
+        try
+        {
+            main.Width = main.MinWidth;
+            main.Height = main.MinHeight;
+            main.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+            main.UpdateLayout();
+            var syncBounds = sync.TransformToAncestor(main).TransformBounds(new Rect(sync.RenderSize));
+            var refreshBounds = refresh.TransformToAncestor(main).TransformBounds(new Rect(refresh.RenderSize));
+            Assert.True(sync.IsVisible && sync.IsEnabled);
+            Assert.True(refresh.IsVisible && refresh.IsEnabled);
+            Assert.True(status.ActualWidth > 100);
+            Assert.True(syncBounds.Bottom < refreshBounds.Top);
+            Assert.True(syncBounds.Right <= main.ActualWidth);
+            Assert.True(refreshBounds.Right <= main.ActualWidth);
+            Assert.True(Assert.IsType<Grid>(main.FindName("FileDropSurface")).ActualHeight > 50);
+        }
+        finally
+        {
+            main.Width = originalWidth;
+            main.Height = originalHeight;
+            main.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+            main.UpdateLayout();
         }
     }
 

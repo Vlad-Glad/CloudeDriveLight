@@ -25,7 +25,7 @@ public sealed partial class MainWindowViewModel
     public bool IsCurrentDevice => SelectedDevice?.IsCurrentDevice == true;
     public bool HasSyncRoot => SelectedDevice?.SyncRootFolderId.HasValue == true;
     public string SyncFolderHint => IsCurrentDevice
-        ? "Press Synchronize to exchange changes between this local folder and the cloud."
+        ? "Click Sync this device to exchange changes between this local folder and the cloud."
         : "Local folder on the selected device. Change its path on that device.";
 
     private void ResetBrowsingRoot()

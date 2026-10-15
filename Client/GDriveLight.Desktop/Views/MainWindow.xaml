@@ -287,16 +287,6 @@
                 </Grid.RowDefinitions>
                 <DockPanel Margin="0,0,0,24">
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="16,0,0,0">
-                        <Button Style="{StaticResource QuietButton}" Command="{Binding RetryCommand}"
-                                ToolTip="Refresh" AutomationProperties.Name="Refresh" Margin="0,0,8,0">
-                            <ui:SymbolIcon Symbol="ArrowClockwise24" FontSize="22" />
-                        </Button>
-                        <Button Style="{StaticResource QuietButton}" Command="{Binding SyncCommand}"
-                                ToolTip="Synchronize" AutomationProperties.Name="Synchronize" Margin="0,0,8,0">
-                            <ui:SymbolIcon Symbol="ArrowSync24" FontSize="22" />
-                        </Button>
-                        <TextBlock Text="{Binding SyncStatusSummary}" VerticalAlignment="Center" Margin="0,0,8,0"
-                                   Foreground="{DynamicResource TextSecondaryBrush}" />
                         <Button Style="{StaticResource QuietButton}" Click="AccountSettingsClick" ToolTip="Account settings"
                                 AutomationProperties.Name="Account settings" Margin="0,0,12,0">
                             <ui:SymbolIcon Symbol="Settings24" FontSize="22" />
@@ -361,7 +351,57 @@
                         </StackPanel>
                     </ScrollViewer>
                 </DockPanel>
-                <Border Grid.Row="1" Background="{DynamicResource AppBackgroundBrush}" CornerRadius="10" Padding="12"
+                <StackPanel Grid.Row="1">
+                    <Border x:Name="DeviceSyncPanel" Background="{DynamicResource AppBackgroundBrush}" CornerRadius="10"
+                            Padding="12" Margin="0,0,0,14" AutomationProperties.Name="Device synchronization">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock Text="Device synchronization" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                <TextBlock x:Name="SyncStatusLabel" Text="{Binding SyncStatusText}" FontWeight="SemiBold"
+                                           Margin="0,3,0,0" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasSyncIssue}" Value="True">
+                                                    <Setter Property="Foreground" Value="#B06000" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Text="{Binding SyncHelpText}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                                <ProgressBar x:Name="SyncProgress" IsIndeterminate="True" Height="3" Margin="0,8,0,0"
+                                             Visibility="{Binding IsSynchronizing, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                             AutomationProperties.Name="Synchronizing this device" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <Button x:Name="SyncDeviceButton" Command="{Binding SyncCommand}" Style="{StaticResource OutlinedActionButtonStyle}"
+                                        ToolTip="{Binding SyncActionHelp}" ToolTipService.ShowOnDisabled="True"
+                                        Visibility="{Binding ShowSyncAction, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        AutomationProperties.Name="Sync this device">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:SymbolIcon Symbol="FolderSync24" FontSize="18" Margin="0,0,8,0" />
+                                        <TextBlock Text="{Binding SyncActionLabel}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Content="Choose local folder…" Command="{Binding ChangeSyncFolderCommand}"
+                                        Style="{StaticResource OutlinedActionButtonStyle}"
+                                        Visibility="{Binding ShowSyncSetup, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        AutomationProperties.Name="Choose a local sync folder" />
+                                <Button Content="Account settings" Click="AccountSettingsClick" Style="{StaticResource OutlinedActionButtonStyle}"
+                                        IsEnabled="{Binding CanNavigate}"
+                                        Visibility="{Binding ShowSyncSettings, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        AutomationProperties.Name="Finish disconnecting in Account settings" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                <Border Background="{DynamicResource AppBackgroundBrush}" CornerRadius="10" Padding="12"
                         Margin="0,0,0,14" Visibility="{Binding IsSyncedFoldersView, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -439,6 +479,7 @@
                         </StackPanel>
                     </Grid>
                 </Border>
+                </StackPanel>
                 <Border Grid.Row="2" Background="{DynamicResource SearchBarBackgroundBrush}"
                         CornerRadius="26" Padding="16,12" Margin="0,0,0,20">
                     <DockPanel>
@@ -541,10 +582,19 @@
                             Style="{StaticResource QuietButton}" Foreground="{DynamicResource TextSecondaryBrush}"
                             IsEnabled="{Binding CanManageFiles}"
                             ToolTip="Filter by file type" AutomationProperties.Name="Filter by file type" />
-                    <Button x:Name="ColumnsButton" Content="Columns ▾" Click="ColumnsButtonClick"
-                            HorizontalAlignment="Right" Margin="0,0,0,6" Padding="10,6"
-                            Style="{StaticResource QuietButton}" Foreground="{DynamicResource TextSecondaryBrush}"
-                            ToolTip="Show or hide columns" AutomationProperties.Name="Show or hide columns" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,6">
+                        <Button x:Name="RefreshFilesButton" Command="{Binding RetryCommand}" Style="{StaticResource QuietButton}"
+                                Padding="10,6" Margin="0,0,8,0" ToolTip="Reload this list from the cloud. Does not sync local files."
+                                ToolTipService.ShowOnDisabled="True" AutomationProperties.Name="Refresh file list">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:SymbolIcon Symbol="ArrowClockwise24" FontSize="18" Margin="0,0,6,0" />
+                                <TextBlock Text="Refresh list" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="ColumnsButton" Content="Columns ▾" Click="ColumnsButtonClick" Padding="10,6"
+                                Style="{StaticResource QuietButton}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                ToolTip="Show or hide columns" AutomationProperties.Name="Show or hide columns" />
+                    </StackPanel>
                     <Grid x:Name="FileDropSurface" Grid.Row="1" Background="Transparent" AllowDrop="True"
                           PreviewDragOver="ItemDragOver" PreviewDrop="ItemDrop" PreviewDragLeave="ItemDragLeave">
                         <DataGrid x:Name="FileGrid" ItemsSource="{Binding VisibleFiles}" SelectedItem="{Binding SelectedFile}"

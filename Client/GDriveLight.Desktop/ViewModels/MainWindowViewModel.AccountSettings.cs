@@ -27,7 +27,11 @@ public sealed partial class MainWindowViewModel
             SyncStatusSummary = _deviceConnectionState == DeviceConnectionState.DisconnectPending ? "Disconnect pending" : "Sync disconnected";
             LastSyncTimeText = string.Empty;
         }
-        else if (SyncStatusSummary is "Sync disconnected" or "Disconnect pending") SyncStatusSummary = "Ready";
+        else if (SyncStatusSummary is "Sync disconnected" or "Disconnect pending")
+        {
+            _hasSyncIssue = false;
+            SyncStatusSummary = "Not synced in this session";
+        }
         OnPropertyChanged(nameof(CurrentSyncFolderPath));
         OnPropertyChanged(nameof(IsDeviceSyncEnabled));
         OnPropertyChanged(nameof(DeviceConnectionStatus));
