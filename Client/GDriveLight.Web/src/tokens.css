@@ -217,16 +217,6 @@ select {
 .newButton:hover {
   background: #edf3ff;
 }
-.notice {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  background: #e8f0fe;
-  border-radius: 10px;
-  margin-bottom: 14px;
-}
 .selectionActions {
   display: flex;
   align-items: center;

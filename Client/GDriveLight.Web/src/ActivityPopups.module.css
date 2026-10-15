@@ -1,0 +1,47 @@
+.stack {
+  position: fixed;
+  z-index: 20;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  width: min(400px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: none;
+  padding: 8px;
+  margin: -8px;
+}
+.stack > * {
+  flex-shrink: 0;
+  pointer-events: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 4px 24px #263e6029;
+}
+.message {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  min-height: 64px;
+}
+.message > svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.message > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.message > svg.success {
+  color: #137333;
+}
+.error > svg {
+  color: var(--danger);
+}

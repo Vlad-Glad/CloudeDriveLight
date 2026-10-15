@@ -41,6 +41,7 @@ import { OperationDialog, type Operation } from "./OperationDialog";
 import { downloadItem } from "./operations-api";
 import { useUploads } from "./useUploads";
 import { UploadQueue } from "./UploadQueue";
+import { ActivityPopups } from "./ActivityPopups";
 import { useFileDrop } from "./useFileDrop";
 import { useCloudMove } from "./useCloudMove";
 import type { DriveItem } from "./drive-api";
@@ -602,43 +603,6 @@ export default function Drive() {
             </div>
           )}
         </div>
-        {notice && (
-          <div className="notice" role="status">
-            {notice}
-            <button
-              className="iconButton"
-              aria-label="Dismiss notification"
-              onClick={() => setNotice("")}
-            >
-              <X size={16} />
-            </button>
-          </div>
-        )}
-        {actionError && (
-          <div className="error" role="alert">
-            {actionError}
-            <button className="textButton" onClick={() => setActionError("")}>
-              Dismiss
-            </button>
-          </div>
-        )}
-        {cloudMove.moving && (
-          <div className="notice" role="status">
-            <LoaderCircle className="spin" size={18} />
-            Moving item…
-          </div>
-        )}
-        {downloading && (
-          <div className="notice" role="status">
-            Preparing download…
-            <button
-              className="textButton"
-              onClick={() => downloadController.current?.abort()}
-            >
-              Cancel
-            </button>
-          </div>
-        )}
         {types.error && (
           <div className="error" role="alert">
             File type filter unavailable.{" "}
@@ -845,7 +809,7 @@ export default function Drive() {
             Drop files here to upload to {currentName}
           </div>
         )}
-        <UploadQueue {...uploads} />
+
         {operation && (
           <OperationDialog
             restoreFocus={restoreFocus}
@@ -858,6 +822,17 @@ export default function Drive() {
           />
         )}
       </div>
+      <ActivityPopups
+        notice={notice}
+        error={actionError}
+        moving={cloudMove.moving}
+        downloading={downloading}
+        dismissNotice={() => setNotice("")}
+        dismissError={() => setActionError("")}
+        cancelDownload={() => downloadController.current?.abort()}
+      >
+        <UploadQueue {...uploads} />
+      </ActivityPopups>
     </Shell>
   );
 }

@@ -98,7 +98,6 @@
   color: var(--secondary);
 }
 .uploads {
-  margin-top: 24px;
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
@@ -107,14 +106,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
+  padding: 10px 12px 10px 16px;
+  gap: 8px;
   background: var(--background);
 }
 .uploads ul {
   list-style: none;
   padding: 0;
   margin: 0;
-  max-height: 260px;
+  max-height: min(300px, 45dvh);
   overflow: auto;
 }
 .uploads li {
@@ -163,4 +163,11 @@
 }
 .uploadInfo progress::-webkit-progress-value {
   background: var(--accent);
+}
+
+.uploads footer {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+  padding: 2px 6px;
 }
