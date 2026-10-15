@@ -108,6 +108,39 @@ describe("usePreviewContent", () => {
     }
   });
 
+  it("loads docx content successfully and retains blob", async () => {
+    const docxBlob = new Blob(["PK...mock docx"], {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(docxBlob, {
+        status: 200,
+        headers: {
+          "Content-Type":
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() =>
+      usePreviewContent("file-docx", "docx", 1024),
+    );
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("ready");
+    });
+
+    if (result.current.status === "ready") {
+      expect(result.current.text).toBeNull();
+      expect(result.current.blob).toBeDefined();
+      expect(result.current.mimeType).toBe(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      );
+      expect(result.current.url).toBe("blob:mock-1");
+    }
+  });
+
   it("classifies 404 response as notFound error", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ error: "File not found" }), {

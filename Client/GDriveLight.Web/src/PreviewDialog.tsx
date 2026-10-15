@@ -29,6 +29,9 @@ const TextViewer = lazy(() =>
 const PdfViewer = lazy(() =>
   import("./PdfViewer").then((m) => ({ default: m.PdfViewer })),
 );
+const DocxViewer = lazy(() =>
+  import("./DocxViewer").then((m) => ({ default: m.DocxViewer })),
+);
 
 export function PreviewDialog({
   files,
@@ -56,7 +59,7 @@ export function PreviewDialog({
   const Icon =
     kind === "image"
       ? FileImage
-      : kind === "text" || kind === "pdf"
+      : kind === "text" || kind === "pdf" || kind === "docx"
         ? FileText
         : File;
   const [downloading, setDownloading] = useState(false);
@@ -332,10 +335,22 @@ function PreviewBody({
           <PdfViewer url={previewContent.url} title={file.name} />
         </Suspense>
       )}
+      {previewContent.status === "ready" && kind === "docx" && (
+        <Suspense
+          fallback={
+            <div className={styles.placeholder} role="status">
+              <LoaderCircle className="spin" size={36} />
+            </div>
+          }
+        >
+          <DocxViewer blob={previewContent.blob} title={file.name} />
+        </Suspense>
+      )}
       {previewContent.status === "idle" &&
         kind !== "image" &&
         kind !== "text" &&
-        kind !== "pdf" && (
+        kind !== "pdf" &&
+        kind !== "docx" && (
         <div className={styles.placeholder}>
           <File size={56} aria-hidden="true" />
           <h2>No preview available</h2>

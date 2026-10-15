@@ -305,4 +305,75 @@ describe("PreviewDialog", () => {
       expect(screen.getByText("Open in new tab")).toBeInTheDocument();
     });
   });
+
+  it("renders docx preview for kind docx", async () => {
+    const docxFiles: DriveFile[] = [
+      {
+        id: "file-docx",
+        name: "Document.docx",
+        fileTypeId: 5,
+        sizeBytes: 2048,
+        contentHash: "hash5",
+        folderId: null,
+        ownerId: "user-1",
+        uploadedAtUtc: "2026-10-10T12:00:00Z",
+        editedAtUtc: null,
+        fileUrl: "",
+      },
+    ];
+
+    const typesWithDocx = [
+      ...catalogTypes,
+      {
+        id: 5,
+        name: "DOCX",
+        extension: ".docx",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        previewKind: "docx",
+      },
+    ];
+
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("files/types")) {
+        return Promise.resolve(
+          new Response(JSON.stringify(typesWithDocx), { status: 200 }),
+        );
+      }
+      return Promise.resolve(
+        new Response(
+          new Blob(["PK...mock"], {
+            type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type":
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            },
+          },
+        ),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderWithClient(
+      <PreviewDialog
+        files={docxFiles}
+        initialId="file-docx"
+        close={vi.fn()}
+        restoreFocus={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("main", { name: "Preview content" }),
+      ).toHaveAttribute("data-preview-kind", "docx");
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("DOCX")).toBeInTheDocument();
+    });
+  });
 });

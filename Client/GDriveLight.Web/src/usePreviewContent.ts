@@ -18,7 +18,7 @@ export type PreviewState =
   | { status: "loading" }
   | { status: "tooLarge"; sizeBytes: number }
   | { status: "error"; kind: PreviewErrorKind; message: string }
-  | { status: "ready"; url: string; text: string | null; mimeType: string };
+  | { status: "ready"; url: string; text: string | null; mimeType: string; blob?: Blob };
 
 export function usePreviewContent(
   fileId: string,
@@ -68,7 +68,7 @@ export function usePreviewContent(
         const url = URL.createObjectURL(blob);
         activeUrlRef.current = url;
 
-        setState({ status: "ready", url, text, mimeType: contentType });
+        setState({ status: "ready", url, text, mimeType: contentType, blob });
       } catch (err) {
         if (controller.signal.aborted) return;
 

@@ -22,7 +22,7 @@ export interface FileType {
   name: string;
   extension: string;
   mimeType?: string;
-  previewKind?: "text" | "image" | "pdf" | "none";
+  previewKind?: "text" | "image" | "pdf" | "docx" | "none";
 }
 export type DriveItem =
   | (DriveFolder & { kind: "folder" })

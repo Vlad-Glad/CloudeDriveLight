@@ -1,0 +1,140 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #ffffff1f;
+  background: #1f1f1f;
+}
+
+.badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8ab4f8;
+  background: #185abd33;
+  border: 1px solid #185abd66;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+}
+
+.docTitle {
+  font-size: 13px;
+  color: #bdc1c6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: auto;
+}
+
+.zoomControls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #bdc1c6;
+  font-size: 13px;
+  cursor: pointer;
+  min-width: 32px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.toolBtn:hover:not(:disabled) {
+  background: #ffffff1f;
+  color: #f1f3f4;
+}
+
+.toolBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.toolBtn:focus-visible {
+  outline: 2px solid #a8c7fa;
+  outline-offset: 2px;
+}
+
+.zoomLabel {
+  font-size: 13px;
+  color: #bdc1c6;
+  min-width: 44px;
+  text-align: center;
+  user-select: none;
+}
+
+.separator {
+  width: 1px;
+  height: 20px;
+  background: #ffffff1f;
+  margin: 0 4px;
+}
+
+.scrollArea {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: #2b2b2b;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+}
+
+.docContainer {
+  transform-origin: top center;
+  transition: transform 0.1s ease-out;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.docContainer :global(.docx-wrapper) {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.docContainer :global(section.docx) {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+  margin-bottom: 24px !important;
+  border-radius: 2px !important;
+}
+
+.loadingPlaceholder,
+.errorPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  color: #bdc1c6;
+  text-align: center;
+}
+
+.errorPlaceholder h3 {
+  color: #f28b82;
+  margin: 0;
+  font-size: 18px;
+}
