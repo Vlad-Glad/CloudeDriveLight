@@ -372,3 +372,7 @@ Server/GDriveLight.Api/uploads/
 .env
 .env.*
 !.env.example
+
+# UI prototypes and design mockups
+prototypes/
+**/prototypes/
