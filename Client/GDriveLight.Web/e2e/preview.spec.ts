@@ -275,14 +275,16 @@ test("closing preview restores the scrolled file list without jumping to the fir
   );
   await page.goto("/");
   await row(page, "Entry 30.txt").click();
-  const scroll = await page.evaluate(() => window.scrollY);
+  const fileArea = page.getByTestId("file-selection-area");
+  const scroll = await fileArea.evaluate((element) => element.scrollTop);
   expect(scroll).toBeGreaterThan(0);
   await page.keyboard.press("Enter");
   await expect(viewer(page)).toHaveAccessibleName("Entry 30.txt");
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("Escape");
   await expect(row(page, "Entry 30.txt")).toBeFocused();
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(scroll);
+  await expect.poll(() => fileArea.evaluate((element) => element.scrollTop)).toBe(scroll);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
   await expect(row(page, "Entry 30.txt")).toHaveAttribute(
     "aria-selected",
     "true",

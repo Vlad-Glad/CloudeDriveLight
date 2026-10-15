@@ -51,10 +51,19 @@
 }
 @media (max-width: 720px) {
   .storage {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 8px;
     margin: 12px 0 0;
     padding: 12px 14px;
   }
   .heading {
-    margin-bottom: 8px;
+    margin-bottom: 6px;
+  }
+  .heading,
+  .progress,
+  .storage .warning,
+  .storage > div[role="alert"] {
+    grid-column: 1 / -1;
   }
 }

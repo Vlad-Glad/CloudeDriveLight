@@ -52,7 +52,7 @@ export function Shell({
         Skip to files
       </a>
       <div className={styles.shell}>
-        <aside className={styles.sidebar}>
+        <aside className={styles.sidebar} aria-label="Drive navigation">
           <Link className={styles.brand} to="/">
             <Cloud size={32} />
             <span>GDriveLight</span>

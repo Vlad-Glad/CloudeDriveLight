@@ -26,6 +26,9 @@ test("select ranges and individual files without checkboxes, then clear with a b
   await row(page, "Beta.txt").click({ modifiers: ["Control"] });
   await expect(row(page, "Beta.txt")).toHaveAttribute("aria-selected", "false");
   await expect(selected(page)).toHaveCount(3);
+  await page.getByTestId("file-selection-area").evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
   await page.getByTestId("file-selection-area").click({
     position: {
       x: 8,
@@ -169,6 +172,9 @@ test("download a highlighted group only through its explicit download action", a
 test("draw a mouse selection rectangle from blank space", async ({ page }) => {
   await prepare(page);
   await page.getByTestId("file-selection-area").scrollIntoViewIfNeeded();
+  await page.getByTestId("file-selection-area").evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
   const area = await page.getByTestId("file-selection-area").boundingBox();
   const gamma = await row(page, "Gamma.txt").boundingBox();
   await page.mouse.move(area!.x + 8, area!.y + area!.height - 8);

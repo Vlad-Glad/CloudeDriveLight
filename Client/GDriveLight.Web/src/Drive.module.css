@@ -1,4 +1,5 @@
 .header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -35,6 +36,7 @@
   flex-shrink: 0;
 }
 .search {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -51,6 +53,7 @@
   outline-offset: 0;
 }
 .toolbar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -91,9 +94,14 @@
   font-size: 13px;
 }
 .tableScroll {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
   overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scroll-padding-top: 48px;
   position: relative;
-  min-height: 360px;
   padding-bottom: 64px;
   outline: none;
 }
@@ -104,6 +112,11 @@
   width: 100%;
 }
 .table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  box-shadow: 0 1px 0 var(--border);
   font-size: 13px;
   font-weight: 400;
   color: var(--secondary);
@@ -124,6 +137,18 @@
 .table td {
   height: 56px;
   border-bottom: 1px solid #edf0f2;
+}
+.table td:global(.rowActions) {
+  position: sticky;
+  right: 0;
+  background: inherit;
+}
+.table th:global(.rowActions) {
+  right: 0;
+  z-index: 2;
+}
+.table tbody tr {
+  background: var(--surface);
 }
 .table th,
 .table td {
@@ -154,7 +179,9 @@
   text-decoration: underline;
 }
 .empty {
-  min-height: 360px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -184,6 +211,12 @@
   width: 110px;
 }
 @media (max-width: 600px) {
+  .header {
+    margin-bottom: 12px;
+  }
+  .search {
+    margin-bottom: 12px;
+  }
   .breadcrumb {
     font-size: 19px;
   }
@@ -198,7 +231,9 @@
     gap: 8px;
   }
   .toolbar {
-    min-height: 104px;
+    /* Reserve the action row so selection does not move files during a drag. */
+    min-height: 112px;
+    margin-bottom: 12px;
     align-content: flex-start;
     gap: 8px;
   }
@@ -207,7 +242,12 @@
   }
 }
 .dropSurface {
-  min-height: calc(100dvh - 80px);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
 }
 .dropOverlay {
   position: absolute;

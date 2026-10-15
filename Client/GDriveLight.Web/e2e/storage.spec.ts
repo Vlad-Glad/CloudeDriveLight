@@ -12,6 +12,7 @@ test("storage is visible on all screen sizes and updates after upload and deleti
   await page.getByRole("menuitem", { name: "Upload files", exact: true }).click();
   await (await picker).setFiles({ name: "Quota.txt", mimeType: "text/plain", buffer: Buffer.from("quota") });
   await expect(storage).toContainText("2 KiB of 2 GiB used");
+  await page.getByRole("button", { name: "Clear finished", exact: true }).click();
   await openActions(page, "Quota.txt", "Delete");
   await page.getByRole("dialog").getByRole("button", { name: "Delete permanently", exact: true }).click();
   await expect(storage).toContainText("1 KiB of 2 GiB used");
