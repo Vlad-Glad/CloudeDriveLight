@@ -1,0 +1,106 @@
+import { request } from "./api";
+export interface DriveFolder {
+  id: string;
+  name: string;
+  parentFolderId: string | null;
+  ownerId: string;
+}
+export interface DriveFile {
+  id: string;
+  name: string;
+  fileTypeId: number;
+  contentHash: string;
+  sizeBytes: number;
+  folderId: string | null;
+  ownerId: string;
+  uploadedAtUtc: string;
+  editedAtUtc: string | null;
+  fileUrl: string;
+}
+export interface FileType {
+  id: number;
+  name: string;
+  extension: string;
+}
+export type DriveItem =
+  | (DriveFolder & { kind: "folder" })
+  | (DriveFile & { kind: "file" });
+export const folderUrl = (id: string | null) =>
+  id ? `/folders/${encodeURIComponent(id)}` : "/";
+export const foldersQuery = (parentId: string | null) => ({
+  queryKey: ["drive", "folders", parentId],
+  queryFn: ({ signal }: { signal: AbortSignal }) =>
+    request<DriveFolder[]>(
+      `folders${parentId ? `?parentFolderId=${encodeURIComponent(parentId)}` : ""}`,
+      { signal },
+    ),
+});
+export const pathQuery = (id: string | null) => ({
+  queryKey: ["drive", "path", id],
+  queryFn: ({ signal }: { signal: AbortSignal }) =>
+    id
+      ? request<DriveFolder[]>(`folders/${encodeURIComponent(id)}/path`, {
+          signal,
+        })
+      : Promise.resolve([]),
+});
+export const typesQuery = {
+  queryKey: ["fileTypes"],
+  queryFn: ({ signal }: { signal: AbortSignal }) =>
+    request<FileType[]>("files/types", { signal }),
+  staleTime: 300_000,
+};
+export async function loadItems(
+  folderId: string | null,
+  search: string,
+  signal: AbortSignal,
+): Promise<DriveItem[]> {
+  const query = search ? `search?name=${encodeURIComponent(search)}` : "";
+  const [folders, files] = await Promise.all([
+    request<DriveFolder[]>(
+      `folders${search ? `/${query}` : folderId ? `?parentFolderId=${encodeURIComponent(folderId)}` : ""}`,
+      { signal },
+    ),
+    request<DriveFile[]>(
+      `files${search ? `/${query}` : folderId ? `?folderId=${encodeURIComponent(folderId)}` : ""}`,
+      { signal },
+    ),
+  ]);
+  return [
+    ...folders.map((folder) => ({ ...folder, kind: "folder" as const })),
+    ...files.map((file) => ({ ...file, kind: "file" as const })),
+  ];
+}
+export type SortKey = "name" | "modified" | "size";
+export function sortItems(
+  items: DriveItem[],
+  key: SortKey,
+  descending: boolean,
+  type: string,
+) {
+  return items
+    .filter(
+      (item) =>
+        item.kind === "folder" || !type || String(item.fileTypeId) === type,
+    )
+    .sort((a, b) => {
+      if (a.kind !== b.kind) return a.kind === "folder" ? -1 : 1;
+      let result = a.name.localeCompare(b.name, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
+      if (a.kind === "file" && b.kind === "file") {
+        if (key === "size") result = a.sizeBytes - b.sizeBytes;
+        if (key === "modified")
+          result =
+            Date.parse(a.editedAtUtc || a.uploadedAtUtc) -
+            Date.parse(b.editedAtUtc || b.uploadedAtUtc);
+      }
+      return descending ? -result : result;
+    });
+}
+export function formatSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), 4);
+  return `${(bytes / 1024 ** index).toLocaleString(undefined, { maximumFractionDigits: 1 })} ${["B", "KB", "MB", "GB", "TB"][index]}`;
+}

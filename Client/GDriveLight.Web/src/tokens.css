@@ -1,0 +1,253 @@
+:root {
+  font-family: "Segoe UI Variable Display", "Segoe UI", Arial, sans-serif;
+  color: #1f1f1f;
+  background: #f8fafd;
+  font-size: 14px;
+  font-synthesis: none;
+  --background: #f8fafd;
+  --surface: #fff;
+  --accent: #0b57d0;
+  --selected: #c2e7ff;
+  --hover: #e9eef6;
+  --secondary: #5e5e5e;
+  --border: #e0e0e0;
+  --danger: #b3261e;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button,
+a,
+input,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+h1 {
+  font-size: 24px;
+  font-weight: 500;
+  margin: 0;
+}
+h2 {
+  font-size: 20px;
+  font-weight: 500;
+}
+p {
+  line-height: 1.6;
+}
+button {
+  color: inherit;
+}
+input,
+select {
+  min-width: 0;
+}
+::selection {
+  background: var(--selected);
+}
+.primary,
+.secondary,
+.textButton,
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 8px;
+  padding: 11px 16px;
+  background: transparent;
+}
+.primary {
+  background: var(--accent);
+  color: white;
+}
+.secondary {
+  border: 1px solid var(--border);
+  background: white;
+}
+.textButton {
+  color: var(--accent);
+}
+.iconButton {
+  padding: 9px;
+}
+.iconButton:hover,
+.textButton:hover,
+.secondary:hover {
+  background: var(--hover);
+}
+.avatar {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--selected);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.menu {
+  z-index: 30;
+  min-width: 190px;
+  max-width: calc(100vw - 24px);
+  padding: 6px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px #263e6020;
+}
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+}
+.menuItem[data-highlighted] {
+  background: var(--hover);
+}
+.menuItem[data-disabled] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.separator {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 0;
+}
+.profile {
+  width: 290px;
+}
+.profileInfo {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  overflow-wrap: anywhere;
+}
+.profileInfo span {
+  color: var(--secondary);
+}
+.error {
+  padding: 12px 16px;
+  background: #fce8e6;
+  color: var(--danger);
+  border-radius: 10px;
+  line-height: 1.5;
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.skipLink {
+  position: fixed;
+  top: -100px;
+  left: 12px;
+  z-index: 100;
+  background: white;
+  padding: 12px;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+}
+.skipLink:focus {
+  top: 12px;
+}
+.danger {
+  background: var(--danger);
+}
+.newButton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 22px;
+  border: 0;
+  border-radius: 16px;
+  background: white;
+  box-shadow: 0 2px 8px #0002;
+  margin: 0 0 24px;
+  font-weight: 500;
+}
+.newButton:hover {
+  background: #edf3ff;
+}
+.selectionActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: auto;
+}
+.selectionActions button {
+  padding: 8px;
+}
+.rowActions {
+  width: 48px !important;
+}
+.rowActions button {
+  padding: 6px;
+}
+@media (max-width: 720px) {
+  .newButton {
+    margin: 0;
+    position: absolute;
+    right: 16px;
+    top: 18px;
+    padding: 10px 16px;
+  }
+  .selectionActions {
+    margin-left: 0;
+  }
+  .selectionActions button {
+    padding: 8px;
+  }
+  .sidebarNote {
+    display: none;
+  }
+}
