@@ -50,14 +50,14 @@ test("drop multiple files, keep the queue destination while browsing and recover
   await queue.getByRole("button", { name: "Retry First.txt" }).click();
   await expect(queue).toContainText("2/2 complete");
   await expect(
-    page.getByRole("button", { name: "First.txt", exact: true }),
+    page.getByRole("table").getByText("First.txt", { exact: true }),
   ).toHaveCount(0);
   await page.getByRole("link", { name: "Documents", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "First.txt", exact: true }),
+    page.getByRole("table").getByText("First.txt", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Second.txt", exact: true }),
+    page.getByRole("table").getByText("Second.txt", { exact: true }),
   ).toBeVisible();
 });
 test("cancel an active and a queued upload without sending the queued file", async ({
@@ -103,7 +103,7 @@ test("unsupported file errors do not stop the next dropped file", async ({
     "File type '.exe' is not supported.",
   );
   await expect(
-    page.getByRole("button", { name: "Accepted.txt", exact: true }),
+    page.getByRole("table").getByText("Accepted.txt", { exact: true }),
   ).toBeVisible();
 });
 test("ignore text drags and reset the overlay when files leave the surface", async ({

@@ -574,14 +574,7 @@ export default function Drive() {
                             {item.name}
                           </Link>
                         ) : (
-                          <button
-                            className="downloadName"
-                            title={`Download ${item.name}`}
-                            onClick={() => void download(item)}
-                            disabled={downloading}
-                          >
-                            {item.name}
-                          </button>
+                          <span title={item.name}>{item.name}</span>
                         )}
                       </div>
                     </td>

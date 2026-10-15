@@ -30,7 +30,7 @@ test("browse, search and filter without horizontal page overflow", async ({
   ).toBeVisible();
   await page.goBack();
   await expect(
-    page.getByRole("button", { name: "Notes.txt", exact: true }),
+    page.getByRole("table").getByText("Notes.txt", { exact: true }),
   ).toBeVisible();
   await page.getByLabel("Search files and folders").fill("Notes");
   await page.getByLabel("Search files and folders").press("Enter");
@@ -103,9 +103,22 @@ test("upload files into the current folder and download with authorization", asy
 }) => {
   await mockApi(page);
   await page.goto("/");
+  const downloadRequests: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.endsWith("/download"))
+      downloadRequests.push(request.url());
+  });
+  await page.getByRole("table").getByText("Notes.txt", { exact: true }).click();
+  await expect(
+    page.getByRole("checkbox", { name: "Select Notes.txt" }),
+  ).toBeChecked();
+  expect(downloadRequests).toHaveLength(0);
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Notes.txt", exact: true }).click();
+  await page.getByRole("button", { name: "Download selected file" }).click();
   expect((await download).suggestedFilename()).toBe("Notes.txt");
+  const menuDownload = page.waitForEvent("download");
+  await openActions(page, "Notes.txt", "Download");
+  expect((await menuDownload).suggestedFilename()).toBe("Notes.txt");
   await page.getByRole("link", { name: "Documents", exact: true }).click();
   await expect(
     page
@@ -118,7 +131,7 @@ test("upload files into the current folder and download with authorization", asy
     buffer: Buffer.from("hello"),
   });
   await expect(
-    page.getByRole("button", { name: "Upload.txt", exact: true }),
+    page.getByRole("table").getByText("Upload.txt", { exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("region", { name: "Uploads" })).toContainText(
     "To Documents · Complete",

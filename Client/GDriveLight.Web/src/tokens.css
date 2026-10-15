@@ -243,18 +243,6 @@ select {
 .rowActions button {
   padding: 6px;
 }
-.downloadName {
-  border: 0;
-  background: transparent;
-  padding: 0;
-  text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.downloadName:hover {
-  text-decoration: underline;
-}
 @media (max-width: 720px) {
   .newButton {
     margin: 0;
