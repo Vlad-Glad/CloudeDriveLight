@@ -63,16 +63,22 @@
 .body {
   min-width: 0;
   max-height: 100%;
+  height: 100%;
   overflow: auto;
   overscroll-behavior: contain;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 .placeholder {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   padding: 24px 8px;
   overflow-wrap: anywhere;
+  text-align: center;
 }
 .placeholder > svg {
   color: #bdc1c6;

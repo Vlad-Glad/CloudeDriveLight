@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ChevronLeft,
@@ -13,7 +13,16 @@ import {
 } from "lucide-react";
 import { formatSize, typesQuery, type DriveFile } from "./drive-api";
 import { downloadItem } from "./operations-api";
+import { usePreviewContent } from "./usePreviewContent";
 import styles from "./PreviewDialog.module.css";
+
+// Lazy-load heavy renderers so they don't inflate the initial bundle.
+const ImageViewer = lazy(() =>
+  import("./ImageViewer").then((m) => ({ default: m.ImageViewer })),
+);
+const TextViewer = lazy(() =>
+  import("./TextViewer").then((m) => ({ default: m.TextViewer })),
+);
 
 export function PreviewDialog({
   files,
@@ -47,6 +56,11 @@ export function PreviewDialog({
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
   const controller = useRef<AbortController | null>(null);
+  const previewContent = usePreviewContent(
+    file?.id ?? "",
+    types.isPending ? "none" : kind,
+    file?.sizeBytes ?? 0,
+  );
 
   useEffect(() => () => controller.current?.abort(), []);
 
@@ -155,41 +169,20 @@ export function PreviewDialog({
               className={styles.body}
               data-preview-kind={kind}
               aria-label="Preview content"
-              aria-busy={types.isPending}
+              aria-busy={types.isPending || previewContent.status === "loading"}
             >
-              {types.isPending ? (
-                <div className={styles.placeholder} role="status">
-                  <LoaderCircle className="spin" size={36} />
-                  <p>Loading preview information…</p>
-                </div>
-              ) : types.error ? (
-                <div className={styles.placeholder} role="alert">
-                  <h2>Could not load preview information</h2>
-                  <p>{types.error.message}</p>
-                  <button
-                    className="secondary"
-                    onClick={() => void types.refetch()}
-                  >
-                    Retry
-                  </button>
-                </div>
-              ) : (
-                <div className={styles.placeholder}>
-                  <Icon size={56} aria-hidden="true" />
-                  <h2>No preview available</h2>
-                  <p>You can still download this file.</p>
-                  <p className={styles.details}>
-                    {type?.name || "Unknown file type"} ·{" "}
-                    {formatSize(file.sizeBytes)}
-                  </p>
-                </div>
-              )}
-              {downloadError && (
-                <p className={styles.error} role="alert">
-                  {downloadError}
-                </p>
-              )}
-              {downloading && <p role="status">Preparing download…</p>}
+              <PreviewBody
+                kind={kind}
+                file={file}
+                typeName={type?.name}
+                mimeType={type?.mimeType}
+                typesPending={types.isPending}
+                typesError={types.error}
+                onRetryTypes={() => void types.refetch()}
+                previewContent={previewContent}
+                downloadError={downloadError}
+                downloading={downloading}
+              />
             </main>
             <button
               className={`iconButton ${styles.next}`}
@@ -206,5 +199,126 @@ export function PreviewDialog({
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+  );
+}
+
+// ─── Sub-component so the hook rules stay clean ─────────────────────────────
+
+import type { PreviewState } from "./usePreviewContent";
+
+function PreviewBody({
+  kind,
+  file,
+  typeName,
+  mimeType,
+  typesPending,
+  typesError,
+  onRetryTypes,
+  previewContent,
+  downloadError,
+  downloading,
+}: {
+  kind: string;
+  file: DriveFile;
+  typeName: string | undefined;
+  mimeType: string | undefined;
+  typesPending: boolean;
+  typesError: Error | null;
+  onRetryTypes: () => void;
+  previewContent: PreviewState;
+  downloadError: string;
+  downloading: boolean;
+}) {
+  if (typesPending) {
+    return (
+      <div className={styles.placeholder} role="status">
+        <LoaderCircle className="spin" size={36} />
+        <p>Loading preview information…</p>
+      </div>
+    );
+  }
+  if (typesError) {
+    return (
+      <div className={styles.placeholder} role="alert">
+        <h2>Could not load preview information</h2>
+        <p>{typesError.message}</p>
+        <button className="secondary" onClick={onRetryTypes}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {previewContent.status === "loading" && (
+        <div className={styles.placeholder} role="status">
+          <LoaderCircle className="spin" size={36} />
+          <p>Loading preview…</p>
+        </div>
+      )}
+      {previewContent.status === "error" && (
+        <div className={styles.placeholder} role="alert">
+          <h2>Preview failed to load</h2>
+          <p>{previewContent.message}</p>
+          <p className={styles.details}>
+            {typeName || "Unknown file type"} · {formatSize(file.sizeBytes)}
+          </p>
+        </div>
+      )}
+      {previewContent.status === "tooLarge" && (
+        <div className={styles.placeholder}>
+          <FileText size={56} aria-hidden="true" />
+          <h2>File is too large to preview</h2>
+          <p>Download the file to view it.</p>
+          <p className={styles.details}>
+            {typeName || "Unknown file type"} · {formatSize(file.sizeBytes)}
+          </p>
+        </div>
+      )}
+      {previewContent.status === "ready" && kind === "image" && (
+        <Suspense
+          fallback={
+            <div className={styles.placeholder} role="status">
+              <LoaderCircle className="spin" size={36} />
+            </div>
+          }
+        >
+          <ImageViewer url={previewContent.url} alt={file.name} />
+        </Suspense>
+      )}
+      {previewContent.status === "ready" &&
+        kind === "text" &&
+        previewContent.text !== null && (
+          <Suspense
+            fallback={
+              <div className={styles.placeholder} role="status">
+                <LoaderCircle className="spin" size={36} />
+              </div>
+            }
+          >
+            <TextViewer
+              text={previewContent.text}
+              mimeType={mimeType ?? "text/plain"}
+            />
+          </Suspense>
+        )}
+      {previewContent.status === "idle" && kind !== "image" && kind !== "text" && (
+        <div className={styles.placeholder}>
+          <File size={56} aria-hidden="true" />
+          <h2>No preview available</h2>
+          <p>You can still download this file.</p>
+          <p className={styles.details}>
+            {typeName || "Unknown file type"} · {formatSize(file.sizeBytes)}
+          </p>
+        </div>
+      )}
+      {downloadError && (
+        <p className={styles.error} role="alert">
+          {downloadError}
+        </p>
+      )}
+      {downloading && <p role="status">Preparing download…</p>}
+    </>
   );
 }
