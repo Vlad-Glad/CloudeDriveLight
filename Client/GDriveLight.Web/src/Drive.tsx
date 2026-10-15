@@ -733,20 +733,6 @@ export default function Drive() {
                   >
                     {sortHeader("name", "Name")}
                   </th>
-                  {visibleColumns.created && (
-                    <th
-                      className={styles.dateColumn}
-                      aria-sort={
-                        sort === "created"
-                          ? descending
-                            ? "descending"
-                            : "ascending"
-                          : "none"
-                      }
-                    >
-                      {sortHeader("created", "Date created")}
-                    </th>
-                  )}
                   {visibleColumns.modified && (
                     <th
                       className={styles.dateColumn}
@@ -759,6 +745,20 @@ export default function Drive() {
                       }
                     >
                       {sortHeader("modified", "Date modified")}
+                    </th>
+                  )}
+                  {visibleColumns.created && (
+                    <th
+                      className={styles.dateColumn}
+                      aria-sort={
+                        sort === "created"
+                          ? descending
+                            ? "descending"
+                            : "ascending"
+                          : "none"
+                      }
+                    >
+                      {sortHeader("created", "Date created")}
                     </th>
                   )}
                   {visibleColumns.size && (
@@ -881,6 +881,19 @@ export default function Drive() {
                         )}
                       </div>
                     </td>
+                    {visibleColumns.modified && (
+                      <td className={styles.dateColumn}>
+                        {item.kind === "file"
+                          ? new Date(
+                              item.editedAtUtc || item.uploadedAtUtc,
+                            ).toLocaleDateString(undefined, {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : "—"}
+                      </td>
+                    )}
                     {visibleColumns.created && (
                       <td className={styles.dateColumn}>
                         {item.kind === "file" && item.uploadedAtUtc
@@ -892,19 +905,6 @@ export default function Drive() {
                                 day: "numeric",
                               },
                             )
-                          : "—"}
-                      </td>
-                    )}
-                    {visibleColumns.modified && (
-                      <td className={styles.dateColumn}>
-                        {item.kind === "file"
-                          ? new Date(
-                              item.editedAtUtc || item.uploadedAtUtc,
-                            ).toLocaleDateString(undefined, {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            })
                           : "—"}
                       </td>
                     )}

@@ -9,36 +9,78 @@
   width: 100%;
   background: white;
   border: 1px solid var(--border);
-  border-radius: 24px;
-  padding: 48px;
+  border-radius: 16px;
+  overflow: hidden;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 64px;
-  box-shadow: 0 8px 32px #263e6010;
+  box-shadow: var(--shadow);
+}
+.intro {
+  padding: 48px 36px;
+  background: var(--navy);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 .brand {
   display: flex;
   gap: 12px;
   align-items: center;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.025em;
   margin-bottom: 48px;
 }
 .brand svg {
-  color: var(--accent);
+  color: white;
+  width: 40px;
+  height: 40px;
+  padding: 7px;
+  background: #ffffff1f;
+  border: 1px solid #ffffff26;
+  border-radius: 12px;
 }
 .intro h1 {
   font-size: 30px;
   line-height: 1.3;
 }
 .intro p {
-  color: var(--secondary);
-  margin-top: 20px;
+  color: #dbeafe;
+  margin-top: 16px;
+}
+.storageNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff14;
+  border: 1px solid #ffffff26;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-top: 32px;
+  font-size: 13px;
+  color: #dbeafe;
+  width: fit-content;
+}
+.storageNote strong {
+  color: #ffffff;
+}
+.trialTag {
+  background: var(--accent);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  margin-left: 4px;
 }
 .form {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  padding: 48px 36px;
+  justify-content: center;
 }
 .form h2 {
   margin: 0 0 4px;
@@ -46,13 +88,23 @@
 .form label {
   display: grid;
   gap: 8px;
+  color: var(--secondary);
+  font-size: 13px;
+  font-weight: 600;
 }
 .form input {
   width: 100%;
-  border: 1px solid #9aa0a6;
+  border: 1px solid var(--accent-border);
   border-radius: 8px;
   padding: 13px;
   background: white;
+  color: var(--text);
+  font-weight: 400;
+}
+.form input:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--selected);
 }
 .form button {
   justify-content: center;
@@ -60,7 +112,9 @@
 @media (max-width: 700px) {
   .card {
     grid-template-columns: 1fr;
-    gap: 28px;
+  }
+  .intro,
+  .form {
     padding: 28px;
   }
   .brand {

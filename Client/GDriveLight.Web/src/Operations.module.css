@@ -2,7 +2,8 @@
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: #172b4d55;
+  background: #0c122266;
+  backdrop-filter: blur(3px);
 }
 .dialog {
   position: fixed;
@@ -14,9 +15,10 @@
   max-height: calc(100dvh - 40px);
   overflow: auto;
   background: white;
-  border-radius: 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 20px 80px #0003;
+  box-shadow: 0 20px 80px #0c122233;
 }
 .dialogHeader {
   display: flex;
@@ -44,10 +46,16 @@
   margin-bottom: 16px;
 }
 .nameField input {
-  border: 1px solid #9aa0a6;
+  border: 1px solid var(--accent-border);
   border-radius: 8px;
   padding: 12px;
   width: 100%;
+  color: var(--text);
+}
+.nameField input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--selected);
 }
 .dialogActions {
   display: flex;

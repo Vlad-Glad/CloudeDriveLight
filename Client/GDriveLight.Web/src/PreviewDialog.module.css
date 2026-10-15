@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: #1f1f1f;
+  background: var(--viewer-background);
 }
 .viewer {
   position: fixed;
@@ -11,8 +11,8 @@
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  color: #f1f3f4;
-  background: #1f1f1f;
+  color: var(--viewer-text);
+  background: var(--viewer-background);
   outline: none;
 }
 .viewer button {
@@ -24,18 +24,18 @@
 }
 .viewer :global(.secondary) {
   background: transparent;
-  border-color: #5f6368;
+  border-color: #516181;
   margin-top: 12px;
 }
 .viewer button:focus-visible {
-  outline-color: #a8c7fa;
+  outline-color: var(--accent-border);
 }
 .header {
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 12px 20px;
-  border-bottom: 1px solid #ffffff1f;
+  border-bottom: 1px solid var(--viewer-border);
   flex-shrink: 0;
 }
 .header > svg {
@@ -81,7 +81,7 @@
   text-align: center;
 }
 .placeholder > svg {
-  color: #bdc1c6;
+  color: var(--viewer-muted);
 }
 .placeholder h2 {
   font-size: 20px;
@@ -91,7 +91,7 @@
   margin: 4px 0;
 }
 .details {
-  color: #bdc1c6;
+  color: var(--viewer-muted);
   font-size: 13px;
 }
 .error {
@@ -102,7 +102,7 @@
 }
 .footer {
   padding: 12px 16px max(16px, env(safe-area-inset-bottom));
-  color: #bdc1c6;
+  color: var(--viewer-muted);
   text-align: center;
   flex-shrink: 0;
 }

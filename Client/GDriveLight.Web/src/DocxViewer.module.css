@@ -13,7 +13,7 @@
   padding: 6px 14px;
   flex-shrink: 0;
   border-bottom: 1px solid #ffffff1f;
-  background: #1f1f1f;
+  background: var(--viewer-background);
 }
 
 .badge {
@@ -94,7 +94,7 @@
   width: 100%;
   height: 100%;
   overflow: auto;
-  background: #2b2b2b;
+  background: #131e34;
   position: relative;
   display: flex;
   flex-direction: column;

@@ -4,13 +4,13 @@ import { Check, Columns3 } from "lucide-react";
 
 const storageKey = "gdrivelight.columns.v2";
 const columns = [
-  { key: "created", label: "Date created" },
   { key: "modified", label: "Date modified" },
+  { key: "created", label: "Date created" },
   { key: "size", label: "File size" },
 ] as const;
 export type VisibleColumns = Record<(typeof columns)[number]["key"], boolean>;
-const allVisible: VisibleColumns = { created: true, modified: true, size: true };
-const allHidden: VisibleColumns = { created: false, modified: false, size: false };
+const allVisible: VisibleColumns = { modified: true, created: true, size: true };
+const allHidden: VisibleColumns = { modified: false, created: false, size: false };
 
 function restoreColumns(): VisibleColumns {
   try {

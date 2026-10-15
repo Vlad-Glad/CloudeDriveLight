@@ -20,7 +20,7 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
-  box-shadow: 0 4px 24px #263e6029;
+  box-shadow: var(--shadow);
 }
 .message {
   display: flex;

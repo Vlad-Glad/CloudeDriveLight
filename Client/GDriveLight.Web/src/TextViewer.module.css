@@ -64,10 +64,10 @@
   font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
   font-size: 13px;
   line-height: 1.6;
-  color: #5f6368;
+  color: var(--viewer-muted);
   user-select: none;
   border-right: 1px solid #ffffff0f;
-  background: #181818;
+  background: #101a2e;
   min-width: 48px;
 }
 .lineNumbers span {

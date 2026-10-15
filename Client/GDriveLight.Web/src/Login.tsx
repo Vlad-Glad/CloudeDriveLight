@@ -46,20 +46,29 @@ export default function Login() {
     <main className={styles.page}>
       <div className={styles.card}>
         <div className={styles.intro}>
-          <div className={styles.brand}>
-            <Cloud size={32} />
-            GDriveLight
+          <div>
+            <div className={styles.brand}>
+              <Cloud size={32} />
+              GDriveLight
+            </div>
+            <h1>
+              {mode === "login"
+                ? "Welcome to GDriveLight"
+                : "Create your account"}
+            </h1>
+            <p>
+              Your files. Your space.
+              <br />
+              Everything you need, wherever you are.
+            </p>
           </div>
-          <h1>
-            {mode === "login"
-              ? "Welcome to GDriveLight"
-              : "Create your account"}
-          </h1>
-          <p>
-            Your files. Your space.
-            <br />
-            Everything you need, wherever you are.
-          </p>
+          <div className={styles.storageNote}>
+            <Cloud size={16} />
+            <span>
+              Included: <strong>2 GB</strong> cloud storage{" "}
+              <span className={styles.trialTag}>TRIAL</span>
+            </span>
+          </div>
         </div>
         <form onSubmit={submit} className={styles.form}>
           <h2>{mode === "login" ? "Sign in" : "Get started"}</h2>
