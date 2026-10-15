@@ -14,8 +14,10 @@
         <TextBlock Text="Disconnect to stop syncing and make this device available to another account. Local files stay in place. The cloud folder becomes a separate folder in Home, and your account stays signed in."
                    TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" />
         <Button x:Name="DisconnectDeviceButton" Content="Stop syncing this device" Command="{Binding DisconnectDeviceCommand}"
-                Padding="14,10" HorizontalAlignment="Left" Margin="0,18,0,8" AutomationProperties.Name="Stop syncing this device" />
-        <Button Content="Choose sync folder..." Command="{Binding ChangeSyncFolderCommand}" Padding="14,10"
+                Style="{DynamicResource OutlinedActionButtonStyle}" Height="36" Padding="16,0"
+                HorizontalAlignment="Left" Margin="0,18,0,8" AutomationProperties.Name="Stop syncing this device" />
+        <Button Content="Choose sync folder..." Command="{Binding ChangeSyncFolderCommand}"
+                Style="{DynamicResource PrimaryActionButtonStyle}" Height="36" Padding="16,0"
                 HorizontalAlignment="Left" AutomationProperties.Name="Choose sync folder" />
         <TextBlock Text="Choose a folder explicitly to connect synchronization again." Margin="0,8,0,0" FontSize="12"
                    TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" />

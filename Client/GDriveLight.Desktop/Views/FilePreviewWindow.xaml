@@ -30,10 +30,10 @@
                 <TextBlock Text="{Binding PositionText}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Content="Previous" Command="{Binding PreviousCommand}" ToolTip="Previous file (Alt+Left)" />
-                <Button Content="Next" Command="{Binding NextCommand}" ToolTip="Next file (Alt+Right)" />
-                <Button Content="Download" Command="{Binding DownloadCommand}" />
-                <Button Content="Close" Click="CloseClick" ToolTip="Close (Esc)" />
+                <Button Content="Previous" Command="{Binding PreviousCommand}" Style="{DynamicResource OutlinedActionButtonStyle}" ToolTip="Previous file (Alt+Left)" Margin="4,0" />
+                <Button Content="Next" Command="{Binding NextCommand}" Style="{DynamicResource OutlinedActionButtonStyle}" ToolTip="Next file (Alt+Right)" Margin="4,0" />
+                <Button Content="Download" Command="{Binding DownloadCommand}" Style="{DynamicResource PrimaryActionButtonStyle}" Margin="4,0" />
+                <Button Content="Close" Click="CloseClick" Style="{DynamicResource OutlinedActionButtonStyle}" ToolTip="Close (Esc)" Margin="4,0" />
             </StackPanel>
         </Grid>
         <Border Grid.Row="1" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}"
@@ -50,10 +50,10 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="8">
-                        <Button Content="−" Command="{Binding ZoomOutCommand}" AutomationProperties.Name="Zoom out" />
+                        <Button Content="−" Command="{Binding ZoomOutCommand}" Style="{DynamicResource OutlinedActionButtonStyle}" Width="34" Height="34" Padding="0" AutomationProperties.Name="Zoom out" />
                         <TextBlock Text="{Binding ZoomText}" MinWidth="90" TextAlignment="Center" VerticalAlignment="Center" />
-                        <Button Content="+" Command="{Binding ZoomInCommand}" AutomationProperties.Name="Zoom in" />
-                        <Button Content="Fit" Command="{Binding FitCommand}" ToolTip="Fit image to window" />
+                        <Button Content="+" Command="{Binding ZoomInCommand}" Style="{DynamicResource OutlinedActionButtonStyle}" Width="34" Height="34" Padding="0" AutomationProperties.Name="Zoom in" />
+                        <Button Content="Fit" Command="{Binding FitCommand}" Style="{DynamicResource OutlinedActionButtonStyle}" Height="34" Padding="12,0" ToolTip="Fit image to window" Margin="6,0,0,0" />
                     </StackPanel>
                     <ScrollViewer x:Name="ImageScroller" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                         <Viewbox Width="{Binding ViewportWidth, ElementName=ImageScroller}"
@@ -75,7 +75,7 @@
                 <StackPanel MaxWidth="450" Margin="24" HorizontalAlignment="Center" VerticalAlignment="Center"
                             Visibility="{Binding ShowMessage, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <TextBlock Text="{Binding Message}" TextWrapping="Wrap" TextAlignment="Center" />
-                    <Button Content="Retry" Command="{Binding RetryCommand}" HorizontalAlignment="Center" Margin="0,16,0,0"
+                    <Button Content="Retry" Command="{Binding RetryCommand}" Style="{DynamicResource PrimaryActionButtonStyle}" HorizontalAlignment="Center" Margin="0,16,0,0"
                             Visibility="{Binding CanRetry, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 </StackPanel>
             </Grid>

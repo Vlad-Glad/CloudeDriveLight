@@ -14,9 +14,10 @@
         Foreground="{DynamicResource TextPrimaryBrush}">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
-        <SolidColorBrush x:Key="InputBorderBrush" Color="#9AA0A6" />
-        <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#FCE8E6" />
-        <SolidColorBrush x:Key="ErrorTextBrush" Color="#B3261E" />
+        <SolidColorBrush x:Key="InputBorderBrush" Color="#CBD5E1" />
+        <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#FEF2F2" />
+        <SolidColorBrush x:Key="ErrorBorderBrush" Color="#FECACA" />
+        <SolidColorBrush x:Key="ErrorTextBrush" Color="#991B1B" />
 
         <Style TargetType="TextBox">
             <Setter Property="Height" Value="42" />
@@ -24,6 +25,7 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource InputBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             <Setter Property="FontSize" Value="14" />
         </Style>
@@ -34,6 +36,7 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource InputBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             <Setter Property="FontSize" Value="14" />
         </Style>
@@ -70,9 +73,10 @@
 
                             <!-- Brand Header -->
                             <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,48">
-                                <ui:SymbolIcon Symbol="Cloud48" FontSize="32" Foreground="{DynamicResource AccentBrush}"
-                                               VerticalAlignment="Center" Margin="0,0,12,0" />
-                                <TextBlock Text="GDriveLight" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <Border Width="38" Height="38" CornerRadius="10" Background="{DynamicResource AccentBrush}" Margin="0,0,12,0" VerticalAlignment="Center">
+                                    <ui:SymbolIcon Symbol="Cloud24" FontSize="22" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock Text="GDriveLight" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrandBrush}" VerticalAlignment="Center" />
                             </StackPanel>
 
                             <!-- Welcome Title & Subtitle -->
@@ -80,31 +84,32 @@
                                 <TextBlock FontSize="30" FontWeight="Medium" LineHeight="38" TextWrapping="Wrap" Margin="0,0,0,16">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
-                                            <Setter Property="Text" Value="Ласкаво просимо до GDriveLight" />
+                                            <Setter Property="Text" Value="Welcome to GDriveLight" />
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsRegisterMode}" Value="True">
-                                                    <Setter Property="Text" Value="Створіть свій обліковий запис" />
+                                                    <Setter Property="Text" Value="Create your account" />
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </TextBlock.Style>
                                 </TextBlock>
                                 <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" FontSize="14" LineHeight="22" TextWrapping="Wrap">
-                                    <Run Text="Ваші файли. Ваш простір." />
+                                    <Run Text="Your files. Your space." />
                                     <LineBreak />
-                                    <Run Text="Усе необхідне, де б ви не були." />
+                                    <Run Text="Everything you need, wherever you are." />
                                 </TextBlock>
                             </StackPanel>
 
                             <!-- Storage Note (Bottom) -->
-                            <Border Grid.Row="2" Background="{DynamicResource SearchBarBackgroundBrush}"
-                                    CornerRadius="12" Padding="12,10" HorizontalAlignment="Left" Margin="0,32,0,0">
+                            <Border Grid.Row="2" Background="{DynamicResource AppBackgroundBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                    CornerRadius="12" Padding="14,10" HorizontalAlignment="Left" Margin="0,32,0,0">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <ui:SymbolIcon Symbol="Cloud24" FontSize="16" Foreground="{DynamicResource AccentBrush}"
                                                    Margin="0,0,8,0" VerticalAlignment="Center" />
-                                    <TextBlock Text="Включено: " Foreground="{DynamicResource TextSecondaryBrush}" FontSize="13" VerticalAlignment="Center" />
+                                    <TextBlock Text="Included: " Foreground="{DynamicResource TextSecondaryBrush}" FontSize="13" VerticalAlignment="Center" />
                                     <TextBlock Text="2 GB " FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" FontSize="13" VerticalAlignment="Center" />
-                                    <TextBlock Text="хмарного простору " Foreground="{DynamicResource TextSecondaryBrush}" FontSize="13" VerticalAlignment="Center" />
+                                    <TextBlock Text="cloud storage " Foreground="{DynamicResource TextSecondaryBrush}" FontSize="13" VerticalAlignment="Center" />
                                     <Border Background="{DynamicResource AccentBrush}" CornerRadius="4" Padding="6,2" Margin="4,0,0,0" VerticalAlignment="Center">
                                         <TextBlock Text="TRIAL" Foreground="White" FontSize="10" FontWeight="Bold" />
                                     </Border>
@@ -118,10 +123,10 @@
                             <TextBlock FontSize="20" FontWeight="Medium" Margin="0,0,0,20">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="Увійти" />
+                                        <Setter Property="Text" Value="Sign in" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsRegisterMode}" Value="True">
-                                                <Setter Property="Text" Value="Почати роботу" />
+                                                <Setter Property="Text" Value="Get started" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -129,21 +134,21 @@
                             </TextBlock>
 
                             <!-- Email -->
-                            <TextBlock Text="Електронна адреса" FontSize="13.5" FontWeight="Medium" Margin="0,0,0,8" />
+                            <TextBlock Text="Email address" FontSize="13.5" FontWeight="Medium" Margin="0,0,0,8" />
                             <TextBox Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}"
                                      AutomationProperties.Name="Email address"
                                      Margin="0,0,0,16" />
 
                             <!-- First Name (Register only) -->
                             <StackPanel Visibility="{Binding IsRegisterMode, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <TextBlock Text="Ім'я" FontSize="13.5" FontWeight="Medium" Margin="0,0,0,8" />
+                                <TextBlock Text="First name" FontSize="13.5" FontWeight="Medium" Margin="0,0,0,8" />
                                 <TextBox Text="{Binding FirstName, UpdateSourceTrigger=PropertyChanged}"
                                          AutomationProperties.Name="First name"
                                          Margin="0,0,0,16" />
                             </StackPanel>
 
                             <!-- Password -->
-                            <TextBlock Text="Пароль" FontSize="13.5" FontWeight="Medium" Margin="0,0,0,8" />
+                            <TextBlock Text="Password" FontSize="13.5" FontWeight="Medium" Margin="0,0,0,8" />
                             <Grid Margin="0,0,0,16">
                                 <PasswordBox x:Name="PasswordInput"
                                              PasswordChanged="PasswordChanged"
@@ -163,7 +168,7 @@
                                         Padding="8,6"
                                         Margin="0,0,4,0"
                                         Cursor="Hand"
-                                        ToolTip="Показати/приховати пароль"
+                                        ToolTip="Show/hide password"
                                         Focusable="False">
                                     <ui:SymbolIcon x:Name="TogglePasswordIcon"
                                                    Symbol="Eye24"
@@ -174,6 +179,8 @@
 
                             <!-- Error Message -->
                             <Border Background="{StaticResource ErrorBackgroundBrush}"
+                                    BorderBrush="{StaticResource ErrorBorderBrush}"
+                                    BorderThickness="1"
                                     CornerRadius="8"
                                     Padding="14,10"
                                     Margin="0,0,0,16"
@@ -185,7 +192,7 @@
                                            LineHeight="18" />
                             </Border>
 
-                            <!-- Primary Button -->
+                            <!-- Primary Button (Solid Blue, No Gradient) -->
                             <Button Command="{Binding SubmitCommand}"
                                     IsDefault="True"
                                     Background="{DynamicResource AccentBrush}"
@@ -193,7 +200,7 @@
                                     Height="44"
                                     HorizontalAlignment="Stretch"
                                     FontSize="14"
-                                    FontWeight="Medium"
+                                    FontWeight="SemiBold"
                                     Cursor="Hand"
                                     AutomationProperties.Name="Submit">
                                 <Button.Template>
@@ -207,23 +214,27 @@
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="border" Property="Background" Value="#0842A0" />
+                                                <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentHoverBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="{DynamicResource AccentPressedBrush}" />
                                             </Trigger>
                                             <Trigger Property="IsEnabled" Value="False">
-                                                <Setter TargetName="border" Property="Opacity" Value="0.6" />
+                                                <Setter TargetName="border" Property="Opacity" Value="0.45" />
+                                                <Setter Property="Cursor" Value="Arrow" />
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
                                 </Button.Template>
                                 <Button.Style>
                                     <Style TargetType="Button">
-                                        <Setter Property="Content" Value="Увійти" />
+                                        <Setter Property="Content" Value="Sign in" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsRegisterMode}" Value="True">
-                                                <Setter Property="Content" Value="Створити акаунт" />
+                                                <Setter Property="Content" Value="Create account" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding IsLoading}" Value="True">
-                                                <Setter Property="Content" Value="Зачекайте..." />
+                                                <Setter Property="Content" Value="Please wait…" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -240,7 +251,7 @@
                                     Cursor="Hand">
                                 <Button.Style>
                                     <Style TargetType="Button">
-                                        <Setter Property="Content" Value="Створити акаунт" />
+                                        <Setter Property="Content" Value="Create an account" />
                                         <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
                                         <Setter Property="FontSize" Value="13.5" />
                                         <Setter Property="FontWeight" Value="Medium" />
@@ -260,7 +271,7 @@
                                         </Setter>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsRegisterMode}" Value="True">
-                                                <Setter Property="Content" Value="Вже маєте акаунт? Увійти" />
+                                                <Setter Property="Content" Value="Already have an account? Sign in" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>

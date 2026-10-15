@@ -38,10 +38,10 @@
             </Setter>
         </Style>
         <DataTemplate x:Key="ProfileAvatarTemplate">
-            <Grid Width="40" Height="40">
-                <Ellipse Fill="{DynamicResource SidebarSelectedBrush}" />
-                <TextBlock Text="{Binding Initial}" FontSize="17" FontWeight="SemiBold"
-                           Foreground="{DynamicResource SidebarSelectedTextBrush}"
+            <Grid Width="38" Height="38">
+                <Ellipse Fill="{DynamicResource BrandNavyBrush}" />
+                <TextBlock Text="{Binding Initial}" FontSize="15" FontWeight="Bold"
+                           Foreground="White"
                            HorizontalAlignment="Center" VerticalAlignment="Center" />
                 <Ellipse>
                     <Ellipse.Fill><ImageBrush ImageSource="{Binding Avatar}" Stretch="UniformToFill" /></Ellipse.Fill>
@@ -84,16 +84,53 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="PrimaryActionButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="14,7" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource AccentHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource AccentPressedBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.45" />
+                                <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="OutlinedActionButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource SidebarSelectedTextBrush}" />
             <Setter Property="Padding" Value="12,6" />
             <Setter Property="Height" Value="34" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -110,12 +147,12 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#F0F4F9" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource RowSelectedBrush}" />
                                 <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                                 <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#E2ECF8" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
                                 <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
@@ -131,16 +168,17 @@
             </Setter>
         </Style>
         <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
-            <Setter Property="FontWeight" Value="Normal" />
-            <Setter Property="Padding" Value="12,12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="14,10" />
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="0,0,0,1" />
         </Style>
         <Style TargetType="DataGridCell">
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="Padding" Value="14,0" />
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
@@ -157,12 +195,15 @@
         <Style TargetType="DataGridRow">
             <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
+                    <Setter Property="Background" Value="#F8FAFC" />
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource SidebarSelectedBrush}" />
+                    <Setter Property="Background" Value="{DynamicResource RowSelectedBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBorderBrush}" />
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -179,19 +220,28 @@
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <StackPanel Orientation="Horizontal" Margin="12,12,0,28">
-                <ui:SymbolIcon Symbol="Cloud48" Foreground="{DynamicResource PrimaryBrandBrush}" FontSize="30" />
-                <TextBlock Text="GDriveLight" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0,0,0" />
+            <StackPanel Orientation="Horizontal" Margin="8,8,0,24">
+                <Border Width="34" Height="34" CornerRadius="8" Background="{DynamicResource AccentBrush}">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.25" Color="#2563EB" />
+                    </Border.Effect>
+                    <ui:SymbolIcon Symbol="Cloud24" Foreground="White" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <TextBlock Text="GDriveLight" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"
+                           VerticalAlignment="Center" Margin="10,0,0,0" />
             </StackPanel>
-            <ui:Button x:Name="NewButton" Grid.Row="1" IsEnabled="{Binding CanManageFiles}" Click="NewButtonClick"
-                       Background="White" CornerRadius="16" Padding="20,14"
-                       Margin="0,0,0,20" HorizontalAlignment="Left">
-                <ui:Button.Effect><DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.12" /></ui:Button.Effect>
-                <StackPanel Orientation="Horizontal">
-                    <ui:SymbolIcon Symbol="Add24" FontSize="22" />
-                    <TextBlock Text="New" Margin="12,0,0,0" VerticalAlignment="Center" />
+            <Button x:Name="NewButton" Grid.Row="1" IsEnabled="{Binding CanManageFiles}" Click="NewButtonClick"
+                    Style="{StaticResource PrimaryActionButtonStyle}" Height="44" Padding="20,12"
+                    Margin="0,0,0,20" HorizontalAlignment="Left" FocusVisualStyle="{x:Null}">
+                <Button.Effect>
+                    <DropShadowEffect BlurRadius="12" ShadowDepth="3" Opacity="0.22" Color="#2563EB" />
+                </Button.Effect>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <ui:SymbolIcon Symbol="Add24" FontSize="20" Foreground="White" />
+                    <TextBlock Text="New" Margin="10,0,0,0" VerticalAlignment="Center"
+                               FontSize="14" FontWeight="SemiBold" Foreground="White" />
                 </StackPanel>
-            </ui:Button>
+            </Button>
             <ListBox Grid.Row="2" Background="Transparent" BorderThickness="0"
                      IsEnabled="{Binding CanNavigate}"
                      SelectedIndex="{Binding SelectedSidebarIndex, Mode=TwoWay}">
@@ -201,6 +251,8 @@
                         <Setter Property="Margin" Value="0,0,0,4" />
                         <Setter Property="Cursor" Value="Hand" />
                         <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+                        <Setter Property="FontWeight" Value="Medium" />
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ListBoxItem">
@@ -211,9 +263,12 @@
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
                                             <Setter Property="Background" Value="{DynamicResource SidebarHoverBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                                         </Trigger>
                                         <Trigger Property="IsSelected" Value="True">
                                             <Setter Property="Background" Value="{DynamicResource SidebarSelectedBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SidebarSelectedTextBrush}" />
+                                            <Setter Property="FontWeight" Value="SemiBold" />
                                         </Trigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
@@ -235,10 +290,13 @@
                     </StackPanel>
                 </ListBoxItem>
             </ListBox>
-            <Border Grid.Row="3" DataContext="{Binding StorageUsage}" BorderBrush="{DynamicResource BorderBrush}"
-                    BorderThickness="0,1,0,0" Padding="12,16,12,4" Margin="0,12,0,0">
+            <Border Grid.Row="3" DataContext="{Binding StorageUsage}"
+                    Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1" CornerRadius="12"
+                    Padding="14" Margin="0,12,0,0">
                 <StackPanel>
-                    <TextBlock Text="Storage" FontWeight="Medium" Margin="0,0,0,10" />
+                    <TextBlock Text="Storage" FontWeight="SemiBold" Margin="0,0,0,10" Foreground="{DynamicResource TextPrimaryBrush}" />
                     <TextBlock Text="Loading storage…" Foreground="{DynamicResource TextSecondaryBrush}"
                                Visibility="{Binding ShowLoading, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     <StackPanel Visibility="{Binding HasUsage, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -276,7 +334,12 @@
                 </StackPanel>
             </Border>
         </Grid>
-        <Border Grid.Column="1" Background="White" CornerRadius="20" Margin="0,16,16,16">
+        <Border Grid.Column="1" Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                CornerRadius="16" Margin="0,14,16,16">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.03" Color="#1E3A8A" />
+            </Border.Effect>
             <Grid Margin="24">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -289,12 +352,15 @@
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="16,0,0,0">
                         <StackPanel x:Name="SyncHeaderControls" Orientation="Horizontal" VerticalAlignment="Center"
                                     Visibility="{Binding IsSyncedFoldersView, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <Button x:Name="SyncDeviceButton" Command="{Binding SyncCommand}" Style="{StaticResource OutlinedActionButtonStyle}"
+                            <Button x:Name="SyncDeviceButton" Command="{Binding SyncCommand}" Style="{StaticResource PrimaryActionButtonStyle}"
                                     ToolTip="{Binding SyncActionHelp}" ToolTipService.ShowOnDisabled="True"
                                     Visibility="{Binding ShowSyncAction, Converter={StaticResource BooleanToVisibilityConverter}}"
                                     AutomationProperties.Name="Sync this device">
+                                <Button.Effect>
+                                    <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.18" Color="#2563EB" />
+                                </Button.Effect>
                                 <StackPanel Orientation="Horizontal">
-                                    <ui:SymbolIcon x:Name="SyncGlyph" Symbol="ArrowSync24" FontSize="18" Margin="0,0,8,0"
+                                    <ui:SymbolIcon x:Name="SyncGlyph" Symbol="ArrowSync24" FontSize="18" Foreground="White" Margin="0,0,8,0"
                                                    RenderTransformOrigin="0.5,0.5">
                                         <ui:SymbolIcon.RenderTransform><RotateTransform Angle="0" /></ui:SymbolIcon.RenderTransform>
                                         <ui:SymbolIcon.Style>
@@ -321,7 +387,7 @@
                                             </Style>
                                         </ui:SymbolIcon.Style>
                                     </ui:SymbolIcon>
-                                    <TextBlock Text="{Binding SyncActionLabel}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding SyncActionLabel}" Foreground="White" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Button>
                             <TextBlock x:Name="SyncStatusLabel" Text="{Binding SyncHeaderStatusText}" FontSize="12"
@@ -404,9 +470,13 @@
                     </ScrollViewer>
                 </DockPanel>
                 <Border Grid.Row="1" Background="{DynamicResource SearchBarBackgroundBrush}"
-                        CornerRadius="26" Padding="16,12" Margin="0,0,0,14">
+                        BorderBrush="{DynamicResource SearchBarBorderBrush}" BorderThickness="1.5"
+                        CornerRadius="24" Padding="16,10" Margin="0,0,0,14">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="8" ShadowDepth="1" Opacity="0.04" Color="#1E3A8A" />
+                    </Border.Effect>
                     <DockPanel>
-                        <ui:SymbolIcon Symbol="Search24" FontSize="20" Margin="0,0,12,0" />
+                        <ui:SymbolIcon Symbol="Search24" FontSize="18" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,12,0" />
                         <TextBox x:Name="SearchInput" IsEnabled="{Binding CanManageFiles}"
                                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                     Background="Transparent" BorderThickness="0" Padding="0"
@@ -416,7 +486,7 @@
                                     <Grid>
                                         <ScrollViewer x:Name="PART_ContentHost" />
                                         <TextBlock x:Name="Placeholder" Text="Search files and folders" IsHitTestVisible="False"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}" Visibility="Collapsed" />
+                                                   Foreground="{DynamicResource TextMutedBrush}" Visibility="Collapsed" />
                                     </Grid>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="Text" Value="">
@@ -428,7 +498,9 @@
                         </TextBox>
                     </DockPanel>
                 </Border>
-                <Border Grid.Row="2" Background="{DynamicResource AppBackgroundBrush}" CornerRadius="10" Padding="12"
+                <Border Grid.Row="2" Background="{DynamicResource AppBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="10" Padding="12"
                         Margin="0,0,0,14" Visibility="{Binding IsSyncedFoldersView, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -525,10 +597,13 @@
                             Visibility="{Binding HasNotification, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Border.Style>
                             <Style TargetType="Border">
-                                <Setter Property="Background" Value="#EBF5FB" />
+                                <Setter Property="Background" Value="#EFF6FF" />
+                                <Setter Property="BorderBrush" Value="#DBEAFE" />
+                                <Setter Property="BorderThickness" Value="1" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsNotificationError}" Value="True">
-                                        <Setter Property="Background" Value="#FDECEA" />
+                                        <Setter Property="Background" Value="#FEF2F2" />
+                                        <Setter Property="BorderBrush" Value="#FECACA" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -560,10 +635,10 @@
                                 <TextBlock Text="{Binding NotificationMessage}" TextWrapping="Wrap" VerticalAlignment="Center">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="#0A3D5E" />
+                                            <Setter Property="Foreground" Value="#1E3A8A" />
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsNotificationError}" Value="True">
-                                                    <Setter Property="Foreground" Value="#8B1A10" />
+                                                    <Setter Property="Foreground" Value="#991B1B" />
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -579,91 +654,94 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <Button x:Name="FileTypeFilterButton" Content="{Binding FileTypeFilterLabel}" Click="FileTypeFilterButtonClick"
-                            HorizontalAlignment="Left" Margin="0,0,0,6" Padding="10,6"
-                            Style="{StaticResource QuietButton}" Foreground="{DynamicResource TextSecondaryBrush}"
+                            HorizontalAlignment="Left" Margin="0,0,0,8" Padding="12,6" Height="32"
+                            Style="{StaticResource OutlinedActionButtonStyle}"
                             IsEnabled="{Binding CanManageFiles}"
                             ToolTip="Filter by file type" AutomationProperties.Name="Filter by file type" />
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,6">
-                        <Button x:Name="RefreshFilesButton" Command="{Binding RetryCommand}" Style="{StaticResource QuietButton}"
-                                Padding="10,6" Margin="0,0,8,0" ToolTip="Reload this list from the cloud. Does not sync local files."
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
+                        <Button x:Name="RefreshFilesButton" Command="{Binding RetryCommand}" Style="{StaticResource OutlinedActionButtonStyle}"
+                                Height="32" Padding="12,6" Margin="0,0,8,0" ToolTip="Reload this list from the cloud. Does not sync local files."
                                 ToolTipService.ShowOnDisabled="True" AutomationProperties.Name="Refresh">
                             <StackPanel Orientation="Horizontal">
-                                <ui:SymbolIcon Symbol="ArrowClockwise24" FontSize="18" Margin="0,0,6,0" />
+                                <ui:SymbolIcon Symbol="ArrowClockwise24" FontSize="16" Margin="0,0,6,0" />
                                 <TextBlock Text="Refresh" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
-                        <Button x:Name="ColumnsButton" Content="Columns ▾" Click="ColumnsButtonClick" Padding="10,6"
-                                Style="{StaticResource QuietButton}" Foreground="{DynamicResource TextSecondaryBrush}"
+                        <Button x:Name="ColumnsButton" Content="Columns ▾" Click="ColumnsButtonClick" Padding="12,6" Height="32"
+                                Style="{StaticResource OutlinedActionButtonStyle}"
                                 ToolTip="Show or hide columns" AutomationProperties.Name="Show or hide columns" />
                     </StackPanel>
                     <Grid x:Name="FileDropSurface" Grid.Row="1" Background="Transparent" AllowDrop="True"
                           PreviewDragOver="ItemDragOver" PreviewDrop="ItemDrop" PreviewDragLeave="ItemDragLeave">
-                        <DataGrid x:Name="FileGrid" ItemsSource="{Binding VisibleFiles}" SelectedItem="{Binding SelectedFile}"
-                                  IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"
-                                  CanUserDeleteRows="False" CanUserSortColumns="False" CanUserResizeRows="False"
-                                  SelectionMode="Extended" SelectionUnit="FullRow" HeadersVisibility="Column"
-                                  GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource BorderBrush}"
-                                  RowHeight="56" BorderThickness="0" Background="{DynamicResource SurfaceBrush}"
-                                  AllowDrop="True" PreviewMouseLeftButtonDown="FileGridMouseDown" PreviewMouseLeftButtonUp="FileGridMouseUp"
-                                  PreviewMouseMove="FileGridMouseMove"
-                                  PreviewMouseRightButtonUp="FileGridRightClick" PreviewKeyDown="FileGridKeyDown"
-                                  MouseDoubleClick="FileGridDoubleClick"
-                                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                                  Visibility="{Binding IsContentVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <DataGrid.InputBindings>
-                                <KeyBinding Key="Enter" Command="{Binding OpenItemCommand}" CommandParameter="{Binding SelectedFile}" />
-                                <KeyBinding Key="F2" Command="{Binding RenameCommand}" CommandParameter="{Binding SelectedFile}" />
-                                <KeyBinding Key="Delete" Command="{Binding DeleteCommand}" CommandParameter="{Binding SelectedFile}" />
-                                <KeyBinding Key="M" Modifiers="Control" Command="{Binding MoveCommand}" CommandParameter="{Binding SelectedFile}" />
-                            </DataGrid.InputBindings>
-                            <DataGrid.Columns>
-                                <DataGridTemplateColumn x:Name="NameColumn" Header="Name" Width="*" MinWidth="120">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <DockPanel>
-                                                <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="24" Margin="0,0,14,0"
-                                                               Foreground="{Binding IconColorBrushKey, Converter={StaticResource StringToBrushConverter}}" />
-                                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" />
-                                            </DockPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Type" Width="90" Binding="{Binding FileType}" />
-                                <DataGridTemplateColumn Header="Modified" Width="155" MinWidth="140">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel ToolTip="{Binding ModifiedTimestamp}">
-                                                <TextBlock Text="{Binding DateModified}" FontSize="13" />
-                                                <TextBlock Text="{Binding TimeModified}" FontSize="12" Margin="0,2,0,0"
-                                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Created" Width="155" MinWidth="140">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel ToolTip="{Binding CreatedTimestamp}">
-                                                <TextBlock Text="{Binding DateCreated}" FontSize="13" />
-                                                <TextBlock Text="{Binding TimeCreated}" FontSize="12" Margin="0,2,0,0"
-                                                           Foreground="{DynamicResource TextSecondaryBrush}" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Size" Width="90" Binding="{Binding Size}" />
-                                <DataGridTemplateColumn x:Name="ActionsColumn" Width="48">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Button Style="{StaticResource QuietButton}" Click="RowActionsClick"
-                                                    Width="32" Height="32" Padding="4" ToolTip="File actions" AutomationProperties.Name="File actions">
-                                                <ui:SymbolIcon Symbol="MoreVertical24" FontSize="20" />
-                                            </Button>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                            </DataGrid.Columns>
-                        </DataGrid>
+                        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8"
+                                Background="{DynamicResource SurfaceBrush}" ClipToBounds="True">
+                            <DataGrid x:Name="FileGrid" ItemsSource="{Binding VisibleFiles}" SelectedItem="{Binding SelectedFile}"
+                                      IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"
+                                      CanUserDeleteRows="False" CanUserSortColumns="False" CanUserResizeRows="False"
+                                      SelectionMode="Extended" SelectionUnit="FullRow" HeadersVisibility="Column"
+                                      GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource BorderBrush}"
+                                      RowHeight="56" BorderThickness="0" Background="{DynamicResource SurfaceBrush}"
+                                      AllowDrop="True" PreviewMouseLeftButtonDown="FileGridMouseDown" PreviewMouseLeftButtonUp="FileGridMouseUp"
+                                      PreviewMouseMove="FileGridMouseMove"
+                                      PreviewMouseRightButtonUp="FileGridRightClick" PreviewKeyDown="FileGridKeyDown"
+                                      MouseDoubleClick="FileGridDoubleClick"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                      Visibility="{Binding IsContentVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <DataGrid.InputBindings>
+                                    <KeyBinding Key="Enter" Command="{Binding OpenItemCommand}" CommandParameter="{Binding SelectedFile}" />
+                                    <KeyBinding Key="F2" Command="{Binding RenameCommand}" CommandParameter="{Binding SelectedFile}" />
+                                    <KeyBinding Key="Delete" Command="{Binding DeleteCommand}" CommandParameter="{Binding SelectedFile}" />
+                                    <KeyBinding Key="M" Modifiers="Control" Command="{Binding MoveCommand}" CommandParameter="{Binding SelectedFile}" />
+                                </DataGrid.InputBindings>
+                                <DataGrid.Columns>
+                                    <DataGridTemplateColumn x:Name="NameColumn" Header="Name" Width="*" MinWidth="120">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <DockPanel>
+                                                    <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="24" Margin="0,0,14,0"
+                                                                   Foreground="{Binding IconColorBrushKey, Converter={StaticResource StringToBrushConverter}}" />
+                                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" />
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Type" Width="90" Binding="{Binding FileType}" />
+                                    <DataGridTemplateColumn Header="Modified" Width="155" MinWidth="140">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel ToolTip="{Binding ModifiedTimestamp}">
+                                                    <TextBlock Text="{Binding DateModified}" FontSize="13" />
+                                                    <TextBlock Text="{Binding TimeModified}" FontSize="12" Margin="0,2,0,0"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Created" Width="155" MinWidth="140">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel ToolTip="{Binding CreatedTimestamp}">
+                                                    <TextBlock Text="{Binding DateCreated}" FontSize="13" />
+                                                    <TextBlock Text="{Binding TimeCreated}" FontSize="12" Margin="0,2,0,0"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Size" Width="90" Binding="{Binding Size}" />
+                                    <DataGridTemplateColumn x:Name="ActionsColumn" Width="48">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Button Style="{StaticResource QuietButton}" Click="RowActionsClick"
+                                                        Width="32" Height="32" Padding="4" ToolTip="File actions" AutomationProperties.Name="File actions">
+                                                    <ui:SymbolIcon Symbol="MoreVertical24" FontSize="20" />
+                                                </Button>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
                         <ui:ProgressRing IsIndeterminate="True" Width="44" Height="44" HorizontalAlignment="Center"
                                          VerticalAlignment="Center" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -679,7 +757,7 @@
                             <TextBlock Text="Could not load this folder" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
                             <TextBlock Text="{Binding ErrorMessage}" Margin="0,8,0,0" TextWrapping="Wrap"
                                        MaxWidth="380" TextAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <Button Content="Retry" Command="{Binding RetryCommand}" Margin="0,20,0,0" HorizontalAlignment="Center" Padding="24,8" />
+                            <Button Content="Retry" Command="{Binding RetryCommand}" Style="{StaticResource PrimaryActionButtonStyle}" Margin="0,20,0,0" HorizontalAlignment="Center" Padding="24,8" />
                         </StackPanel>
                         <Border x:Name="DropUploadBanner" Visibility="Collapsed" IsHitTestVisible="False"
                                 HorizontalAlignment="Center" VerticalAlignment="Top" Margin="12" Padding="14,8" CornerRadius="8"

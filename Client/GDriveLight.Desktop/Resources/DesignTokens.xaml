@@ -2,47 +2,155 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:system="clr-namespace:System;assembly=mscorlib">
 
-    <!-- Colors -->
-    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F8FAFD" />
-    <SolidColorBrush x:Key="BackgroundBrush" Color="#F8FAFD" />
+    <!-- Electric Sapphire Color Palette -->
+    <!-- App & Backgrounds -->
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F4F7FC" />
+    <SolidColorBrush x:Key="BackgroundBrush" Color="#F4F7FC" />
     <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
-    <SolidColorBrush x:Key="AccentBrush" Color="#0B57D0" />
-    <SolidColorBrush x:Key="PrimaryBrandBrush" Color="#0B57D0" />
-    
-    <SolidColorBrush x:Key="SidebarSelectedBrush" Color="#C2E7FF" />
-    <SolidColorBrush x:Key="SidebarSelectedTextBrush" Color="#0B57D0" />
-    <SolidColorBrush x:Key="SidebarHoverBrush" Color="#E5E7EB" />
-    
-    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#1F1F1F" />
-    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#5E5E5E" />
-    
-    <SolidColorBrush x:Key="BorderBrush" Color="#E0E0E0" />
-    <SolidColorBrush x:Key="SearchBarBackgroundBrush" Color="#E9EEF6" />
-    
-    <!-- Icon Colors -->
-    <SolidColorBrush x:Key="FolderIconBrush" Color="#5F6368" />
+    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#FFFFFF" />
+
+    <!-- Brand & Accents -->
+    <SolidColorBrush x:Key="AccentBrush" Color="#2563EB" />
+    <SolidColorBrush x:Key="AccentHoverBrush" Color="#1D4ED8" />
+    <SolidColorBrush x:Key="AccentPressedBrush" Color="#1E40AF" />
+    <SolidColorBrush x:Key="AccentBorderBrush" Color="#BFDBFE" />
+    <SolidColorBrush x:Key="AccentSubtleBrush" Color="#DBEAFE" />
+    <SolidColorBrush x:Key="PrimaryBrandBrush" Color="#1E3A8A" />
+    <SolidColorBrush x:Key="BrandNavyBrush" Color="#1E3A8A" />
+    <SolidColorBrush x:Key="BrandNavyHoverBrush" Color="#172554" />
+
+    <!-- Navigation & Selection -->
+    <SolidColorBrush x:Key="SidebarSelectedBrush" Color="#DBEAFE" />
+    <SolidColorBrush x:Key="SidebarSelectedTextBrush" Color="#1E3A8A" />
+    <SolidColorBrush x:Key="SidebarHoverBrush" Color="#EEF2F8" />
+    <SolidColorBrush x:Key="RowSelectedBrush" Color="#EFF6FF" />
+    <SolidColorBrush x:Key="RowSelectedBorderBrush" Color="#BFDBFE" />
+
+    <!-- Typography -->
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#111827" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#4B5563" />
+    <SolidColorBrush x:Key="TextMutedBrush" Color="#9CA3AF" />
+
+    <!-- Borders & Dividers -->
+    <SolidColorBrush x:Key="BorderBrush" Color="#DFE5EF" />
+    <SolidColorBrush x:Key="BorderSubtleBrush" Color="#EEF2F8" />
+    <SolidColorBrush x:Key="SearchBarBackgroundBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="SearchBarBorderBrush" Color="#BFDBFE" />
+
+    <!-- Status & Alerts -->
+    <SolidColorBrush x:Key="DangerBrush" Color="#B3261E" />
+    <SolidColorBrush x:Key="DangerBackgroundBrush" Color="#FCE8E6" />
+    <SolidColorBrush x:Key="WarningBrush" Color="#B06000" />
+    <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#FEF3C7" />
+
+    <!-- File Icon Colors -->
+    <SolidColorBrush x:Key="FolderIconBrush" Color="#E5A93C" />
     <SolidColorBrush x:Key="WordIconBrush" Color="#185ABD" />
     <SolidColorBrush x:Key="ExcelIconBrush" Color="#107C41" />
     <SolidColorBrush x:Key="PdfIconBrush" Color="#EA4335" />
-    <SolidColorBrush x:Key="ImageIconBrush" Color="#A142F4" />
-    <SolidColorBrush x:Key="VideoIconBrush" Color="#EA4335" />
-    <SolidColorBrush x:Key="TextIconBrush" Color="#5F6368" />
+    <SolidColorBrush x:Key="ImageIconBrush" Color="#8B5CF6" />
+    <SolidColorBrush x:Key="VideoIconBrush" Color="#F97316" />
+    <SolidColorBrush x:Key="TextIconBrush" Color="#64748B" />
 
     <!-- Fonts -->
-    <FontFamily x:Key="AppFontFamily">Segoe UI Variable Display, Segoe UI, Arial</FontFamily>
-    
+    <FontFamily x:Key="AppFontFamily">Plus Jakarta Sans, Segoe UI Variable Display, Segoe UI, -apple-system, Arial</FontFamily>
+    <FontFamily x:Key="AppMonoFontFamily">JetBrains Mono, Consolas, Courier New</FontFamily>
+
+    <!-- Standard Font Sizes -->
     <system:Double x:Key="FontSizeSmall">12</system:Double>
     <system:Double x:Key="FontSizeNormal">14</system:Double>
     <system:Double x:Key="FontSizeRegular">14</system:Double>
     <system:Double x:Key="FontSizeLarge">22</system:Double>
 
     <!-- Dimensions & Margins -->
-    <Thickness x:Key="ContentMargin">0,16,16,16</Thickness>
+    <Thickness x:Key="ContentMargin">0,14,16,16</Thickness>
     <Thickness x:Key="SidebarMargin">16</Thickness>
-    <CornerRadius x:Key="ContentCornerRadius">24</CornerRadius>
-    <CornerRadius x:Key="ButtonCornerRadius">16</CornerRadius>
+    <CornerRadius x:Key="ContentCornerRadius">16</CornerRadius>
+    <CornerRadius x:Key="ButtonCornerRadius">8</CornerRadius>
     <CornerRadius x:Key="SearchCornerRadius">24</CornerRadius>
-    <CornerRadius x:Key="RadiusLarge">24</CornerRadius>
+    <CornerRadius x:Key="RadiusLarge">16</CornerRadius>
+
+    <!-- Standard Action Button Styles (Solid Blue, No Gradients) -->
+    <Style x:Key="PrimaryActionButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="14,7" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="8"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          RecognizesAccessKey="True" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource AccentHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource AccentPressedBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Chrome" Property="Opacity" Value="0.45" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="OutlinedActionButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Foreground" Value="{DynamicResource SidebarSelectedTextBrush}" />
+        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="8"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          RecognizesAccessKey="True" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource RowSelectedBrush}" />
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SidebarSelectedBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Chrome" Property="Opacity" Value="0.45" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 
 </ResourceDictionary>

@@ -248,7 +248,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 Files.Add(new FileItemViewModel
                 {
                     Id = folder.Id, Name = folder.Name, IsFolder = true, Size = "—",
-                    Icon = SymbolRegular.Folder24, IconColorBrushKey = "#5F6368", FolderId = folder.ParentFolderId
+                    Icon = SymbolRegular.Folder24, IconColorBrushKey = "#E5A93C", FolderId = folder.ParentFolderId
                 });
             }
 
@@ -449,12 +449,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private static (SymbolRegular Icon, string Color) GetFileAppearance(string name) =>
         Path.GetExtension(name).ToLowerInvariant() switch
         {
-            ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" => (SymbolRegular.Image24, "#A142F4"),
-            ".mp4" or ".mov" or ".avi" => (SymbolRegular.Video24, "#EA4335"),
+            ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".svg" => (SymbolRegular.Image24, "#8B5CF6"),
+            ".mp4" or ".mov" or ".avi" or ".webm" => (SymbolRegular.Video24, "#F97316"),
             ".xlsx" or ".xls" or ".csv" => (SymbolRegular.Table24, "#107C41"),
             ".pdf" => (SymbolRegular.Document24, "#EA4335"),
             ".doc" or ".docx" => (SymbolRegular.Document24, "#185ABD"),
-            _ => (SymbolRegular.Document24, "#5F6368")
+            _ => (SymbolRegular.Document24, "#64748B")
         };
 
     public void Dispose()

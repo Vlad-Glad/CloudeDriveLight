@@ -55,46 +55,48 @@
                            TextWrapping="Wrap" Margin="0,10,0,0" />
             </StackPanel>
             <Grid Grid.Row="2">
-                <ListBox x:Name="FolderList" ItemsSource="{Binding Folders}" SelectedItem="{Binding SelectedFolder}"
-                         BorderThickness="0" Background="{DynamicResource SurfaceBrush}" HorizontalContentAlignment="Stretch"
-                         AutomationProperties.Name="Destination folders"
-                         Visibility="{Binding IsContentVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <ListBox.InputBindings>
-                        <MouseBinding Gesture="LeftDoubleClick" Command="{Binding OpenFolderCommand}" CommandParameter="{Binding SelectedFolder}" />
-                        <KeyBinding Key="Enter" Command="{Binding OpenFolderCommand}" CommandParameter="{Binding SelectedFolder}" />
-                    </ListBox.InputBindings>
-                    <ListBox.ItemContainerStyle>
-                        <Style TargetType="ListBoxItem">
-                            <Setter Property="Padding" Value="12" />
-                            <Setter Property="Margin" Value="0,0,0,4" />
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="ListBoxItem">
-                                        <Border x:Name="Row" Background="Transparent" CornerRadius="8" Padding="{TemplateBinding Padding}">
-                                            <ContentPresenter />
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
-                                            </Trigger>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource SidebarSelectedBrush}" />
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </ListBox.ItemContainerStyle>
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <DockPanel>
-                                <ui:SymbolIcon Symbol="Folder24" FontSize="24" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,12,0" />
-                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" />
-                            </DockPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Background="{DynamicResource SurfaceBrush}" Padding="4">
+                    <ListBox x:Name="FolderList" ItemsSource="{Binding Folders}" SelectedItem="{Binding SelectedFolder}"
+                             BorderThickness="0" Background="{DynamicResource SurfaceBrush}" HorizontalContentAlignment="Stretch"
+                             AutomationProperties.Name="Destination folders"
+                             Visibility="{Binding IsContentVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ListBox.InputBindings>
+                            <MouseBinding Gesture="LeftDoubleClick" Command="{Binding OpenFolderCommand}" CommandParameter="{Binding SelectedFolder}" />
+                            <KeyBinding Key="Enter" Command="{Binding OpenFolderCommand}" CommandParameter="{Binding SelectedFolder}" />
+                        </ListBox.InputBindings>
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="12" />
+                                <Setter Property="Margin" Value="0,0,0,4" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="Row" Background="Transparent" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Row" Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Row" Property="Background" Value="{DynamicResource SidebarSelectedBrush}" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel>
+                                    <ui:SymbolIcon Symbol="Folder24" FontSize="24" Foreground="{DynamicResource FolderIconBrush}" Margin="0,0,12,0" />
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
                 <ui:ProgressRing IsIndeterminate="True" Width="36" Height="36" HorizontalAlignment="Center" VerticalAlignment="Center"
                                  Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <TextBlock Text="No subfolders. You can use this location." TextWrapping="Wrap"
@@ -103,21 +105,12 @@
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="380"
                             Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" TextAlignment="Center" />
-                    <ui:Button Content="Retry" Command="{Binding RetryCommand}" HorizontalAlignment="Center" Margin="0,12,0,0" />
+                    <Button Content="Retry" Command="{Binding RetryCommand}" Style="{DynamicResource PrimaryActionButtonStyle}" HorizontalAlignment="Center" Margin="0,12,0,0" Padding="16,6" />
                 </StackPanel>
             </Grid>
             <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
-                <ui:Button Content="Cancel" IsCancel="True" Command="{Binding CancelCommand}" Appearance="Transparent" Padding="20,8" Margin="0,0,8,0" />
-                <ui:Button x:Name="MoveHereButton" Content="Move here" Command="{Binding ConfirmCommand}" Appearance="Primary" Padding="20,8"
-                           Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0" CornerRadius="8">
-                    <ui:Button.Style>
-                        <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
-                            <Style.Triggers>
-                                <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45" /></Trigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ui:Button.Style>
-                </ui:Button>
+                <Button Content="Cancel" IsCancel="True" Command="{Binding CancelCommand}" Style="{DynamicResource OutlinedActionButtonStyle}" Padding="20,8" Margin="0,0,8,0" />
+                <Button x:Name="MoveHereButton" Content="Move here" Command="{Binding ConfirmCommand}" Style="{DynamicResource PrimaryActionButtonStyle}" Padding="20,8" />
             </StackPanel>
         </Grid>
     </Border>

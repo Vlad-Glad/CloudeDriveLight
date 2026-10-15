@@ -137,14 +137,14 @@ public sealed class WindowSmokeTests
                 Assert.Equal("Name", grid.Columns[0].Header);
                 Assert.Equal("Type", grid.Columns[1].Header);
                 Assert.Equal("FileType", Assert.IsType<Binding>(Assert.IsType<DataGridTextColumn>(grid.Columns[1]).Binding).Path.Path);
-                Assert.Equal("Created", grid.Columns[2].Header);
-                Assert.Equal("Modified", grid.Columns[3].Header);
+                Assert.Equal("Modified", grid.Columns[2].Header);
+                Assert.Equal("Created", grid.Columns[3].Header);
                 Assert.Equal("Size", grid.Columns[4].Header);
                 var columnsButton = Assert.IsType<Button>(main.FindName("ColumnsButton"));
                 columnsButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 var columnsMenu = Assert.IsType<ContextMenu>(columnsButton.ContextMenu);
                 columnsMenu.Opacity = 0;
-                Assert.Equal(new[] { "Type", "Created", "Modified", "Size", "Show all columns" },
+                Assert.Equal(new[] { "Type", "Modified", "Created", "Size", "Show all columns" },
                     columnsMenu.Items.OfType<MenuItem>().Select(item => item.Header));
                 for (var index = 1; index < grid.Columns.Count - 1; index++)
                 {
