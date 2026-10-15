@@ -26,6 +26,10 @@ public partial class App : Application
     private void ShowLoginFlow()
     {
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        double left = 0, top = 0, width = 0, height = 0;
+        WindowState state = WindowState.Normal;
+        bool hasBounds = false;
+
         using (var loginScope = _services!.CreateScope())
         {
             var loginWindow = loginScope.ServiceProvider.GetRequiredService<LoginWindow>();
@@ -35,6 +39,13 @@ public partial class App : Application
                 Shutdown();
                 return;
             }
+
+            left = loginWindow.Left;
+            top = loginWindow.Top;
+            width = loginWindow.ActualWidth;
+            height = loginWindow.ActualHeight;
+            state = loginWindow.WindowState;
+            hasBounds = true;
         }
 
         _sessionScope = _services!.CreateScope();
@@ -44,6 +55,20 @@ public partial class App : Application
         mainWindow.Closed += (_, _) => viewModel.SessionEnded -= EndSession;
         MainWindow = mainWindow;
         ShutdownMode = ShutdownMode.OnMainWindowClose;
+
+        if (hasBounds && width > 0 && height > 0)
+        {
+            mainWindow.WindowStartupLocation = WindowStartupLocation.Manual;
+            mainWindow.Left = left;
+            mainWindow.Top = top;
+            mainWindow.Width = width;
+            mainWindow.Height = height;
+            if (state == WindowState.Maximized)
+            {
+                mainWindow.WindowState = WindowState.Maximized;
+            }
+        }
+
         mainWindow.Show();
     }
 
