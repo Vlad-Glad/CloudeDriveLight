@@ -72,6 +72,20 @@
   color: inherit;
   max-width: 160px;
 }
+.columnsButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  color: inherit;
+}
+.columnsButton:hover,
+.columnsButton[data-state="open"] {
+  background: var(--hover);
+}
 .count {
   color: var(--secondary);
   font-size: 13px;
@@ -114,12 +128,6 @@
 .table th,
 .table td {
   padding: 8px 12px;
-}
-.table th:first-child {
-  width: 45%;
-}
-.table th:last-child {
-  width: 110px;
 }
 .table tbody tr:hover {
   background: var(--background);
@@ -167,31 +175,20 @@
   margin: 0;
 }
 .ownerColumn {
-  width: 12%;
+  width: 100px;
 }
-@media (max-width: 1000px) {
-  .ownerColumn {
-    display: none;
-  }
-  .table th:first-child {
-    width: 48%;
-  }
+.dateColumn {
+  width: 160px;
+}
+.sizeColumn {
+  width: 110px;
 }
 @media (max-width: 600px) {
-  .dateColumn {
-    display: none;
-  }
   .breadcrumb {
     font-size: 19px;
   }
   .headerActions {
     gap: 4px;
-  }
-  .table th:first-child {
-    width: auto;
-  }
-  .table th:last-child {
-    width: 88px;
   }
   .table th,
   .table td {

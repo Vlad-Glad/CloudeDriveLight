@@ -50,6 +50,11 @@ import type { DriveFile, DriveItem } from "./drive-api";
 import { useFileSelection } from "./useFileSelection";
 import { useMarquee } from "./useMarquee";
 import { batchError, runItemBatch } from "./batch";
+import {
+  ColumnsMenu,
+  useVisibleColumns,
+  type VisibleColumns,
+} from "./ColumnsMenu";
 export default function Drive() {
   const { folderId: routeId } = useParams();
   const navigate = useNavigate();
@@ -59,6 +64,17 @@ export default function Drive() {
   const type = params.get("type") || "";
   const [sort, setSort] = useState<SortKey>("name");
   const [descending, setDescending] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useVisibleColumns();
+  function changeColumns(next: VisibleColumns) {
+    setVisibleColumns(next);
+    if (
+      (sort === "modified" && !next.modified) ||
+      (sort === "size" && !next.size)
+    ) {
+      setSort("name");
+      setDescending(false);
+    }
+  }
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
   const client = useQueryClient();
@@ -563,6 +579,11 @@ export default function Drive() {
               ))}
             </select>
           </label>
+          <ColumnsMenu
+            visible={visibleColumns}
+            onChange={changeColumns}
+            className={styles.columnsButton}
+          />
           <span className={styles.count}>
             {search
               ? `Results for “${search}” across your cloud`
@@ -687,7 +708,17 @@ export default function Drive() {
             {marquee.rectangle && (
               <div className={styles.marquee} style={marquee.rectangle} />
             )}
-            <table className={styles.table} aria-label="Files and folders">
+            <table
+              className={styles.table}
+              aria-label="Files and folders"
+              style={{
+                minWidth:
+                  240 +
+                  (visibleColumns.owner ? 100 : 0) +
+                  (visibleColumns.modified ? 160 : 0) +
+                  (visibleColumns.size ? 110 : 0),
+              }}
+            >
               <thead>
                 <tr>
                   <th
@@ -701,30 +732,37 @@ export default function Drive() {
                   >
                     {sortHeader("name", "Name")}
                   </th>
-                  <th className={styles.ownerColumn}>Owner</th>
-                  <th
-                    className={styles.dateColumn}
-                    aria-sort={
-                      sort === "modified"
-                        ? descending
-                          ? "descending"
-                          : "ascending"
-                        : "none"
-                    }
-                  >
-                    {sortHeader("modified", "Date modified")}
-                  </th>
-                  <th
-                    aria-sort={
-                      sort === "size"
-                        ? descending
-                          ? "descending"
-                          : "ascending"
-                        : "none"
-                    }
-                  >
-                    {sortHeader("size", "File size")}
-                  </th>
+                  {visibleColumns.owner && (
+                    <th className={styles.ownerColumn}>Owner</th>
+                  )}
+                  {visibleColumns.modified && (
+                    <th
+                      className={styles.dateColumn}
+                      aria-sort={
+                        sort === "modified"
+                          ? descending
+                            ? "descending"
+                            : "ascending"
+                          : "none"
+                      }
+                    >
+                      {sortHeader("modified", "Date modified")}
+                    </th>
+                  )}
+                  {visibleColumns.size && (
+                    <th
+                      className={styles.sizeColumn}
+                      aria-sort={
+                        sort === "size"
+                          ? descending
+                            ? "descending"
+                            : "ascending"
+                          : "none"
+                      }
+                    >
+                      {sortHeader("size", "File size")}
+                    </th>
+                  )}
                   <th className="rowActions">
                     <span className="srOnly">Actions</span>
                   </th>
@@ -831,21 +869,27 @@ export default function Drive() {
                         )}
                       </div>
                     </td>
-                    <td className={styles.ownerColumn}>me</td>
-                    <td className={styles.dateColumn}>
-                      {item.kind === "file"
-                        ? new Date(
-                            item.editedAtUtc || item.uploadedAtUtc,
-                          ).toLocaleDateString(undefined, {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })
-                        : "—"}
-                    </td>
-                    <td>
-                      {item.kind === "file" ? formatSize(item.sizeBytes) : "—"}
-                    </td>
+                    {visibleColumns.owner && (
+                      <td className={styles.ownerColumn}>me</td>
+                    )}
+                    {visibleColumns.modified && (
+                      <td className={styles.dateColumn}>
+                        {item.kind === "file"
+                          ? new Date(
+                              item.editedAtUtc || item.uploadedAtUtc,
+                            ).toLocaleDateString(undefined, {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : "—"}
+                      </td>
+                    )}
+                    {visibleColumns.size && (
+                      <td className={styles.sizeColumn}>
+                        {item.kind === "file" ? formatSize(item.sizeBytes) : "—"}
+                      </td>
+                    )}
                     <td className="rowActions">{rowMenu(item)}</td>
                   </tr>
                 ))}
