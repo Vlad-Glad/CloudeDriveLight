@@ -42,6 +42,7 @@ import { downloadItem } from "./operations-api";
 import { useUploads } from "./useUploads";
 import { UploadQueue } from "./UploadQueue";
 import { useFileDrop } from "./useFileDrop";
+import { useCloudMove } from "./useCloudMove";
 import type { DriveItem } from "./drive-api";
 export default function Drive() {
   const { folderId: routeId } = useParams();
@@ -137,6 +138,19 @@ export default function Drive() {
         (descending ? <ArrowDown size={14} /> : <ArrowUp size={14} />)}
     </button>
   );
+  const cloudMove = useCloudMove(
+    !error && !loading && !operation,
+    (item) => {
+      setNotice(`“${item.name}” moved.`);
+      setSelectedId(null);
+      setActionError("");
+    },
+    (message) => {
+      setActionError(message);
+      setNotice("");
+    },
+  );
+  const currentDrop = cloudMove.targetProps(folderId);
   const currentName = path.data?.at(-1)?.name || "Home";
   const drop = useFileDrop(
     !error && !loading && !operation,
@@ -275,11 +289,26 @@ export default function Drive() {
     </>
   );
   return (
-    <Shell actions={actions}>
+    <Shell actions={actions} homeDropProps={cloudMove.targetProps(null)}>
       <div
         data-testid="upload-surface"
         className={styles.dropSurface}
-        {...drop.handlers}
+        onDragEnter={(event) => {
+          currentDrop.onDragEnter(event);
+          drop.handlers.onDragEnter(event);
+        }}
+        onDragOver={(event) => {
+          currentDrop.onDragOver(event);
+          drop.handlers.onDragOver(event);
+        }}
+        onDragLeave={(event) => {
+          currentDrop.onDragLeave(event);
+          drop.handlers.onDragLeave(event);
+        }}
+        onDrop={(event) => {
+          currentDrop.onDrop(event);
+          if (!event.defaultPrevented) drop.handlers.onDrop(event);
+        }}
       >
         {drop.dragging && (
           <div className={styles.dropOverlay} role="status">
@@ -290,11 +319,14 @@ export default function Drive() {
         )}
         <header className={styles.header}>
           <nav aria-label="Folder path" className={styles.breadcrumb}>
-            <Link to="/">Home</Link>
+            <Link to="/" {...cloudMove.targetProps(null)}>
+              Home
+            </Link>
             {path.data?.map((folder) => (
               <span key={folder.id}>
                 <ChevronRight size={18} />
                 <Link
+                  {...cloudMove.targetProps(folder.id)}
                   to={folderUrl(folder.id)}
                   aria-current={folder.id === folderId ? "page" : undefined}
                 >
@@ -452,6 +484,12 @@ export default function Drive() {
             </button>
           </div>
         )}
+        {cloudMove.moving && (
+          <div className="notice" role="status">
+            <LoaderCircle className="spin" size={18} />
+            Moving item…
+          </div>
+        )}
         {downloading && (
           <div className="notice" role="status">
             Preparing download…
@@ -553,6 +591,12 @@ export default function Drive() {
                 {items.map((item) => (
                   <tr
                     key={item.id}
+                    {...cloudMove.sourceProps(item)}
+                    {...(item.kind === "folder"
+                      ? cloudMove.targetProps(item.id)
+                      : {})}
+                    data-item-id={item.id}
+                    data-item-kind={item.kind}
                     className={[
                       selected?.id === item.id ? styles.selected : "",
                       item.kind === "folder" ? styles.folderRow : "",
@@ -589,7 +633,11 @@ export default function Drive() {
                           folder={item.kind === "folder"}
                         />
                         {item.kind === "folder" ? (
-                          <Link to={folderUrl(item.id)} title={item.name}>
+                          <Link
+                            draggable={false}
+                            to={folderUrl(item.id)}
+                            title={item.name}
+                          >
                             {item.name}
                           </Link>
                         ) : (
@@ -617,6 +665,12 @@ export default function Drive() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {cloudMove.dragged && (
+          <div className={styles.moveHint} role="status">
+            Move “{cloudMove.dragged.name}” into a folder, a parent in the path,
+            or Home.
           </div>
         )}
         {!error && !loading && (

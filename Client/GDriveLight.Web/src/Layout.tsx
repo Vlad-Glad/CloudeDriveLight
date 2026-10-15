@@ -1,7 +1,7 @@
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import { Cloud, Home, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
-import { type ReactNode } from "react";
+import { type ReactNode, type HTMLAttributes } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "./auth";
 import { setSession } from "./session";
@@ -39,9 +39,11 @@ export function Profile() {
 export function Shell({
   children,
   actions,
+  homeDropProps,
 }: {
   children: ReactNode;
   actions?: ReactNode;
+  homeDropProps?: HTMLAttributes<HTMLAnchorElement>;
 }) {
   return (
     <>
@@ -56,7 +58,7 @@ export function Shell({
           </Link>
           {actions}
           <nav aria-label="Main navigation">
-            <Link className={styles.navItem} to="/">
+            <Link className={styles.navItem} to="/" {...homeDropProps}>
               <Home size={20} />
               Home
             </Link>
