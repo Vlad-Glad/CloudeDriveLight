@@ -39,7 +39,11 @@ public class FileTypeConfiguration : IEntityTypeConfiguration<FileTypeEntity>
             new FileTypeEntity { Id = 10, Name = "Python",     MimeType = "text/x-python",      Extension = ".py"   },
             // Images
             new FileTypeEntity { Id = 11, Name = "JPEG",       MimeType = "image/jpeg",         Extension = ".jpg"  },
-            new FileTypeEntity { Id = 12, Name = "PNG",        MimeType = "image/png",          Extension = ".png"  }
+            new FileTypeEntity { Id = 12, Name = "PNG",        MimeType = "image/png",          Extension = ".png"  },
+            // Additional documents
+            new FileTypeEntity { Id = 13, Name = "PDF",        MimeType = "application/pdf",                                             Extension = ".pdf"  },
+            new FileTypeEntity { Id = 14, Name = "DOCX",       MimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document", Extension = ".docx" },
+            new FileTypeEntity { Id = 15, Name = "Markdown",   MimeType = "text/markdown",                                               Extension = ".md"   }
         );
     }
 }
