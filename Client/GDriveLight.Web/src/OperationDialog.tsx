@@ -7,12 +7,17 @@ import {
   createFolder,
   renameItem,
   deleteItem,
-  moveItem,
+  moveItems,
 } from "./operations-api";
 import styles from "./Operations.module.css";
+import { batchError, runItemBatch, topLevelItems, parentOf } from "./batch";
 export type Operation =
   | { mode: "create"; parentId: string | null }
-  | { mode: "rename" | "delete" | "move"; item: DriveItem };
+  | {
+      mode: "rename" | "delete" | "move";
+      item: DriveItem;
+      items?: DriveItem[];
+    };
 export function OperationDialog({
   operation,
   close,
@@ -31,27 +36,52 @@ export function OperationDialog({
   const [destination, setDestination] = useState<string | null>(null);
   const [localError, setLocalError] = useState("");
   const move = operation.mode === "move";
+  const originalItems =
+    operation.mode === "create" ? [] : operation.items || [operation.item];
+  const [remainingItems, setRemainingItems] = useState(originalItems);
+  const multiple = originalItems.length > 1;
   const folders = useQuery({ ...foldersQuery(destination), enabled: move });
   const path = useQuery({ ...pathQuery(destination), enabled: move });
   const mutation = useMutation({
     mutationFn: async () => {
-      if (operation.mode === "create")
-        return createFolder(name.trim(), operation.parentId);
-      if (operation.mode === "rename")
-        return renameItem(operation.item, name.trim());
-      if (operation.mode === "delete") return deleteItem(operation.item);
-      return moveItem(operation.item, destination);
+      if (operation.mode === "create") {
+        await createFolder(name.trim(), operation.parentId);
+        return;
+      }
+      if (operation.mode === "rename") {
+        await renameItem(operation.item, name.trim());
+        return;
+      }
+      const loadPath = (id: string) =>
+        client.fetchQuery({ ...pathQuery(id), staleTime: 0 });
+      const result =
+        operation.mode === "move"
+          ? await moveItems(remainingItems, destination, loadPath)
+          : await runItemBatch(
+              await topLevelItems(remainingItems, loadPath),
+              deleteItem,
+            );
+      if (result.failed.length) {
+        setRemainingItems(result.failed.map((failure) => failure.item));
+        throw new Error(batchError(result));
+      }
+    },
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: ["drive"] });
     },
     onSuccess: () => {
-      void client.invalidateQueries({ queryKey: ["drive"] });
       completed(
         operation.mode === "create"
           ? "Folder created."
           : operation.mode === "rename"
             ? "Item renamed."
             : operation.mode === "delete"
-              ? "Item deleted."
-              : "Item moved.",
+              ? multiple
+                ? "Items deleted."
+                : "Item deleted."
+              : multiple
+                ? "Items moved."
+                : "Item moved.",
       );
       close();
     },
@@ -72,16 +102,15 @@ export function OperationDialog({
     mutation.mutate();
   }
   const sameParent =
-    move &&
-    destination ===
-      (operation.item.kind === "folder"
-        ? operation.item.parentFolderId
-        : operation.item.folderId);
+    move && remainingItems.every((item) => parentOf(item) === destination);
   const invalidDestination =
     move &&
-    operation.item.kind === "folder" &&
-    (destination === operation.item.id ||
-      path.data?.some((folder) => folder.id === operation.item.id));
+    remainingItems.some(
+      (item) =>
+        item.kind === "folder" &&
+        (destination === item.id ||
+          path.data?.some((folder) => folder.id === item.id)),
+    );
   const title =
     operation.mode === "create"
       ? "New folder"
@@ -123,10 +152,14 @@ export function OperationDialog({
             {operation.mode === "create"
               ? "Keep related files together in a folder."
               : operation.mode === "delete"
-                ? `“${operation.item.name}”${operation.item.kind === "folder" ? " and all files and subfolders inside it" : ""} will be permanently deleted. This cannot be undone.`
+                ? multiple
+                  ? `${remainingItems.length} selected items and their contents will be permanently deleted. This cannot be undone.`
+                  : `“${operation.item.name}”${operation.item.kind === "folder" ? " and all files and subfolders inside it" : ""} will be permanently deleted. This cannot be undone.`
                 : operation.mode === "rename"
                   ? `Choose a new name for “${operation.item.name}”.`
-                  : `Choose a destination for “${operation.item.name}”.`}
+                  : multiple
+                    ? `Choose a destination for ${remainingItems.length} selected items.`
+                    : `Choose a destination for “${operation.item.name}”.`}
           </Dialog.Description>
           <form onSubmit={submit}>
             <fieldset disabled={mutation.isPending} className={styles.fields}>
@@ -191,8 +224,11 @@ export function OperationDialog({
                         {folders.data
                           ?.filter(
                             (folder) =>
-                              operation.item.kind !== "folder" ||
-                              folder.id !== operation.item.id,
+                              !remainingItems.some(
+                                (item) =>
+                                  item.kind === "folder" &&
+                                  folder.id === item.id,
+                              ),
                           )
                           .map((folder) => (
                             <button
@@ -207,8 +243,10 @@ export function OperationDialog({
                           ))}
                         {!folders.data?.some(
                           (folder) =>
-                            operation.item.kind !== "folder" ||
-                            folder.id !== operation.item.id,
+                            !remainingItems.some(
+                              (item) =>
+                                item.kind === "folder" && folder.id === item.id,
+                            ),
                         ) && (
                           <p>
                             No subfolders here. You can move the item into this

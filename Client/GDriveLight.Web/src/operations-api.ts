@@ -1,5 +1,11 @@
 import { apiResponse, request } from "./api";
 import type { DriveItem } from "./drive-api";
+import {
+  parentOf,
+  runItemBatch,
+  topLevelItems,
+  type LoadFolderPath,
+} from "./batch";
 export function createFolder(name: string, parentFolderId: string | null) {
   return request<{ folderId: string }>("folders", {
     method: "POST",
@@ -45,4 +51,25 @@ export async function downloadItem(item: DriveItem, signal?: AbortSignal) {
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+export async function moveItems(
+  items: DriveItem[],
+  destination: string | null,
+  loadPath: LoadFolderPath,
+) {
+  const path = destination ? await loadPath(destination) : [];
+  if (
+    items.some(
+      (item) =>
+        item.kind === "folder" &&
+        (item.id === destination ||
+          path.some((folder) => folder.id === item.id)),
+    )
+  )
+    throw new Error("Cannot move a folder into itself or its descendant.");
+  const roots = await topLevelItems(items, loadPath);
+  return runItemBatch(
+    roots.filter((item) => parentOf(item) !== destination),
+    (item) => moveItem(item, destination),
+  );
 }

@@ -219,7 +219,7 @@ test("the selection toolbar moves a file through the destination dialog", async 
 }) => {
   await mockApi(page);
   await page.goto("/");
-  await page.getByRole("checkbox", { name: "Select Notes.txt" }).check();
+  await page.getByRole("table").getByText("Notes.txt", { exact: true }).click();
   await page
     .getByRole("button", { name: "Move selected item", exact: true })
     .click();

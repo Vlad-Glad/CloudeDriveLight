@@ -44,6 +44,9 @@ import { UploadQueue } from "./UploadQueue";
 import { useFileDrop } from "./useFileDrop";
 import { useCloudMove } from "./useCloudMove";
 import type { DriveItem } from "./drive-api";
+import { useFileSelection } from "./useFileSelection";
+import { useMarquee } from "./useMarquee";
+import { batchError, runItemBatch } from "./batch";
 export default function Drive() {
   const { folderId: routeId } = useParams();
   const navigate = useNavigate();
@@ -53,7 +56,8 @@ export default function Drive() {
   const type = params.get("type") || "";
   const [sort, setSort] = useState<SortKey>("name");
   const [descending, setDescending] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
+  const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
   const client = useQueryClient();
   const [operation, setOperation] = useState<Operation | null>(null);
   const [notice, setNotice] = useState("");
@@ -83,17 +87,21 @@ export default function Drive() {
       : newButton.current
     )?.focus();
   }
-  useEffect(() => {
-    setSelectedId(null);
-  }, [folderId, search]);
   useEffect(() => () => downloadController.current?.abort(), []);
-  async function download(item: DriveItem) {
+  async function download(input: DriveItem | DriveItem[]) {
     if (downloading) return;
     setActionError("");
     setDownloading(true);
     downloadController.current = new AbortController();
     try {
-      await downloadItem(item, downloadController.current.signal);
+      const result = await runItemBatch(
+        (Array.isArray(input) ? input : [input]).filter(
+          (item) => item.kind === "file",
+        ),
+        (item) => downloadItem(item, downloadController.current!.signal),
+      );
+      if (result.failed.length && !downloadController.current.signal.aborted)
+        setActionError(batchError(result));
     } catch (error) {
       if (!(error instanceof Error && error.name === "AbortError"))
         setActionError(
@@ -110,7 +118,94 @@ export default function Drive() {
     queryFn: ({ signal }) => loadItems(folderId, search, signal),
   });
   const items = sortItems(content.data || [], sort, descending, type);
-  const selected = items.find((item) => item.id === selectedId);
+  const selection = useFileSelection(items);
+  const selected =
+    selection.items.length === 1 ? selection.items[0] : undefined;
+  const marquee = useMarquee(selection.ids, selection.replace);
+  useEffect(() => {
+    selection.clear();
+    setActionMenuId(null);
+  }, [folderId, search, selection.clear]);
+  function selectedOperation(
+    mode: "move" | "delete",
+    targets = selection.items,
+  ) {
+    if (targets.length)
+      openOperation({ mode, item: targets[0], items: targets });
+  }
+  function keyDown(event: React.KeyboardEvent<HTMLElement>) {
+    if (
+      event.target instanceof Element &&
+      event.target.closest('input, textarea, select, [role="menuitem"]')
+    )
+      return;
+    if (event.key === "a" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      selection.selectAll();
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      selection.clear();
+      return;
+    }
+    if (event.key === "Delete" && selection.items.length) {
+      event.preventDefault();
+      selectedOperation("delete");
+      return;
+    }
+    if (event.key === "F2" && selected) {
+      event.preventDefault();
+      openOperation({ mode: "rename", item: selected });
+      return;
+    }
+    const current =
+      (event.target as HTMLElement).closest<HTMLElement>("[data-item-id]")
+        ?.dataset.itemId || selection.anchor;
+    if (event.key === "Enter") {
+      const item = items.find((item) => item.id === current);
+      if (item?.kind === "folder") {
+        event.preventDefault();
+        navigate(folderUrl(item.id));
+      }
+      return;
+    }
+    if (
+      event.key === "ContextMenu" ||
+      (event.key === "F10" && event.shiftKey)
+    ) {
+      if (current) {
+        event.preventDefault();
+        setActionMenuId(current);
+      }
+      return;
+    }
+    if (event.key === " " && current) {
+      event.preventDefault();
+      selection.select(current, event);
+      return;
+    }
+    const index = items.findIndex((item) => item.id === current);
+    const next =
+      event.key === "ArrowDown"
+        ? Math.min(items.length - 1, index + 1)
+        : event.key === "ArrowUp"
+          ? Math.max(0, index - 1)
+          : event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? items.length - 1
+              : -1;
+    if (next >= 0 && items[next]) {
+      event.preventDefault();
+      if (event.shiftKey || (!event.ctrlKey && !event.metaKey))
+        selection.select(items[next].id, {
+          shiftKey: event.shiftKey,
+          ctrlKey: event.shiftKey && (event.ctrlKey || event.metaKey),
+        });
+      rowRefs.current.get(items[next].id)?.focus();
+    }
+  }
   const loading = content.isPending || path.isPending;
   const error = content.error || path.error;
   function submitSearch(event: FormEvent<HTMLFormElement>) {
@@ -140,12 +235,17 @@ export default function Drive() {
   );
   const cloudMove = useCloudMove(
     !error && !loading && !operation,
-    (item) => {
-      setNotice(`“${item.name}” moved.`);
-      setSelectedId(null);
+    (moved) => {
+      setNotice(
+        moved.length === 1
+          ? `“${moved[0].name}” moved.`
+          : `${moved.length} items moved.`,
+      );
+      selection.clear();
       setActionError("");
     },
-    (message) => {
+    (message, remaining) => {
+      selection.replace(remaining.map((item) => item.id));
       setActionError(message);
       setNotice("");
     },
@@ -162,61 +262,80 @@ export default function Drive() {
         );
     },
   );
-  const rowMenu = (item: DriveItem) => (
-    <Menu.Root>
-      <Menu.Trigger
-        onFocus={(event) => {
-          menuTrigger.current = event.currentTarget;
+  const rowMenu = (item: DriveItem) => {
+    const targets = selection.ids.has(item.id) ? selection.items : [item];
+    return (
+      <Menu.Root
+        modal={false}
+        open={actionMenuId === item.id}
+        onOpenChange={(open) => {
+          if (open && !selection.ids.has(item.id)) selection.select(item.id);
+          setActionMenuId(open ? item.id : null);
         }}
-        className="iconButton"
-        aria-label={`Actions for ${item.name}`}
       >
-        <MoreVertical size={18} />
-      </Menu.Trigger>
-      <Menu.Portal>
-        <Menu.Content
-          onCloseAutoFocus={(event) => {
-            if (operation) event.preventDefault();
+        <Menu.Trigger
+          onPointerDown={(event) => event.preventDefault()}
+          onClick={(event) => {
+            event.currentTarget.focus();
+            if (!selection.ids.has(item.id)) selection.select(item.id);
+            setActionMenuId(actionMenuId === item.id ? null : item.id);
           }}
-          className="menu"
-          align="end"
+          onFocus={(event) => {
+            menuTrigger.current = event.currentTarget;
+          }}
+          className="iconButton"
+          aria-label={`Actions for ${item.name}`}
         >
-          {item.kind === "file" && (
+          <MoreVertical size={18} />
+        </Menu.Trigger>
+        <Menu.Portal>
+          <Menu.Content
+            onCloseAutoFocus={(event) => {
+              if (operation) event.preventDefault();
+            }}
+            className="menu"
+            align="end"
+          >
+            {targets.every((item) => item.kind === "file") && (
+              <Menu.Item
+                className="menuItem"
+                disabled={downloading}
+                onSelect={() => void download(targets)}
+              >
+                <Download size={16} />
+                Download
+              </Menu.Item>
+            )}
+            {targets.length === 1 && (
+              <Menu.Item
+                className="menuItem"
+                onSelect={() => openOperation({ mode: "rename", item })}
+              >
+                <Pencil size={16} />
+                Rename
+              </Menu.Item>
+            )}
             <Menu.Item
               className="menuItem"
-              disabled={downloading}
-              onSelect={() => void download(item)}
+              disabled={cloudMove.moving}
+              onSelect={() => selectedOperation("move", targets)}
             >
-              <Download size={16} />
-              Download
+              <FolderInput size={16} />
+              Move
             </Menu.Item>
-          )}
-          <Menu.Item
-            className="menuItem"
-            onSelect={() => openOperation({ mode: "rename", item })}
-          >
-            <Pencil size={16} />
-            Rename
-          </Menu.Item>
-          <Menu.Item
-            className="menuItem"
-            onSelect={() => openOperation({ mode: "move", item })}
-          >
-            <FolderInput size={16} />
-            Move
-          </Menu.Item>
-          <Menu.Separator className="separator" />
-          <Menu.Item
-            className="menuItem"
-            onSelect={() => openOperation({ mode: "delete", item })}
-          >
-            <Trash2 size={16} />
-            Delete
-          </Menu.Item>
-        </Menu.Content>
-      </Menu.Portal>
-    </Menu.Root>
-  );
+            <Menu.Separator className="separator" />
+            <Menu.Item
+              className="menuItem"
+              onSelect={() => selectedOperation("delete", targets)}
+            >
+              <Trash2 size={16} />
+              Delete
+            </Menu.Item>
+          </Menu.Content>
+        </Menu.Portal>
+      </Menu.Root>
+    );
+  };
   const actions = (
     <>
       <Menu.Root>
@@ -293,6 +412,9 @@ export default function Drive() {
       <div
         data-testid="upload-surface"
         className={styles.dropSurface}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) selection.clear();
+        }}
         onDragEnter={(event) => {
           currentDrop.onDragEnter(event);
           drop.handlers.onDragEnter(event);
@@ -410,54 +532,70 @@ export default function Drive() {
               ? `Results for “${search}” across your cloud`
               : `${items.length} items`}
           </span>
-          {selected && (
+          {!!selection.items.length && (
             <div
               className="selectionActions"
               aria-label="Selected item actions"
             >
-              {selected.kind === "file" && (
+              <span className={styles.count}>
+                {selection.items.length} selected
+              </span>
+              {selection.items.every((item) => item.kind === "file") && (
                 <button
                   className="iconButton"
                   title="Download"
-                  aria-label="Download selected file"
+                  aria-label={
+                    selection.items.length === 1
+                      ? "Download selected file"
+                      : "Download selected files"
+                  }
                   disabled={downloading}
-                  onClick={() => void download(selected)}
+                  onClick={() => void download(selection.items)}
                 >
                   <Download size={18} />
                 </button>
               )}
-              <button
-                className="iconButton"
-                title="Rename"
-                aria-label="Rename selected item"
-                onClick={() =>
-                  openOperation({ mode: "rename", item: selected })
-                }
-              >
-                <Pencil size={18} />
-              </button>
+              {selected && (
+                <button
+                  className="iconButton"
+                  title="Rename"
+                  aria-label="Rename selected item"
+                  onClick={() =>
+                    openOperation({ mode: "rename", item: selected })
+                  }
+                >
+                  <Pencil size={18} />
+                </button>
+              )}
               <button
                 className="iconButton"
                 title="Move"
-                aria-label="Move selected item"
-                onClick={() => openOperation({ mode: "move", item: selected })}
+                aria-label={
+                  selection.items.length === 1
+                    ? "Move selected item"
+                    : "Move selected items"
+                }
+                disabled={cloudMove.moving}
+                onClick={() => selectedOperation("move")}
               >
                 <FolderInput size={18} />
               </button>
               <button
                 className="iconButton"
                 title="Delete"
-                aria-label="Delete selected item"
-                onClick={() =>
-                  openOperation({ mode: "delete", item: selected })
+                aria-label={
+                  selection.items.length === 1
+                    ? "Delete selected item"
+                    : "Delete selected items"
                 }
+                onClick={() => selectedOperation("delete")}
               >
                 <Trash2 size={18} />
               </button>
               <button
                 className="iconButton"
                 aria-label="Clear selection"
-                onClick={() => setSelectedId(null)}
+                onClick={selection.clear}
               >
                 <X size={18} />
               </button>
@@ -540,13 +678,19 @@ export default function Drive() {
             </p>
           </div>
         ) : (
-          <div className={styles.tableScroll}>
+          <div
+            className={styles.tableScroll}
+            data-testid="file-selection-area"
+            tabIndex={0}
+            onKeyDown={keyDown}
+            {...marquee.handlers}
+          >
+            {marquee.rectangle && (
+              <div className={styles.marquee} style={marquee.rectangle} />
+            )}
             <table className={styles.table} aria-label="Files and folders">
               <thead>
                 <tr>
-                  <th className={styles.checkColumn}>
-                    <span className="srOnly">Select</span>
-                  </th>
                   <th
                     aria-sort={
                       sort === "name"
@@ -591,16 +735,39 @@ export default function Drive() {
                 {items.map((item) => (
                   <tr
                     key={item.id}
-                    {...cloudMove.sourceProps(item)}
+                    {...cloudMove.sourceProps(item, selection.items, () =>
+                      selection.select(item.id),
+                    )}
                     {...(item.kind === "folder"
                       ? cloudMove.targetProps(item.id)
                       : {})}
                     data-item-id={item.id}
                     data-item-kind={item.kind}
                     className={[
-                      selected?.id === item.id ? styles.selected : "",
+                      selection.ids.has(item.id) ? styles.selected : "",
                       item.kind === "folder" ? styles.folderRow : "",
                     ].join(" ")}
+                    aria-selected={selection.ids.has(item.id)}
+                    tabIndex={
+                      item.id === (selection.items[0]?.id || items[0]?.id)
+                        ? 0
+                        : -1
+                    }
+                    ref={(element) => {
+                      if (element) rowRefs.current.set(item.id, element);
+                      else rowRefs.current.delete(item.id);
+                    }}
+                    onPointerDown={(event) => {
+                      if (event.shiftKey) event.preventDefault();
+                    }}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      if (!selection.ids.has(item.id))
+                        selection.select(item.id);
+                      menuTrigger.current =
+                        event.currentTarget.querySelector("button");
+                      setActionMenuId(item.id);
+                    }}
                     onClick={(event) => {
                       if (
                         event.target instanceof Element &&
@@ -609,23 +776,17 @@ export default function Drive() {
                         )
                       )
                         return;
-                      if (item.kind === "folder") navigate(folderUrl(item.id));
-                      else setSelectedId(item.id);
+                      event.currentTarget.focus();
+                      if (
+                        item.kind === "folder" &&
+                        !event.shiftKey &&
+                        !event.ctrlKey &&
+                        !event.metaKey
+                      )
+                        navigate(folderUrl(item.id));
+                      else selection.select(item.id, event);
                     }}
                   >
-                    <td>
-                      <input
-                        type="checkbox"
-                        aria-label={`Select ${item.name}`}
-                        checked={selected?.id === item.id}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={() =>
-                          setSelectedId(
-                            selected?.id === item.id ? null : item.id,
-                          )
-                        }
-                      />
-                    </td>
                     <td>
                       <div className={styles.name}>
                         <FileIcon
@@ -635,6 +796,17 @@ export default function Drive() {
                         {item.kind === "folder" ? (
                           <Link
                             draggable={false}
+                            onClick={(event) => {
+                              if (
+                                event.shiftKey ||
+                                event.ctrlKey ||
+                                event.metaKey
+                              ) {
+                                event.preventDefault();
+                                selection.select(item.id, event);
+                                rowRefs.current.get(item.id)?.focus();
+                              }
+                            }}
                             to={folderUrl(item.id)}
                             title={item.name}
                           >
@@ -681,7 +853,7 @@ export default function Drive() {
             close={() => setOperation(null)}
             completed={(message) => {
               setNotice(message);
-              setSelectedId(null);
+              selection.clear();
             }}
           />
         )}

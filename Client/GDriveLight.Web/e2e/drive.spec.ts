@@ -25,18 +25,19 @@ test("browse, search and filter without horizontal page overflow", async ({
     fullPage: true,
   });
   await page
-    .getByRole("checkbox", { name: "Select Documents", exact: true })
-    .check();
+    .getByRole("link", { name: "Documents", exact: true })
+    .click({ modifiers: ["Control"] });
   await expect(page).toHaveURL("/");
   await expect(
-    page.getByRole("checkbox", { name: "Select Documents", exact: true }),
-  ).toBeChecked();
-  const folderRow = page
-    .getByRole("row")
-    .filter({
+    page.getByRole("row").filter({
       has: page.getByRole("link", { name: "Documents", exact: true }),
-    });
-  await folderRow.locator("td").nth(1).locator("svg").click();
+    }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  const folderRow = page.getByRole("row").filter({
+    has: page.getByRole("link", { name: "Documents", exact: true }),
+  });
+  await folderRow.locator("td").nth(0).locator("svg").click();
   await expect(
     page.getByRole("heading", { name: "This folder is empty" }),
   ).toBeVisible();
@@ -122,8 +123,10 @@ test("upload files into the current folder and download with authorization", asy
   });
   await page.getByRole("table").getByText("Notes.txt", { exact: true }).click();
   await expect(
-    page.getByRole("checkbox", { name: "Select Notes.txt" }),
-  ).toBeChecked();
+    page.getByRole("row").filter({
+      has: page.getByText("Notes.txt", { exact: true }),
+    }),
+  ).toHaveAttribute("aria-selected", "true");
   expect(downloadRequests).toHaveLength(0);
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download selected file" }).click();

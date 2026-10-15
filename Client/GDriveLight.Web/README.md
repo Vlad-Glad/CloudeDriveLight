@@ -26,8 +26,9 @@ The API needs its existing database and JWT configuration. This client does not 
 
 - Sign in, registration, profile and logout.
 - Folder URLs, browser back/forward, breadcrumbs, global search, file type filter and sorting.
-- Open folders with a single click on their row, icon or name; use checkboxes to select them without navigation.
-- Move cloud files and folders by dragging onto a folder row, a breadcrumb or Home. The Move action in the selection toolbar and item menu also supports choosing a destination, including on touch devices.
+- Open folders with a single click on their row, icon or name; use Shift/Ctrl-click to select them without navigation.
+- Select files with a click, Shift-click for a visible range, Ctrl-click for individual toggles, or a mouse selection rectangle in the file area. Ctrl+A selects all visible items; Escape or a blank click clears selection. Highlighted rows show the selection; no checkboxes. Right-click opens actions for the current selection.
+- Move cloud files and folders, including the selected group, by dragging onto a folder row, a breadcrumb or Home. Group Move/Delete handle partial failures and retry only failed items. Download applies to selected files. The Move action in the selection toolbar and item menu also supports choosing a destination, including on touch devices.
 - Create, rename, move and permanently delete files/folders. Folder deletion includes its descendants and requires confirmation.
 - Authenticated downloads and multiple-file uploads through New → Upload files or drag-and-drop onto the file area. Uploads keep their original destination when navigating to another folder.
 - Upload progress, per-file cancellation and explicit retry. 100% means bytes have been sent; completion waits for the API response. Dropped directories are rejected with a helpful message. Closing/reloading the tab ends its queue; navigating between cloud folders preserves it.

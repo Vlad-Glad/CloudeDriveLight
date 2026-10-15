@@ -1,5 +1,9 @@
 import { type Page, expect } from "@playwright/test";
-export async function mockApi(page: Page, signedIn = true) {
+export async function mockApi(
+  page: Page,
+  signedIn = true,
+  extraFiles: string[] = [],
+) {
   const token = `header.${Buffer.from(JSON.stringify({ sub: "user-1", firstName: "Alex", email: "alex@example.com", exp: Date.now() / 1000 + 3600 })).toString("base64url")}.signature`;
   if (signedIn)
     await page.addInitScript(
@@ -34,6 +38,13 @@ export async function mockApi(page: Page, signedIn = true) {
       fileUrl: "",
     },
   ];
+  files.push(
+    ...extraFiles.map((name, index) => ({
+      ...files[0],
+      id: `extra-${index}`,
+      name,
+    })),
+  );
   await page.route("**/api/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());

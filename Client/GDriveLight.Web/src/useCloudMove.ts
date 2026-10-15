@@ -1,28 +1,23 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { pathQuery, type DriveItem } from "./drive-api";
-import { moveItem } from "./operations-api";
+import { moveItems } from "./operations-api";
+import { parentOf, batchError } from "./batch";
 import { getSession } from "./session";
-
 export const cloudItemDragType = "application/x-gdrivelight-item";
-const parentOf = (item: DriveItem) =>
-  item.kind === "folder" ? item.parentFolderId : item.folderId;
-
 export function useCloudMove(
   enabled: boolean,
-  completed: (item: DriveItem) => void,
-  failed: (message: string) => void,
+  completed: (items: DriveItem[]) => void,
+  failed: (message: string, remaining: DriveItem[]) => void,
 ) {
-  const [dragged, setDragged] = useState<DriveItem | null>(null);
-  const [hovered, setHovered] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
-  const active = useRef<DriveItem | null>(null);
-  const busy = useRef(false);
-  const mounted = useRef(false);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const active = useRef<DriveItem[] | null>(null);
+  const busy = useRef(false),
+    mounted = useRef(false);
   const client = useQueryClient();
   const clear = () => {
     active.current = null;
-    setDragged(null);
     setHovered(null);
   };
   useEffect(() => {
@@ -48,35 +43,33 @@ export function useCloudMove(
   const ownDrag = (event: DragEvent) =>
     !!active.current &&
     Array.from(event.dataTransfer.types).includes(cloudItemDragType);
-  const allowed = (item: DriveItem, destination: string | null) =>
+  const allowed = (items: DriveItem[], destination: string | null) =>
     enabled &&
     !busy.current &&
-    destination !== parentOf(item) &&
-    !(item.kind === "folder" && destination === item.id);
-  async function move(item: DriveItem, destination: string | null) {
-    if (!allowed(item, destination)) return;
+    items.some((item) => parentOf(item) !== destination) &&
+    !items.some((item) => item.kind === "folder" && item.id === destination);
+  async function move(items: DriveItem[], destination: string | null) {
+    if (!allowed(items, destination)) return;
     const token = getSession()?.token;
     if (!token) return;
     busy.current = true;
     setMoving(true);
     try {
-      if (item.kind === "folder" && destination) {
-        const ancestors = await client.fetchQuery({
-          ...pathQuery(destination),
-          staleTime: 0,
-        });
-        if (ancestors.some((folder) => folder.id === item.id))
-          throw new Error(
-            "Cannot move a folder into itself or its descendant.",
-          );
-      }
-      if (getSession()?.token !== token) return;
-      await moveItem(item, destination);
-      if (mounted.current && getSession()?.token === token) completed(item);
+      const result = await moveItems(items, destination, (id) =>
+        client.fetchQuery({ ...pathQuery(id), staleTime: 0 }),
+      );
+      if (!mounted.current || getSession()?.token !== token) return;
+      if (result.failed.length)
+        failed(
+          batchError(result),
+          result.failed.map((failure) => failure.item),
+        );
+      else completed(result.succeeded);
     } catch (error) {
       if (mounted.current && getSession()?.token === token)
         failed(
-          error instanceof Error ? error.message : "Could not move the item.",
+          error instanceof Error ? error.message : "Could not move the items.",
+          items,
         );
     } finally {
       busy.current = false;
@@ -88,9 +81,12 @@ export function useCloudMove(
     }
   }
   return {
-    dragged,
     moving,
-    sourceProps: (item: DriveItem) => ({
+    sourceProps: (
+      item: DriveItem,
+      selection: DriveItem[],
+      selectSource: () => void,
+    ) => ({
       draggable: enabled && !moving,
       onDragStart: (event: DragEvent) => {
         if (
@@ -102,10 +98,20 @@ export function useCloudMove(
           event.preventDefault();
           return;
         }
-        active.current = item;
-        setDragged(item);
+        const items = selection.some((selected) => selected.id === item.id)
+          ? [...selection]
+          : [item];
+        if (
+          items.length === 1 &&
+          !selection.some((selected) => selected.id === item.id)
+        )
+          selectSource();
+        active.current = items;
         event.dataTransfer.clearData();
-        event.dataTransfer.setData(cloudItemDragType, item.id);
+        event.dataTransfer.setData(
+          cloudItemDragType,
+          JSON.stringify(items.map((item) => item.id)),
+        );
         event.dataTransfer.effectAllowed = "move";
       },
       onDragEnd: clear,
@@ -140,9 +146,9 @@ export function useCloudMove(
         if (!ownDrag(event)) return;
         event.preventDefault();
         event.stopPropagation();
-        const item = active.current!;
+        const items = active.current!;
         clear();
-        void move(item, destination);
+        void move(items, destination);
       },
     }),
   };

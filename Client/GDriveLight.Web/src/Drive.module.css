@@ -78,8 +78,13 @@
 }
 .tableScroll {
   overflow: auto;
+  position: relative;
+  min-height: 360px;
+  padding-bottom: 64px;
+  outline: none;
 }
 .table {
+  user-select: none;
   border-collapse: collapse;
   table-layout: fixed;
   width: 100%;
@@ -110,7 +115,7 @@
 .table td {
   padding: 8px 12px;
 }
-.table th:nth-child(2) {
+.table th:first-child {
   width: 45%;
 }
 .table th:last-child {
@@ -121,19 +126,6 @@
 }
 .table tbody tr.selected {
   background: #e8f0fe;
-}
-.table .checkColumn {
-  width: 36px;
-  padding-right: 0;
-}
-.table td:first-child {
-  padding-right: 0;
-}
-.table input {
-  accent-color: var(--accent);
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
 }
 .name {
   display: flex;
@@ -181,7 +173,7 @@
   .ownerColumn {
     display: none;
   }
-  .table th:nth-child(2) {
+  .table th:first-child {
     width: 48%;
   }
 }
@@ -195,7 +187,7 @@
   .headerActions {
     gap: 4px;
   }
-  .table th:nth-child(2) {
+  .table th:first-child {
     width: auto;
   }
   .table th:last-child {
@@ -209,9 +201,11 @@
     gap: 8px;
   }
   .toolbar {
+    min-height: 104px;
+    align-content: flex-start;
     gap: 8px;
   }
-  .count {
+  .toolbar > .count {
     width: 100%;
   }
 }
@@ -268,4 +262,16 @@
   outline: 2px solid var(--accent);
   outline-offset: -2px;
   border-radius: 6px;
+}
+
+.table tbody tr:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.marquee {
+  position: absolute;
+  z-index: 10;
+  pointer-events: none;
+  border: 1px solid var(--accent);
+  background: #0b57d020;
 }
