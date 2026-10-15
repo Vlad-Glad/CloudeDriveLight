@@ -31,6 +31,8 @@ public sealed class FileTypeCatalogTests
         var added = Assert.Single(refreshed.Value, type => type.Id == 99);
         Assert.Equal("Markdown", added.Name);
         Assert.Equal(".md", added.Extension);
+        Assert.Equal("text/markdown", added.MimeType);
+        Assert.Equal("text", added.PreviewKind);
         Assert.Equal(initial.Value.Count() + 1, refreshed.Value.Count());
     }
 }

@@ -79,7 +79,7 @@ public class FilesController : ControllerBase
             return BadRequest(new { error = result.Error });
         }
 
-        return Ok(result.Value.Select(type => new FileTypeResponse(type.Id, type.Name, type.Extension)));
+        return Ok(result.Value.Select(type => new FileTypeResponse(type.Id, type.Name, type.Extension, type.MimeType, type.PreviewKind)));
     }
 
     [HttpGet]
@@ -117,6 +117,29 @@ public class FilesController : ControllerBase
 
         var fileResult = result.Value;
         return File(fileResult.FileStream, fileResult.MimeType, fileResult.FileName);
+    }
+
+    [HttpGet("{id}/preview")]
+    public async Task<IActionResult> PreviewFile(Guid id, CancellationToken cancellationToken)
+    {
+        // Share the download query's ownership check and storage access, not its attachment response.
+        var result = await _mediator.Send(new DownloadFileQuery(id, _currentUserService.UserId), cancellationToken);
+        if (result.IsFailure)
+            return BadRequest(new { error = result.Error });
+
+        var content = result.Value;
+        if (FilePreviewPolicy.GetKind(content.MimeType) == "none")
+        {
+            await content.FileStream.DisposeAsync();
+            return StatusCode(StatusCodes.Status415UnsupportedMediaType,
+                new { error = "Preview is not supported for this file type." });
+        }
+
+        Response.Headers.ContentDisposition = "inline";
+        Response.Headers.CacheControl = "private, no-store";
+        Response.Headers["X-Content-Type-Options"] = "nosniff";
+        Response.Headers.ContentSecurityPolicy = "sandbox; default-src 'none'";
+        return File(content.FileStream, FilePreviewPolicy.GetContentType(content.MimeType));
     }
 
     [HttpDelete("{id}")]

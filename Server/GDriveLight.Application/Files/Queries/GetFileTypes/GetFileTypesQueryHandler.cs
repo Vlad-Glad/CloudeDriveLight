@@ -12,7 +12,7 @@ public sealed class GetFileTypesQueryHandler(IFileTypeRepository repository)
         var types = await repository.GetAllAsync(cancellationToken);
         return Result<IEnumerable<FileTypeQuery>>.Success(types
             .OrderBy(type => type.Extension, StringComparer.OrdinalIgnoreCase)
-            .Select(type => new FileTypeQuery(type.Id, type.Name, type.Extension))
+            .Select(type => new FileTypeQuery(type.Id, type.Name, type.Extension, type.MimeType, FilePreviewPolicy.GetKind(type.MimeType)))
             .ToArray());
     }
 }
