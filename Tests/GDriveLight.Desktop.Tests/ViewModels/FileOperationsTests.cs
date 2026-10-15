@@ -72,6 +72,10 @@ public sealed class FileOperationsTests
     public async Task DeletionRequiresConfirmation(bool confirmed)
     {
         var api = ReadableApi();
+        api.SetupGet(service => service.CurrentUserId).Returns(Guid.NewGuid());
+        api.SetupSequence(service => service.GetStorageUsageAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StorageUsageResponse(2048, 1024, 1024, false))
+            .ReturnsAsync(new StorageUsageResponse(2048, 0, 2048, false));
         api.Setup(service => service.DeleteAsync(It.IsAny<Guid>(), false, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         var dialogs = new Mock<IUserDialogService>(MockBehavior.Strict);
         dialogs.Setup(service => service.ConfirmDelete("notes.txt", false)).Returns(confirmed);
@@ -84,6 +88,9 @@ public sealed class FileOperationsTests
         api.Verify(service => service.DeleteAsync(item.Id, false, It.IsAny<CancellationToken>()),
             confirmed ? Times.Once() : Times.Never());
         api.Verify(service => service.GetFilesAsync(null, It.IsAny<CancellationToken>()),
+            confirmed ? Times.Exactly(2) : Times.Once());
+        Assert.Equal(confirmed ? 0 : 50, model.StorageUsage.UsedPercentage);
+        api.Verify(service => service.GetStorageUsageAsync(It.IsAny<CancellationToken>()),
             confirmed ? Times.Exactly(2) : Times.Once());
     }
 

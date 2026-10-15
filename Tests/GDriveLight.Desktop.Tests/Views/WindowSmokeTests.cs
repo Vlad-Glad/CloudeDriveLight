@@ -57,6 +57,9 @@ public sealed class WindowSmokeTests
                     .ReturnsAsync(new[] { new FileTypeResponse(2, "Text", ".txt"), new FileTypeResponse(99, "Markdown", ".md") }
                         .Concat(Enumerable.Range(100, 10).Select(id => new FileTypeResponse(id, $"Custom {id}", $".custom{id}"))));
                 api.SetupGet(service => service.CurrentUser).Returns(new UserProfile(Guid.NewGuid(), "Olena", "olena@example.com"));
+                api.SetupGet(service => service.CurrentUserId).Returns(Guid.NewGuid());
+                api.Setup(service => service.GetStorageUsageAsync(It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new StorageUsageResponse(2L * 1024 * 1024 * 1024, 1024L * 1024 * 1024, 1024L * 1024 * 1024, false));
                 using var profile = new UserProfileViewModel(api.Object, new Mock<IAvatarService>().Object);
                 using var mainViewModel = new MainWindowViewModel(api.Object,
                     new Mock<IFileDialogService>().Object, new Mock<IUserDialogService>().Object, profile: profile);
@@ -78,6 +81,11 @@ public sealed class WindowSmokeTests
                 main.Opacity = 0;
                 ((Border)popup.Child).Opacity = 0;
                 main.Show();
+                main.Dispatcher.Invoke(() => { }, DispatcherPriority.DataBind);
+                var storageProgress = Assert.IsType<ProgressBar>(main.FindName("StorageProgress"));
+                Assert.Equal(50, storageProgress.Value);
+                Assert.Equal(Visibility.Visible, storageProgress.Visibility);
+                Assert.Equal("1 GiB of 2 GiB used", Assert.IsType<TextBlock>(main.FindName("StorageUsageText")).Text);
                 popup.GetBindingExpression(Popup.PlacementTargetProperty)!.UpdateTarget();
                 popup.GetBindingExpression(FrameworkElement.DataContextProperty)!.UpdateTarget();
                 logout.GetBindingExpression(Button.CommandProperty)!.UpdateTarget();

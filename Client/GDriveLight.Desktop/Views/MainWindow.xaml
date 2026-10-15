@@ -177,6 +177,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <StackPanel Orientation="Horizontal" Margin="12,12,0,28">
                 <ui:SymbolIcon Symbol="Cloud48" Foreground="{DynamicResource PrimaryBrandBrush}" FontSize="30" />
@@ -234,6 +235,46 @@
                     </StackPanel>
                 </ListBoxItem>
             </ListBox>
+            <Border Grid.Row="3" DataContext="{Binding StorageUsage}" BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,1,0,0" Padding="12,16,12,4" Margin="0,12,0,0">
+                <StackPanel>
+                    <TextBlock Text="Storage" FontWeight="Medium" Margin="0,0,0,10" />
+                    <TextBlock Text="Loading storage…" Foreground="{DynamicResource TextSecondaryBrush}"
+                               Visibility="{Binding ShowLoading, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <StackPanel Visibility="{Binding HasUsage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ProgressBar x:Name="StorageProgress" Minimum="0" Maximum="100" Value="{Binding UsedPercentage, Mode=OneWay}"
+                                     Height="6" Margin="0,0,0,8" AutomationProperties.Name="Storage used"
+                                     AutomationProperties.HelpText="{Binding UsageText}">
+                            <ProgressBar.Style>
+                                <Style TargetType="ProgressBar">
+                                    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                                    <Setter Property="Background" Value="{DynamicResource BorderBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsNearLimit}" Value="True">
+                                            <Setter Property="Foreground" Value="#B06000" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsFull}" Value="True">
+                                            <Setter Property="Foreground" Value="#B3261E" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ProgressBar.Style>
+                        </ProgressBar>
+                        <TextBlock x:Name="StorageUsageText" Text="{Binding UsageText}" FontSize="12" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding AvailableText}" FontSize="12" Margin="0,4,0,0"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding WarningText}" FontSize="12" Margin="0,8,0,0" Foreground="#B06000"
+                                   TextWrapping="Wrap" Visibility="{Binding HasWarning, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    </StackPanel>
+                    <StackPanel Margin="0,8,0,0" Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="{Binding ErrorMessage}" FontSize="12" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                        <Button Content="Retry" Command="{Binding RetryCommand}" Style="{StaticResource QuietButton}"
+                                Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Left" Padding="0,6"
+                                AutomationProperties.Name="Retry storage usage" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
         </Grid>
         <Border Grid.Column="1" Background="White" CornerRadius="20" Margin="0,16,16,16">
             <Grid Margin="24">

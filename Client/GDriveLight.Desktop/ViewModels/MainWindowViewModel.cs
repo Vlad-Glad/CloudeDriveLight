@@ -46,6 +46,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _deviceConnection = deviceConnection;
         _virtualFileDrag = virtualFileDrag ?? new WindowsVirtualFileDragService();
         Profile = profile;
+        StorageUsage = new StorageUsageViewModel(apiService);
+        StorageUsage.SessionExpired += (_, _) => Logout();
         _fileDialogs = fileDialogs;
         _dialogs = dialogs;
         _syncEngine = syncEngine;
@@ -65,6 +67,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     public UserProfileViewModel? Profile { get; }
+    public StorageUsageViewModel StorageUsage { get; }
     public string Title => "GDriveLight";
     public ObservableCollection<BreadcrumbItem> Breadcrumbs { get; } = new();
     public IEnumerable<BreadcrumbItem> BreadcrumbTrail => Breadcrumbs.Take(Math.Max(0, Breadcrumbs.Count - 1));
@@ -195,6 +198,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        _ = StorageUsage.RefreshAsync();
         CancelLoad();
         var version = _loadVersion;
         using var cancellation = new CancellationTokenSource();
@@ -355,6 +359,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void Logout()
     {
+        StorageUsage.Clear();
         CancelLoad();
         _searchDebounce?.Cancel();
         _activeOperation?.Cancel();
@@ -456,6 +461,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         _disposed = true;
+        StorageUsage.Dispose();
         Profile?.Dispose();
         _connectionLifetime.Cancel();
         _connectionLifetime.Dispose();

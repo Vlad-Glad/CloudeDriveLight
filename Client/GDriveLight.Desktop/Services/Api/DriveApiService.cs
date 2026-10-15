@@ -70,6 +70,14 @@ public sealed class DriveApiService : IDriveApiService
     public Task<IEnumerable<FileTypeResponse>> GetFileTypesAsync(CancellationToken cancellationToken = default) =>
         GetListAsync<FileTypeResponse>("api/files/types", cancellationToken);
 
+    public async Task<StorageUsageResponse> GetStorageUsageAsync(CancellationToken cancellationToken = default)
+    {
+        using var request = CreateRequest(HttpMethod.Get, "api/storage/usage");
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+        return await response.Content.ReadFromJsonAsync<StorageUsageResponse>(cancellationToken).ConfigureAwait(false)
+            ?? throw new JsonException("The server returned invalid storage usage.");
+    }
+
     public Task<IEnumerable<FolderResponse>> GetFolderPathAsync(Guid id, CancellationToken cancellationToken = default) =>
         GetListAsync<FolderResponse>($"api/folders/{id}/path", cancellationToken);
 

@@ -10,6 +10,43 @@ namespace GDriveLight.Desktop.Tests.Services;
 public sealed class DriveApiServiceTests
 {
     [Fact]
+    public async Task StorageUsageUsesAuthenticatedEndpointAndPreservesLargeByteCounts()
+    {
+        using var client = new HttpClient(new StubHandler((request, _) =>
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal("/api/storage/usage", request.RequestUri!.AbsolutePath);
+            Assert.Equal("session-token", request.Headers.Authorization!.Parameter);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"quotaBytes":4294967296,"usedBytes":3221225472,"availableBytes":1073741824,"isOverQuota":false}""",
+                    Encoding.UTF8, "application/json")
+            });
+        }));
+        var service = new DriveApiService(client);
+        service.SetAuthToken("session-token");
+        var usage = await service.GetStorageUsageAsync();
+        Assert.Equal(4294967296L, usage.QuotaBytes);
+        Assert.Equal(3221225472L, usage.UsedBytes);
+        Assert.Equal(1073741824L, usage.AvailableBytes);
+        Assert.False(usage.IsOverQuota);
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("{}")]
+    [InlineData("{\"usedBytes\":123}")]
+    public async Task StorageUsageRejectsMissingDataInsteadOfReportingZero(string json)
+    {
+        using var client = new HttpClient(new StubHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        })));
+        var service = new DriveApiService(client);
+        await Assert.ThrowsAsync<JsonException>(() => service.GetStorageUsageAsync());
+    }
+
+    [Fact]
     public async Task FileTypesAreReadFromTheAuthenticatedCatalogOnEachRequest()
     {
         var requests = 0;

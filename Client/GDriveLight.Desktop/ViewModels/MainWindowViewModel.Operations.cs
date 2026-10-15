@@ -567,6 +567,8 @@ public sealed partial class MainWindowViewModel
         catch (Exception exception)
         {
             HandleOperationError(exception);
+            if (refreshAfter && !_disposed && exception is not DriveApiException { StatusCode: HttpStatusCode.Unauthorized })
+                _ = StorageUsage.RefreshAsync();
         }
         finally
         {

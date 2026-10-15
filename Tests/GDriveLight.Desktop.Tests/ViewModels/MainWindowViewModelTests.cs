@@ -10,6 +10,34 @@ namespace GDriveLight.Desktop.Tests.ViewModels;
 
 public sealed class MainWindowViewModelTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StorageRequestCannotBlockOrReplaceTheFileList(bool failStorage)
+    {
+        var api = new Mock<IDriveApiService>(MockBehavior.Strict);
+        api.SetupGet(service => service.CurrentUserId).Returns(Guid.NewGuid());
+        api.Setup(service => service.EnsureDeviceRegisteredAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Guid.NewGuid());
+        api.Setup(service => service.GetFolderContentAsync(null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { new FolderResponse(Guid.NewGuid(), "Documents", null, Guid.NewGuid()) });
+        api.Setup(service => service.GetFilesAsync(null, It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<FileResponse>());
+        var storage = new TaskCompletionSource<StorageUsageResponse>();
+        api.Setup(service => service.GetStorageUsageAsync(It.IsAny<CancellationToken>())).Returns(storage.Task);
+        using var model = new MainWindowViewModel(api.Object,
+            new Mock<IFileDialogService>().Object, new Mock<IUserDialogService>().Object);
+
+        await model.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(model.StorageUsage.ShowLoading);
+        Assert.False(model.IsLoading);
+        Assert.Equal("Documents", Assert.Single(model.VisibleFiles).Name);
+
+        if (failStorage) storage.SetException(new DriveApiException(HttpStatusCode.InternalServerError, "Unavailable"));
+        else storage.SetResult(new StorageUsageResponse(100, 50, 50, false));
+        Assert.Equal(failStorage, model.StorageUsage.HasError);
+        Assert.False(model.IsError);
+        Assert.Equal("Documents", Assert.Single(model.VisibleFiles).Name);
+    }
+
     [Fact]
     public async Task LateResponseCannotPopulateTheSyncedFoldersScreen()
     {

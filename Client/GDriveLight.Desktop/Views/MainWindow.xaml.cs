@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using GDriveLight.Desktop.ViewModels;
 using SymbolIcon = Wpf.Ui.Controls.SymbolIcon;
 using SymbolRegular = Wpf.Ui.Controls.SymbolRegular;
@@ -14,6 +15,7 @@ public partial class MainWindow : Window
     private readonly MainWindowViewModel _viewModel;
     private ContextMenu? _openMenu;
     private AccountSettingsWindow? _accountSettings;
+    private readonly DispatcherTimer _storageRefreshTimer;
 
     public MainWindow(MainWindowViewModel viewModel)
     {
@@ -21,8 +23,23 @@ public partial class MainWindow : Window
         InitializeComponent();
         _viewModel = viewModel;
         DataContext = viewModel;
-        Loaded += async (_, _) => await Task.WhenAll(viewModel.InitializeAsync(),
-            viewModel.Profile?.LoadAvatarAsync() ?? Task.CompletedTask);
+        _storageRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(60) };
+        _storageRefreshTimer.Tick += async (_, _) =>
+        {
+            if (IsActive && !viewModel.StorageUsage.IsLoading)
+                await viewModel.StorageUsage.RefreshAsync();
+        };
+        Loaded += async (_, _) =>
+        {
+            _storageRefreshTimer.Start();
+            await Task.WhenAll(viewModel.InitializeAsync(),
+                viewModel.Profile?.LoadAvatarAsync() ?? Task.CompletedTask);
+        };
+        Activated += async (_, _) =>
+        {
+            if (IsLoaded && !viewModel.StorageUsage.IsLoading)
+                await viewModel.StorageUsage.RefreshAsync();
+        };
         Deactivated += (_, _) => ProfilePopup.IsOpen = false;
         PreviewMouseDown += (_, e) =>
         {
@@ -34,6 +51,7 @@ public partial class MainWindow : Window
         };
         Closed += (_, _) =>
         {
+            _storageRefreshTimer.Stop();
             if (_openMenu is not null)
             {
                 _openMenu.IsOpen = false;
