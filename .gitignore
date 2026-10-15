@@ -376,3 +376,7 @@ Server/GDriveLight.Api/uploads/
 # UI prototypes and design mockups
 prototypes/
 **/prototypes/
+
+# Documentation
+Client/GDriveLight.Web/README.md
+
