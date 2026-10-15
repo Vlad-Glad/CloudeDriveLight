@@ -238,15 +238,6 @@
 .dropOverlay span {
   color: var(--secondary);
 }
-.dropHint {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 18px;
-  color: var(--secondary);
-  font-size: 13px;
-}
 .folderRow {
   cursor: pointer;
 }

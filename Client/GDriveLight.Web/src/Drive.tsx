@@ -853,12 +853,6 @@ export default function Drive() {
             </table>
           </div>
         )}
-        {!error && !loading && (
-          <div className={styles.dropHint}>
-            <Upload size={16} />
-            Drop files here to upload to {currentName}
-          </div>
-        )}
 
         {operation && (
           <OperationDialog
