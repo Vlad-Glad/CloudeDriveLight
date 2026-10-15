@@ -81,6 +81,36 @@ public class UploadFileCommandHandlerTests
         _fileStorageService.VerifyNoOtherCalls();
     }
 
+    [Theory]
+    [InlineData("photo.jpeg", false)]
+    [InlineData("photo.JPEG", false)]
+    [InlineData("photo.jpeg", true)]
+    public async Task Handle_JpegUsesTheJpgTypeUnlessTheCatalogDefinesItsOwnEntry(string name, bool hasJpegEntry)
+    {
+        var userId = Guid.NewGuid();
+        using var stream = new MemoryStream([0xFF, 0xD8, 0xFF, 0xD9]);
+        var fileType = new FileType("JPEG", "image/jpeg", hasJpegEntry ? ".jpeg" : ".jpg");
+        typeof(FileType).GetProperty(nameof(FileType.Id))!.SetValue(fileType, hasJpegEntry ? 17 : 11);
+        _fileTypeRepository.Setup(repository => repository.GetByExtensionAsync(".jpeg", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(hasJpegEntry ? fileType : null);
+        if (!hasJpegEntry)
+            _fileTypeRepository.Setup(repository => repository.GetByExtensionAsync(".jpg", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(fileType);
+        _fileRepository.Setup(repository => repository.ExistsAsync(name, null, userId, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _fileStorageService.Setup(service => service.SaveAsync(It.IsAny<Stream>(), name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("storage/photo.jpeg");
+        _fileRepository.Setup(repository => repository.AddAsync(It.IsAny<DriveFile>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        _changeLogRepository.Setup(repository => repository.AddAsync(It.IsAny<ChangeLogEntry>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        _unitOfWork.Setup(unit => unit.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        var result = await CreateHandler().Handle(new UploadFileCommand(name, stream, userId, null), CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        _fileRepository.Verify(repository => repository.AddAsync(
+            It.Is<DriveFile>(file => file.Name == name && file.FileTypeId == fileType.Id), It.IsAny<CancellationToken>()), Times.Once);
+        _fileTypeRepository.Verify(repository => repository.GetByExtensionAsync(".jpg", It.IsAny<CancellationToken>()),
+            hasJpegEntry ? Times.Never() : Times.Once());
+    }
+
     [Fact]
     public async Task Handle_WhenFileAlreadyExists_ReturnsFailure()
     {

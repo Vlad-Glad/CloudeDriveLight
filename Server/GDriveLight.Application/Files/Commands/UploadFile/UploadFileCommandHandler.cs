@@ -54,6 +54,8 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
 
         var extension = Path.GetExtension(request.FileName).ToLowerInvariant();
         var fileType = await _fileTypeRepository.GetByExtensionAsync(extension, cancellationToken);
+        if (fileType is null && extension == ".jpeg")
+            fileType = await _fileTypeRepository.GetByExtensionAsync(".jpg", cancellationToken);
 
         if (fileType == null)
         {
