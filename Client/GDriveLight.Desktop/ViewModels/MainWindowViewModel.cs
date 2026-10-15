@@ -62,6 +62,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 Breadcrumbs.Contains(crumb) && !ReferenceEquals(crumb, Breadcrumbs.LastOrDefault()));
         LogoutCommand = new RelayCommand(Logout, () => !_disposed && !_isDisconnecting);
         InitializeOperationCommands();
+        InitializePreviewCommands();
         DisconnectDeviceCommand = new AsyncRelayCommand(DisconnectDeviceAsync, HandleOperationError,
             () => !_disposed && !_isDisconnecting && _deviceConnection is not null && _deviceConnectionState != DeviceConnectionState.Disconnected);
     }
@@ -410,6 +411,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(EmptyTitle));
         OnPropertyChanged(nameof(EmptyDescription));
         OpenFolderCommand?.NotifyCanExecuteChanged();
+        OpenItemCommand?.NotifyCanExecuteChanged();
+        PreviewCommand?.NotifyCanExecuteChanged();
         NavigateBackCommand?.NotifyCanExecuteChanged();
         DisconnectDeviceCommand?.NotifyCanExecuteChanged();
         LogoutCommand?.NotifyCanExecuteChanged();

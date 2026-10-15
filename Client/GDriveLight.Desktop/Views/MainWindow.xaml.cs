@@ -23,6 +23,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         _viewModel = viewModel;
         DataContext = viewModel;
+        viewModel.PreviewRequested += OpenPreview;
         _storageRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(60) };
         _storageRefreshTimer.Tick += async (_, _) =>
         {
@@ -51,6 +52,7 @@ public partial class MainWindow : Window
         };
         Closed += (_, _) =>
         {
+            viewModel.PreviewRequested -= OpenPreview;
             _storageRefreshTimer.Stop();
             if (_openMenu is not null)
             {
@@ -62,6 +64,15 @@ public partial class MainWindow : Window
             ClearDropHighlight();
             viewModel.Dispose();
         };
+    }
+
+    private void OpenPreview(object? sender, FilePreviewViewModel viewModel)
+    {
+        using (viewModel)
+        {
+            var preview = new FilePreviewWindow(viewModel) { Owner = this };
+            preview.ShowDialog();
+        }
     }
 
     private void AccountSettingsClick(object sender, RoutedEventArgs e)
@@ -202,9 +213,9 @@ public partial class MainWindow : Window
         }
 
         if (FindAncestor<DataGridRow>(e.OriginalSource as DependencyObject) is { Item: FileItemViewModel item } &&
-            _viewModel.OpenFolderCommand.CanExecute(item))
+            _viewModel.OpenItemCommand.CanExecute(item))
         {
-            _viewModel.OpenFolderCommand.Execute(item);
+            _viewModel.OpenItemCommand.Execute(item);
             e.Handled = true;
         }
     }
@@ -213,6 +224,8 @@ public partial class MainWindow : Window
     {
         FileGrid.SelectedItem = item;
         var menu = new ContextMenu();
+        if (!item.IsFolder)
+            menu.Items.Add(CreateAction("Preview", _viewModel.PreviewCommand, SymbolRegular.Document24, item));
         menu.Items.Add(item.IsFolder
             ? CreateAction("Open folder", _viewModel.OpenFolderCommand, SymbolRegular.FolderOpen24, item)
             : CreateAction("Download", _viewModel.DownloadCommand, SymbolRegular.ArrowDownload24, item));

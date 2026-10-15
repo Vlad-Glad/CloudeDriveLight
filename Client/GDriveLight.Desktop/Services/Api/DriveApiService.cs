@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using GDriveLight.Desktop.Models.Api;
+using GDriveLight.Desktop.Services.Preview;
 
 namespace GDriveLight.Desktop.Services.Api;
 
@@ -147,6 +148,29 @@ public sealed class DriveApiService : IDriveApiService
         var result = await response.Content.ReadFromJsonAsync<CreatedFileResponse>(cancellationToken).ConfigureAwait(false);
         return result is { Id: var id } && id != Guid.Empty
             ? id : throw new JsonException("The server returned an invalid file ID.");
+    }
+
+    public async Task<byte[]> GetFilePreviewContentAsync(Guid fileId, CancellationToken cancellationToken = default)
+    {
+        // Use the same ownership-checked download endpoint for native formats beyond the web preview catalog.
+        using var request = CreateRequest(HttpMethod.Get, $"api/files/{fileId}/download");
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (response.Content.Headers.ContentLength > FilePreviewPolicy.MaxPreviewBytes)
+            throw new PreviewUnavailableException("Preview is limited to 10 MiB. Download this file to view it.");
+
+        await using var input = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var output = new MemoryStream();
+        var buffer = new byte[32768];
+        int count;
+        while ((count = await input.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+        {
+            if (output.Length + count > FilePreviewPolicy.MaxPreviewBytes)
+                throw new PreviewUnavailableException("Preview is limited to 10 MiB. Download this file to view it.");
+            await output.WriteAsync(buffer.AsMemory(0, count), cancellationToken).ConfigureAwait(false);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        return output.ToArray();
     }
 
     public async Task DownloadFileAsync(Guid fileId, string destination, CancellationToken cancellationToken = default)

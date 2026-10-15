@@ -10,6 +10,32 @@ namespace GDriveLight.Desktop.Tests.ViewModels;
 
 public sealed class MainWindowViewModelTests
 {
+    [Fact]
+    public async Task OpeningAFileRequestsPreviewFromTheCurrentFilteredList()
+    {
+        var api = new Mock<IDriveApiService>(MockBehavior.Strict);
+        api.SetupGet(service => service.CurrentUserId).Returns(Guid.NewGuid());
+        api.Setup(service => service.EnsureDeviceRegisteredAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Guid.NewGuid());
+        api.Setup(service => service.GetStorageUsageAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new StorageUsageResponse(100, 0, 100, false));
+        api.Setup(service => service.GetFolderContentAsync(null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { new FolderResponse(Guid.NewGuid(), "Documents", null, Guid.NewGuid()) });
+        api.Setup(service => service.GetFilesAsync(null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { new FileResponse(Guid.NewGuid(), "Example.cs", 6, "hash", 100, null, Guid.NewGuid(), DateTime.UtcNow, null, "internal-path") });
+        using var model = new MainWindowViewModel(api.Object, new Mock<IFileDialogService>().Object, new Mock<IUserDialogService>().Object);
+        await model.InitializeAsync();
+        FilePreviewViewModel? requested = null;
+        model.PreviewRequested += (_, preview) => requested = preview;
+        var code = model.VisibleFiles.Single(file => !file.IsFolder);
+        Assert.False(model.PreviewCommand.CanExecute(model.VisibleFiles.Single(file => file.IsFolder)));
+        model.OpenItemCommand.Execute(code);
+        using (requested)
+        {
+            Assert.NotNull(requested);
+            Assert.Same(code, requested.CurrentFile);
+            Assert.Equal("1 / 1", requested.PositionText);
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

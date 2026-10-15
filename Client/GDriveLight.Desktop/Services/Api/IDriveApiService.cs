@@ -16,6 +16,7 @@ public interface IDriveApiService
     Task<Guid> UploadFileAsync(string filePath, Guid? folderId, CancellationToken cancellationToken = default);
     Task<Guid> UploadFileAsync(string filePath, Guid? folderId, bool deviceOrigin, CancellationToken cancellationToken = default);
     Task DownloadFileAsync(Guid fileId, string destination, CancellationToken cancellationToken = default);
+    Task<byte[]> GetFilePreviewContentAsync(Guid fileId, CancellationToken cancellationToken = default);
     Task<IEnumerable<FolderResponse>> GetFolderPathAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IEnumerable<FolderResponse>> SearchFoldersAsync(string name, CancellationToken cancellationToken = default);
     Task<IEnumerable<FileResponse>> SearchFilesAsync(string name, CancellationToken cancellationToken = default);

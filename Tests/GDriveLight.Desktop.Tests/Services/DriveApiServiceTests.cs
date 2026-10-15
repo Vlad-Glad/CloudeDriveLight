@@ -4,11 +4,57 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using GDriveLight.Desktop.Services.Api;
+using GDriveLight.Desktop.Services.Preview;
 
 namespace GDriveLight.Desktop.Tests.Services;
 
 public sealed class DriveApiServiceTests
 {
+    [Fact]
+    public async Task PreviewReadsAuthenticatedFileBytesAndDisposesTheResponse()
+    {
+        var id = Guid.NewGuid();
+        var stream = new PreviewReadStream(Encoding.UTF8.GetBytes("class Example {}"));
+        using var client = new HttpClient(new StubHandler((request, _) =>
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal($"/api/files/{id}/download", request.RequestUri!.AbsolutePath);
+            Assert.Equal("session-token", request.Headers.Authorization!.Parameter);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(stream) });
+        }));
+        var service = new DriveApiService(client);
+        service.SetAuthToken("session-token");
+        Assert.Equal("class Example {}", Encoding.UTF8.GetString(await service.GetFilePreviewContentAsync(id)));
+        Assert.True(stream.WasDisposed);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PreviewEnforcesTheByteLimitWithOrWithoutContentLength(bool declaredLength)
+    {
+        var stream = new PreviewReadStream(new byte[FilePreviewPolicy.MaxPreviewBytes + 1024 * 1024]);
+        var content = new StreamContent(stream);
+        if (declaredLength) content.Headers.ContentLength = FilePreviewPolicy.MaxPreviewBytes + 1024 * 1024;
+        using var client = new HttpClient(new StubHandler((_, _) => Task.FromResult(
+            new HttpResponseMessage(HttpStatusCode.OK) { Content = content })));
+        var service = new DriveApiService(client);
+        await Assert.ThrowsAsync<PreviewUnavailableException>(() => service.GetFilePreviewContentAsync(Guid.NewGuid()));
+        Assert.True(stream.WasDisposed);
+        if (declaredLength) Assert.Equal(0, stream.BytesRead);
+        else Assert.InRange(stream.BytesRead, FilePreviewPolicy.MaxPreviewBytes, FilePreviewPolicy.MaxPreviewBytes + 32768);
+    }
+
+    [Fact]
+    public async Task PreviewPropagatesAccessFailuresInsteadOfReturningAnEmptyFile()
+    {
+        using var client = new HttpClient(new StubHandler((_, _) => Task.FromResult(
+            new HttpResponseMessage(HttpStatusCode.Forbidden) { Content = new StringContent("Denied") })));
+        var service = new DriveApiService(client);
+        var exception = await Assert.ThrowsAsync<DriveApiException>(() => service.GetFilePreviewContentAsync(Guid.NewGuid()));
+        Assert.Equal(HttpStatusCode.Forbidden, exception.StatusCode);
+    }
+
     [Fact]
     public async Task StorageUsageUsesAuthenticatedEndpointAndPreservesLargeByteCounts()
     {
@@ -377,6 +423,24 @@ public sealed class DriveApiServiceTests
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
             send(request, cancellationToken);
+    }
+
+    private sealed class PreviewReadStream(byte[] bytes) : MemoryStream(bytes, writable: false)
+    {
+        public override bool CanSeek => false;
+        public int BytesRead { get; private set; }
+        public bool WasDisposed { get; private set; }
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            var count = await base.ReadAsync(buffer, cancellationToken);
+            BytesRead += count;
+            return count;
+        }
+        protected override void Dispose(bool disposing)
+        {
+            WasDisposed = true;
+            base.Dispose(disposing);
+        }
     }
 
     private sealed class TrackedContent(string body) : StringContent(body, Encoding.UTF8, "application/json")

@@ -560,7 +560,7 @@
                                   ScrollViewer.HorizontalScrollBarVisibility="Auto"
                                   Visibility="{Binding IsContentVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <DataGrid.InputBindings>
-                                <KeyBinding Key="Enter" Command="{Binding OpenFolderCommand}" CommandParameter="{Binding SelectedFile}" />
+                                <KeyBinding Key="Enter" Command="{Binding OpenItemCommand}" CommandParameter="{Binding SelectedFile}" />
                                 <KeyBinding Key="F2" Command="{Binding RenameCommand}" CommandParameter="{Binding SelectedFile}" />
                                 <KeyBinding Key="Delete" Command="{Binding DeleteCommand}" CommandParameter="{Binding SelectedFile}" />
                                 <KeyBinding Key="M" Modifiers="Control" Command="{Binding MoveCommand}" CommandParameter="{Binding SelectedFile}" />

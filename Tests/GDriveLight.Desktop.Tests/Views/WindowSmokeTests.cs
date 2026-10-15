@@ -1,4 +1,5 @@
 using System.IO;
+using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
@@ -218,6 +219,8 @@ public sealed class WindowSmokeTests
                 VerifyMultipleSelection(main, mainViewModel);
                 stage = "dropping local files";
                 VerifyLocalFileDrops(main, mainViewModel, api);
+                stage = "loading native file previews";
+                VerifyNativeFilePreviews(main);
                 stage = "creating login window";
 
                 using var loginViewModel = new LoginViewModel(api.Object) { IsRegisterMode = true };
@@ -240,6 +243,73 @@ public sealed class WindowSmokeTests
         {
             System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
         }
+    }
+
+    private static void VerifyNativeFilePreviews(MainWindow owner)
+    {
+        var code = new FileItemViewModel { Id = Guid.NewGuid(), Name = "Example.cs", SizeBytes = 100 };
+        var photo = new FileItemViewModel { Id = Guid.NewGuid(), Name = "photo.jpeg", SizeBytes = 1000 };
+        var api = new Mock<IDriveApiService>(MockBehavior.Strict);
+        api.SetupGet(service => service.CurrentUserId).Returns(Guid.NewGuid());
+        api.Setup(service => service.GetFilePreviewContentAsync(code.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(System.Text.Encoding.UTF8.GetBytes("// Привіт\nclass Example {}"));
+        api.Setup(service => service.GetFilePreviewContentAsync(photo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Services.PreviewContentDecoderTests.CreateImage(true));
+        using var model = new FilePreviewViewModel(api.Object, new Mock<IFileDialogService>().Object, [code, photo], code.Id);
+        var preview = new FilePreviewWindow(model) { Owner = owner, ShowInTaskbar = false, ShowActivated = false, Opacity = 0 };
+        try
+        {
+            preview.Show();
+            WaitForPreview(preview, model);
+            var text = Assert.IsType<TextBox>(preview.FindName("PreviewText"));
+            Assert.True(text.IsReadOnly);
+            Assert.Equal("// Привіт\nclass Example {}", text.Text);
+            Assert.Equal(Visibility.Visible, text.Visibility);
+            Assert.Equal("Consolas", text.FontFamily.Source);
+
+            model.NextCommand.Execute(null);
+            WaitForPreview(preview, model);
+            Assert.Equal(Visibility.Collapsed, text.Visibility);
+            var image = Assert.IsType<Image>(preview.FindName("PreviewImage"));
+            Assert.Same(model.Image, image.Source);
+            Assert.True(image.IsVisible);
+            var scroller = Assert.IsType<ScrollViewer>(preview.FindName("ImageScroller"));
+            var bounds = image.TransformToAncestor(scroller).TransformBounds(new Rect(image.RenderSize));
+            Assert.InRange(bounds.Width, 1, scroller.ViewportWidth + 1);
+            Assert.InRange(bounds.Height, 1, scroller.ViewportHeight + 1);
+            Assert.InRange(scroller.ScrollableWidth, 0, 1);
+            Assert.InRange(scroller.ScrollableHeight, 0, 1);
+            model.ZoomInCommand.Execute(null);
+            preview.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+            preview.UpdateLayout();
+            Assert.True(scroller.ScrollableWidth > 0 || scroller.ScrollableHeight > 0);
+            model.FitCommand.Execute(null);
+            preview.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+            preview.UpdateLayout();
+            Assert.InRange(scroller.ScrollableWidth, 0, 1);
+            Assert.InRange(scroller.ScrollableHeight, 0, 1);
+        }
+        finally { preview.Close(); }
+        Assert.False(model.HasImage);
+        Assert.False(model.DownloadCommand.CanExecute(null));
+    }
+
+    private static void WaitForPreview(Window window, FilePreviewViewModel model)
+    {
+        var frame = new DispatcherFrame();
+        var elapsed = Stopwatch.StartNew();
+        var timer = new DispatcherTimer(DispatcherPriority.Background, window.Dispatcher) { Interval = TimeSpan.FromMilliseconds(5) };
+        timer.Tick += (_, _) =>
+        {
+            if (!model.IsLoading || elapsed.Elapsed > TimeSpan.FromSeconds(5)) frame.Continue = false;
+        };
+        timer.Start();
+        try { Dispatcher.PushFrame(frame); }
+        finally { timer.Stop(); }
+        Assert.False(model.IsLoading);
+        Assert.True(model.HasImage || model.HasText, model.Message);
+        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+        window.UpdateLayout();
     }
 
     private static void VerifyMultipleSelection(MainWindow main, MainWindowViewModel viewModel)
