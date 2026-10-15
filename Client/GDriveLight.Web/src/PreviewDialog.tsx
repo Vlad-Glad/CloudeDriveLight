@@ -26,6 +26,9 @@ const ImageViewer = lazy(() =>
 const TextViewer = lazy(() =>
   import("./TextViewer").then((m) => ({ default: m.TextViewer })),
 );
+const PdfViewer = lazy(() =>
+  import("./PdfViewer").then((m) => ({ default: m.PdfViewer })),
+);
 
 export function PreviewDialog({
   files,
@@ -318,7 +321,21 @@ function PreviewBody({
             />
           </Suspense>
         )}
-      {previewContent.status === "idle" && kind !== "image" && kind !== "text" && (
+      {previewContent.status === "ready" && kind === "pdf" && (
+        <Suspense
+          fallback={
+            <div className={styles.placeholder} role="status">
+              <LoaderCircle className="spin" size={36} />
+            </div>
+          }
+        >
+          <PdfViewer url={previewContent.url} title={file.name} />
+        </Suspense>
+      )}
+      {previewContent.status === "idle" &&
+        kind !== "image" &&
+        kind !== "text" &&
+        kind !== "pdf" && (
         <div className={styles.placeholder}>
           <File size={56} aria-hidden="true" />
           <h2>No preview available</h2>

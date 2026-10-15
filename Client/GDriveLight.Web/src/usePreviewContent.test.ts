@@ -84,6 +84,30 @@ describe("usePreviewContent", () => {
     }
   });
 
+  it("loads pdf content successfully without attempting text decoding", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(new Blob(["%PDF-1.7"], { type: "application/pdf" }), {
+        status: 200,
+        headers: { "Content-Type": "application/pdf" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() =>
+      usePreviewContent("file-pdf", "pdf", 512),
+    );
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("ready");
+    });
+
+    if (result.current.status === "ready") {
+      expect(result.current.text).toBeNull();
+      expect(result.current.mimeType).toBe("application/pdf");
+      expect(result.current.url).toBe("blob:mock-1");
+    }
+  });
+
   it("classifies 404 response as notFound error", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ error: "File not found" }), {

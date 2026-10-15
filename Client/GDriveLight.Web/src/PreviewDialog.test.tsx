@@ -243,4 +243,66 @@ describe("PreviewDialog", () => {
     await user.click(closeBtn);
     expect(closeMock).toHaveBeenCalled();
   });
+
+  it("renders pdf preview for kind pdf", async () => {
+    const pdfFiles: DriveFile[] = [
+      {
+        id: "file-pdf",
+        name: "Paper.pdf",
+        fileTypeId: 4,
+        sizeBytes: 1024,
+        contentHash: "hash4",
+        folderId: null,
+        ownerId: "user-1",
+        uploadedAtUtc: "2026-10-10T12:00:00Z",
+        editedAtUtc: null,
+        fileUrl: "",
+      },
+    ];
+
+    const typesWithPdf = [
+      ...catalogTypes,
+      {
+        id: 4,
+        name: "PDF",
+        extension: ".pdf",
+        mimeType: "application/pdf",
+        previewKind: "pdf",
+      },
+    ];
+
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("files/types")) {
+        return Promise.resolve(
+          new Response(JSON.stringify(typesWithPdf), { status: 200 }),
+        );
+      }
+      return Promise.resolve(
+        new Response(new Blob(["%PDF-1.7"], { type: "application/pdf" }), {
+          status: 200,
+          headers: { "Content-Type": "application/pdf" },
+        }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderWithClient(
+      <PreviewDialog
+        files={pdfFiles}
+        initialId="file-pdf"
+        close={vi.fn()}
+        restoreFocus={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("main", { name: "Preview content" }),
+      ).toHaveAttribute("data-preview-kind", "pdf");
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Open in new tab")).toBeInTheDocument();
+    });
+  });
 });

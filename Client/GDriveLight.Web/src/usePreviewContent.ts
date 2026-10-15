@@ -30,7 +30,7 @@ export function usePreviewContent(
 
   useEffect(() => {
     // Only fetch for supported kinds.
-    if (kind === "none" || kind === "pdf") {
+    if (kind === "none") {
       setState({ status: "idle" });
       return;
     }
