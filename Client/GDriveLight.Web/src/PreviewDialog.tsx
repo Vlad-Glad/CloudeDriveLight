@@ -8,7 +8,10 @@ import {
   File,
   FileImage,
   FileText,
+  FileX,
   LoaderCircle,
+  ShieldOff,
+  Wifi,
   X,
 } from "lucide-react";
 import { formatSize, typesQuery, type DriveFile } from "./drive-api";
@@ -182,6 +185,7 @@ export function PreviewDialog({
                 previewContent={previewContent}
                 downloadError={downloadError}
                 downloading={downloading}
+                onDownload={() => void download()}
               />
             </main>
             <button
@@ -204,7 +208,7 @@ export function PreviewDialog({
 
 // ─── Sub-component so the hook rules stay clean ─────────────────────────────
 
-import type { PreviewState } from "./usePreviewContent";
+import type { PreviewState, PreviewErrorKind } from "./usePreviewContent";
 
 function PreviewBody({
   kind,
@@ -217,6 +221,7 @@ function PreviewBody({
   previewContent,
   downloadError,
   downloading,
+  onDownload,
 }: {
   kind: string;
   file: DriveFile;
@@ -228,6 +233,7 @@ function PreviewBody({
   previewContent: PreviewState;
   downloadError: string;
   downloading: boolean;
+  onDownload: () => void;
 }) {
   if (typesPending) {
     return (
@@ -259,21 +265,30 @@ function PreviewBody({
       )}
       {previewContent.status === "error" && (
         <div className={styles.placeholder} role="alert">
-          <h2>Preview failed to load</h2>
+          <ErrorIcon kind={previewContent.kind} />
+          <h2>{errorHeading(previewContent.kind)}</h2>
           <p>{previewContent.message}</p>
           <p className={styles.details}>
             {typeName || "Unknown file type"} · {formatSize(file.sizeBytes)}
           </p>
+          <button className="secondary" onClick={onDownload} disabled={downloading}>
+            <Download size={16} />
+            Download anyway
+          </button>
         </div>
       )}
       {previewContent.status === "tooLarge" && (
         <div className={styles.placeholder}>
           <FileText size={56} aria-hidden="true" />
           <h2>File is too large to preview</h2>
-          <p>Download the file to view it.</p>
+          <p>Only files up to 10 MB can be previewed inline.</p>
           <p className={styles.details}>
             {typeName || "Unknown file type"} · {formatSize(file.sizeBytes)}
           </p>
+          <button className="secondary" onClick={onDownload} disabled={downloading}>
+            <Download size={16} />
+            Download
+          </button>
         </div>
       )}
       {previewContent.status === "ready" && kind === "image" && (
@@ -321,4 +336,23 @@ function PreviewBody({
       {downloading && <p role="status">Preparing download…</p>}
     </>
   );
+}
+
+function errorHeading(kind: PreviewErrorKind): string {
+  switch (kind) {
+    case "access":   return "Access denied";
+    case "notFound": return "File not found";
+    case "network":  return "Connection error";
+    default:         return "Preview failed to load";
+  }
+}
+
+function ErrorIcon({ kind }: { kind: PreviewErrorKind }) {
+  const props = { size: 56, "aria-hidden": true as const };
+  switch (kind) {
+    case "access":   return <ShieldOff {...props} />;
+    case "notFound": return <FileX {...props} />;
+    case "network":  return <Wifi {...props} />;
+    default:         return <File {...props} />;
+  }
 }

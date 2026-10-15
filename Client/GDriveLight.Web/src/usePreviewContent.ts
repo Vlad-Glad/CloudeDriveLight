@@ -1,14 +1,23 @@
 import { useEffect, useRef, useState } from "react";
-import { apiResponse } from "./api";
+import { apiResponse, ApiError } from "./api";
 
-// Max size we'll attempt to display inline (10 MB).
-const MAX_PREVIEW_BYTES = 10 * 1024 * 1024;
+// Maximum inline-preview size (bytes).
+// Intent: keep this configurable without a server round-trip for v1.
+// A future improvement is to read it from a dedicated API endpoint so the
+// limit can be changed server-side without redeploying the client.
+const MAX_PREVIEW_BYTES = 10 * 1024 * 1024; // 10 MB
+
+export type PreviewErrorKind =
+  | "access"   // HTTP 401 / 403 – not authorised to view this file
+  | "notFound" // HTTP 404     – file deleted or never existed
+  | "network"  // fetch failed – no connectivity or server unreachable
+  | "generic"; // anything else
 
 export type PreviewState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "tooLarge"; sizeBytes: number }
-  | { status: "error"; message: string }
+  | { status: "error"; kind: PreviewErrorKind; message: string }
   | { status: "ready"; url: string; text: string | null; mimeType: string };
 
 export function usePreviewContent(
@@ -17,8 +26,7 @@ export function usePreviewContent(
   sizeBytes: number,
 ): PreviewState {
   const [state, setState] = useState<PreviewState>({ status: "idle" });
-  const abortRef = useRef<AbortController | null>(null);
-  const prevId = useRef<string | null>(null);
+  const activeUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Only fetch for supported kinds.
@@ -27,17 +35,12 @@ export function usePreviewContent(
       return;
     }
 
-    // Cancel the previous request when file changes.
-    abortRef.current?.abort();
-
     if (sizeBytes > MAX_PREVIEW_BYTES) {
       setState({ status: "tooLarge", sizeBytes });
       return;
     }
 
     const controller = new AbortController();
-    abortRef.current = controller;
-    prevId.current = fileId;
     setState({ status: "loading" });
 
     (async () => {
@@ -51,38 +54,57 @@ export function usePreviewContent(
         const contentType =
           response.headers.get("content-type")?.split(";")[0].trim() ?? "";
         const blob = await response.blob();
-        if (controller.signal.aborted) {
-          return;
-        }
+        if (controller.signal.aborted) return;
 
         let text: string | null = null;
         if (kind === "text") {
           text = await blob.text();
         }
+        if (controller.signal.aborted) return;
+
+        if (activeUrlRef.current) {
+          URL.revokeObjectURL(activeUrlRef.current);
+        }
         const url = URL.createObjectURL(blob);
+        activeUrlRef.current = url;
+
         setState({ status: "ready", url, text, mimeType: contentType });
       } catch (err) {
         if (controller.signal.aborted) return;
-        const message =
-          err instanceof Error
-            ? err.message
-            : "Could not load preview. Please try again.";
-        setState({ status: "error", message });
+
+        let errorKind: PreviewErrorKind = "generic";
+        let message = "Could not load preview. Please try again.";
+
+        if (err instanceof ApiError) {
+          message = err.message;
+          if (err.status === 401 || err.status === 403) {
+            errorKind = "access";
+            message = "You do not have permission to preview this file.";
+          } else if (err.status === 404) {
+            errorKind = "notFound";
+            message = "This file is no longer available.";
+          }
+          // HTTP 415 (preview not supported by server) falls through to generic;
+          // the UI already handles unsupported types via the idle/tooLarge path.
+        } else if (err instanceof Error && err.name === "AbortError") {
+          return; // request was cancelled — not an error to show
+        } else if (err instanceof Error && err.message.includes("reach")) {
+          errorKind = "network";
+          message = err.message;
+        }
+
+        setState({ status: "error", kind: errorKind, message });
       }
     })();
 
     return () => {
       controller.abort();
-      // Revoke any blob URL from previous render of this file.
-      setState((prev) => {
-        if (prev.status === "ready" && prevId.current === fileId) {
-          URL.revokeObjectURL(prev.url);
-        }
-        return { status: "idle" };
-      });
+      if (activeUrlRef.current) {
+        URL.revokeObjectURL(activeUrlRef.current);
+        activeUrlRef.current = null;
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileId, kind]);
+  }, [fileId, kind, sizeBytes]);
 
   return state;
 }
