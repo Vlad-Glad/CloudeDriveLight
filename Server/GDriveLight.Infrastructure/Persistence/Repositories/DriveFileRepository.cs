@@ -14,6 +14,10 @@ public class DriveFileRepository : IDriveFileRepository
         _dbContext = dbContext;
     }
 
+    public async Task<long> GetUsedBytesForUserAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        await _dbContext.DriveFiles.Where(f => f.OwnerId == userId)
+            .SumAsync(f => (long?)f.SizeBytes, cancellationToken) ?? 0;
+
     public async Task<DriveFile?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var entity = await _dbContext.DriveFiles

@@ -15,6 +15,12 @@ public class UpdateFileContentCommandHandlerTests
     private readonly Mock<IChangeLogRepository> _changeLogRepository = new(MockBehavior.Strict);
     private readonly Mock<IUnitOfWork> _unitOfWork = new(MockBehavior.Strict);
 
+    public UpdateFileContentCommandHandlerTests()
+    {
+        _fileRepository.Setup(r => r.GetUsedBytesForUserAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0L);
+    }
+
     [Fact]
     public async Task Handle_WhenFileNotFound_ReturnsFailure()
     {
@@ -171,6 +177,8 @@ public class UpdateFileContentCommandHandlerTests
     }
 
     private UpdateFileContentCommandHandler CreateHandler() =>
-        new(_fileRepository.Object, _fileStorageService.Object, _changeLogRepository.Object, _unitOfWork.Object);
+        new(_fileRepository.Object, _fileStorageService.Object, _changeLogRepository.Object,
+            TestUserWriteTransaction.Configure(_unitOfWork), new GDriveLight.Application.Storage.DefaultStorageQuotaPolicy(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<UpdateFileContentCommandHandler>.Instance);
 }
 

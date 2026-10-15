@@ -28,6 +28,7 @@ public class DeleteFileCommandHandler : IRequestHandler<DeleteFileCommand, Resul
 
     public async Task<Result> Handle(DeleteFileCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _unitOfWork.BeginUserWriteAsync(request.UserId, cancellationToken);
         var file = await _fileRepository.GetByIdAsync(request.FileId, cancellationToken);
         if (file == null)
         {
@@ -53,6 +54,7 @@ public class DeleteFileCommandHandler : IRequestHandler<DeleteFileCommand, Resul
         await _changeLogRepository.AddAsync(changeLog, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         await _fileStorageService.DeleteAsync(file.FileUrl, cancellationToken);
 

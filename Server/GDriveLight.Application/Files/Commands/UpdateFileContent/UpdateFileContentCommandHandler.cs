@@ -1,4 +1,5 @@
-using System.Security.Cryptography;
+using GDriveLight.Application.Storage;
+using Microsoft.Extensions.Logging;
 using GDriveLight.Application.Abstractions.Repositories;
 using GDriveLight.Application.Abstractions.Services;
 using GDriveLight.Application.Common.Models;
@@ -14,17 +15,23 @@ public class UpdateFileContentCommandHandler : IRequestHandler<UpdateFileContent
     private readonly IFileStorageService _fileStorageService;
     private readonly IChangeLogRepository _changeLogRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IStorageQuotaPolicy _quotaPolicy;
+    private readonly ILogger<UpdateFileContentCommandHandler> _logger;
 
     public UpdateFileContentCommandHandler(
         IDriveFileRepository fileRepository,
         IFileStorageService fileStorageService,
         IChangeLogRepository changeLogRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IStorageQuotaPolicy quotaPolicy,
+        ILogger<UpdateFileContentCommandHandler> logger)
     {
         _fileRepository = fileRepository;
         _fileStorageService = fileStorageService;
         _changeLogRepository = changeLogRepository;
         _unitOfWork = unitOfWork;
+        _quotaPolicy = quotaPolicy;
+        _logger = logger;
     }
 
     public async Task<Result> Handle(UpdateFileContentCommand request, CancellationToken cancellationToken)
@@ -40,30 +47,24 @@ public class UpdateFileContentCommandHandler : IRequestHandler<UpdateFileContent
             return Result.Failure("You do not have permission to update this file.");
         }
 
-        if (request.FileStream.CanSeek)
-        {
-            request.FileStream.Position = 0;
-        }
-
-        string contentHash;
-        using (var sha256 = SHA256.Create())
-        {
-            var hashBytes = await sha256.ComputeHashAsync(request.FileStream, cancellationToken);
-            contentHash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
-        }
-
-        if (request.FileStream.CanSeek)
-        {
-            request.FileStream.Position = 0;
-        }
-
-        var sizeBytes = request.FileStream.CanSeek ? request.FileStream.Length : 0L;
-        var newFileUrl = await _fileStorageService.SaveAsync(request.FileStream, file.Name, cancellationToken);
-
+        await using var content = await PreparedFileContent.CreateAsync(request.FileStream, cancellationToken);
+        var newFileUrl = await _fileStorageService.SaveAsync(content.Stream, file.Name, cancellationToken);
+        var committed = false;
+        string? oldFileUrl = null;
         try
         {
-            var oldFileUrl = file.FileUrl;
-            file.UpdateContent(newFileUrl, contentHash, sizeBytes, request.UserId);
+            await using var transaction = await _unitOfWork.BeginUserWriteAsync(request.UserId, cancellationToken);
+            // Another client may have updated, moved or deleted this file during staging.
+            file = await _fileRepository.GetByIdAsync(request.FileId, cancellationToken);
+            if (file == null || file.OwnerId != request.UserId)
+                return Result.Failure("The file is no longer available.");
+
+            var usage = new StorageUsage(_quotaPolicy.GetLimitBytes(request.UserId),
+                await _fileRepository.GetUsedBytesForUserAsync(request.UserId, cancellationToken));
+            usage.EnsureCanGrow(content.SizeBytes, file.SizeBytes);
+
+            oldFileUrl = file.FileUrl;
+            file.UpdateContent(newFileUrl, content.Hash, content.SizeBytes, request.UserId);
 
             _fileRepository.Update(file);
 
@@ -73,21 +74,30 @@ public class UpdateFileContentCommandHandler : IRequestHandler<UpdateFileContent
                 request.UserId,
                 file.FolderId,
                 file.Name,
-                contentHash,
-                sizeBytes,
+                content.Hash,
+                content.SizeBytes,
                 request.OriginDeviceId);
 
             await _changeLogRepository.AddAsync(changeLog, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            await _fileStorageService.DeleteAsync(oldFileUrl, cancellationToken);
-
-            return Result.Success();
+            await transaction.CommitAsync(cancellationToken);
+            committed = true;
         }
-        catch
+        finally
         {
-            await _fileStorageService.DeleteAsync(newFileUrl, cancellationToken);
-            throw;
+            if (!committed)
+                await _fileStorageService.DeleteAsync(newFileUrl, CancellationToken.None);
         }
+
+        try
+        {
+            await _fileStorageService.DeleteAsync(oldFileUrl!, CancellationToken.None);
+        }
+        catch (Exception error)
+        {
+            // The new file is committed. A cleanup failure must never delete live content.
+            _logger.LogWarning(error, "Could not remove superseded content {FileUrl}", oldFileUrl);
+        }
+        return Result.Success();
     }
 }

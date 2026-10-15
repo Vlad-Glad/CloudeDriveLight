@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+using GDriveLight.Application.Storage;
 using GDriveLight.Application.Abstractions.Repositories;
 using GDriveLight.Application.Abstractions.Services;
 using GDriveLight.Application.Common.Models;
@@ -16,6 +16,7 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
     private readonly IFileStorageService _fileStorageService;
     private readonly IChangeLogRepository _changeLogRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IStorageQuotaPolicy _quotaPolicy;
 
     public UploadFileCommandHandler(
         IDriveFileRepository fileRepository,
@@ -23,7 +24,8 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
         IFileTypeRepository fileTypeRepository,
         IFileStorageService fileStorageService,
         IChangeLogRepository changeLogRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IStorageQuotaPolicy quotaPolicy)
     {
         _fileRepository = fileRepository;
         _folderRepository = folderRepository;
@@ -31,6 +33,7 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
         _fileStorageService = fileStorageService;
         _changeLogRepository = changeLogRepository;
         _unitOfWork = unitOfWork;
+        _quotaPolicy = quotaPolicy;
     }
 
     public async Task<Result<Guid>> Handle(UploadFileCommand request, CancellationToken cancellationToken)
@@ -64,34 +67,32 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
         }
 
 
-        if (request.FileStream.CanSeek)
-        {
-            request.FileStream.Position = 0;
-        }
-
-        string contentHash;
-        using (var sha256 = SHA256.Create())
-        {
-            var hashBytes = await sha256.ComputeHashAsync(request.FileStream, cancellationToken);
-            contentHash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
-        }
-
-        if (request.FileStream.CanSeek)
-        {
-            request.FileStream.Position = 0;
-        }
-
-        var sizeBytes = request.FileStream.CanSeek ? request.FileStream.Length : 0L;
-        var fileUrl = await _fileStorageService.SaveAsync(request.FileStream, request.FileName, cancellationToken);
-
+        await using var content = await PreparedFileContent.CreateAsync(request.FileStream, cancellationToken);
+        var fileUrl = await _fileStorageService.SaveAsync(content.Stream, request.FileName, cancellationToken);
+        var committed = false;
         try
         {
+            // Do not hold the user's database lock while hashing or writing physical content.
+            await using var transaction = await _unitOfWork.BeginUserWriteAsync(request.UserId, cancellationToken);
+            if (request.FolderId.HasValue)
+            {
+                var folder = await _folderRepository.GetByIdAsync(request.FolderId.Value, cancellationToken);
+                if (folder == null || folder.OwnerId != request.UserId)
+                    return Result<Guid>.Failure("The destination folder is no longer available.");
+            }
+            if (await _fileRepository.ExistsAsync(request.FileName, request.FolderId, request.UserId, cancellationToken))
+                return Result<Guid>.Failure($"A file with the name '{request.FileName}' already exists in this location.");
+
+            var usage = new StorageUsage(_quotaPolicy.GetLimitBytes(request.UserId),
+                await _fileRepository.GetUsedBytesForUserAsync(request.UserId, cancellationToken));
+            usage.EnsureCanGrow(content.SizeBytes);
+
             var driveFile = new DriveFile(
                 request.FileName,
                 fileUrl,
                 fileType.Id,
-                contentHash,
-                sizeBytes,
+                content.Hash,
+                content.SizeBytes,
                 request.UserId,
                 request.FolderId
             );
@@ -104,19 +105,21 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
                 request.UserId,
                 request.FolderId,
                 request.FileName,
-                contentHash,
-                sizeBytes,
+                content.Hash,
+                content.SizeBytes,
                 request.OriginDeviceId);
             await _changeLogRepository.AddAsync(changeLog, cancellationToken);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            committed = true;
 
             return Result<Guid>.Success(driveFile.Id);
         }
-        catch
+        finally
         {
-            await _fileStorageService.DeleteAsync(fileUrl, cancellationToken);
-            throw;
+            if (!committed)
+                await _fileStorageService.DeleteAsync(fileUrl, CancellationToken.None);
         }
     }
 }

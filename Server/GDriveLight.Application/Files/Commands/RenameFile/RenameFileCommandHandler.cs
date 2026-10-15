@@ -24,6 +24,7 @@ public class RenameFileCommandHandler : IRequestHandler<RenameFileCommand, Resul
 
     public async Task<Result> Handle(RenameFileCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _unitOfWork.BeginUserWriteAsync(request.UserId, cancellationToken);
         var file = await _fileRepository.GetByIdAsync(request.FileId, cancellationToken);
         if (file == null)
         {
@@ -62,6 +63,7 @@ public class RenameFileCommandHandler : IRequestHandler<RenameFileCommand, Resul
         await _changeLogRepository.AddAsync(changeLog, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Result.Success();
     }

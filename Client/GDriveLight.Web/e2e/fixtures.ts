@@ -55,6 +55,11 @@ export async function mockApi(
     if (path.startsWith("/api/auth/")) return json({ token });
     if (!request.headers().authorization?.startsWith("Bearer "))
       return json({ error: "Unauthorized" }, 401);
+    if (path === "/api/storage/usage") {
+      const quotaBytes = 2 * 1024 ** 3;
+      const usedBytes = files.reduce((sum, file) => sum + file.sizeBytes, 0);
+      return json({ quotaBytes, usedBytes, availableBytes: Math.max(0, quotaBytes - usedBytes), isOverQuota: usedBytes > quotaBytes });
+    }
     if (path === "/api/files/types")
       return json([
         {

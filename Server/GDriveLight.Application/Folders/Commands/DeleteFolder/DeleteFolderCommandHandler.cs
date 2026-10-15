@@ -28,6 +28,7 @@ public class DeleteFolderCommandHandler : IRequestHandler<DeleteFolderCommand, R
 
     public async Task<Result> Handle(DeleteFolderCommand request, CancellationToken cancellationToken)
     {
+        await using var transaction = await _unitOfWork.BeginUserWriteAsync(request.OwnerId, cancellationToken);
         var folder = await _folderRepository.GetByIdAsync(request.FolderId, cancellationToken);
 
         if (folder == null || folder.OwnerId != request.OwnerId)
@@ -69,6 +70,7 @@ public class DeleteFolderCommandHandler : IRequestHandler<DeleteFolderCommand, R
         }
         
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         foreach (var url in cascadeResult.FileUrls)
         {

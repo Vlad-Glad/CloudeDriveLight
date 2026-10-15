@@ -38,6 +38,24 @@ public sealed class SyncedFolderIsolationTests : IDisposable
     }
 
     [Fact]
+    public async Task StorageUsageIncludesSyncedTreesAndExcludesOtherOwners()
+    {
+        await _db.DriveFiles.ExecuteUpdateAsync(set => set.SetProperty(file => file.SizeBytes, 1024L));
+        var otherUser = Guid.NewGuid();
+        _db.Users.Add(new ApplicationUserEntity { Id = otherUser });
+        _db.DriveFiles.Add(new DriveFileEntity
+        {
+            Id = Guid.NewGuid(), OwnerId = otherUser, FileTypeId = 1,
+            Name = "Other.txt", FileUrl = "other", ContentHash = "hash", SizeBytes = 9000
+        });
+        await _db.SaveChangesAsync();
+        var repository = new DriveFileRepository(_db);
+        Assert.Equal(4096, await repository.GetUsedBytesForUserAsync(_user));
+        Assert.Equal(9000, await repository.GetUsedBytesForUserAsync(otherUser));
+        Assert.Equal(0, await repository.GetUsedBytesForUserAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
     public async Task HomeRootExcludesSyncedRootsWhileDeviceContentsRemainAccessible()
     {
         var repository = new DriveFolderRepository(_db);

@@ -81,5 +81,5 @@ public class DeleteFileCommandHandlerTests
     }
 
     private DeleteFileCommandHandler CreateHandler() =>
-        new(_fileRepository.Object, _fileStorageService.Object, _changeLogRepository.Object, _unitOfWork.Object);
+        new(_fileRepository.Object, _fileStorageService.Object, _changeLogRepository.Object, TestUserWriteTransaction.Configure(_unitOfWork));
 }

@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "./auth";
 import { setSession } from "./session";
 import styles from "./App.module.css";
+import { StorageUsage } from "./StorageUsage";
 export function Profile() {
   const session = useSession()!;
   const client = useQueryClient();
@@ -63,7 +64,7 @@ export function Shell({
               Home
             </Link>
           </nav>
-          <p className={styles.sidebarNote}>A little space for everything.</p>
+          <StorageUsage />
         </aside>
         <main id="main" className={styles.surface} tabIndex={-1}>
           {children}

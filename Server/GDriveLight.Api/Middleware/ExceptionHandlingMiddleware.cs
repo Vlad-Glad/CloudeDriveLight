@@ -25,6 +25,20 @@ public class ExceptionHandlingMiddleware
         {
             await _next(context);
         }
+        catch (StorageQuotaExceededException ex)
+        {
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.Headers.CacheControl = "private, no-store";
+            await context.Response.WriteAsJsonAsync(new
+            {
+                error = ex.Message,
+                code = "storage_quota_exceeded",
+                quotaBytes = ex.QuotaBytes,
+                usedBytes = ex.UsedBytes,
+                requiredBytes = ex.RequiredBytes
+            });
+        }
         catch (ValidationException ex)
         {
             _logger.LogWarning("Validation failed: {@Errors}", ex.Errors);

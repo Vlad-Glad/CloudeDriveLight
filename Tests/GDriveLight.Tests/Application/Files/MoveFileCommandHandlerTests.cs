@@ -158,5 +158,5 @@ public class MoveFileCommandHandlerTests
     }
 
     private MoveFileCommandHandler CreateHandler() =>
-        new(_fileRepository.Object, _folderRepository.Object, _changeLogRepository.Object, _unitOfWork.Object);
+        new(_fileRepository.Object, _folderRepository.Object, _changeLogRepository.Object, TestUserWriteTransaction.Configure(_unitOfWork));
 }

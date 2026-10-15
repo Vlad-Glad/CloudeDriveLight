@@ -115,5 +115,5 @@ public class RenameFileCommandHandlerTests
     }
 
     private RenameFileCommandHandler CreateHandler() =>
-        new(_fileRepository.Object, _changeLogRepository.Object, _unitOfWork.Object);
+        new(_fileRepository.Object, _changeLogRepository.Object, TestUserWriteTransaction.Configure(_unitOfWork));
 }

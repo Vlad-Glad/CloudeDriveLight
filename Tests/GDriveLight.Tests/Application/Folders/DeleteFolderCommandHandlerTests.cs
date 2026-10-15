@@ -153,6 +153,6 @@ public class DeleteFolderCommandHandlerTests
     }
 
     private DeleteFolderCommandHandler CreateHandler() =>
-        new(_folderRepository.Object, _fileStorageService.Object, _changeLogRepository.Object, _unitOfWork.Object);
+        new(_folderRepository.Object, _fileStorageService.Object, _changeLogRepository.Object, TestUserWriteTransaction.Configure(_unitOfWork));
 }
 

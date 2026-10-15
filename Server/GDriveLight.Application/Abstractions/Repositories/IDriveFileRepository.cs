@@ -4,6 +4,8 @@ namespace GDriveLight.Application.Abstractions.Repositories;
 
 public interface IDriveFileRepository
 {
+    Task<long> GetUsedBytesForUserAsync(Guid userId, CancellationToken cancellationToken = default);
+
     Task<DriveFile?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     
     Task<IEnumerable<DriveFile>> GetByFolderIdAsync(Guid folderId, CancellationToken cancellationToken = default);

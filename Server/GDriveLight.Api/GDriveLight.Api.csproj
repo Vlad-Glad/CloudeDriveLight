@@ -7,6 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Uploaded user content must never be compiled or included in deployment artifacts. -->
+    <Compile Remove="uploads\**" />
+    <Content Remove="uploads\**" />
+    <None Remove="uploads\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\GDriveLight.Application\GDriveLight.Application.csproj" />
     <ProjectReference Include="..\GDriveLight.Infrastructure\GDriveLight.Infrastructure.csproj" />
   </ItemGroup>

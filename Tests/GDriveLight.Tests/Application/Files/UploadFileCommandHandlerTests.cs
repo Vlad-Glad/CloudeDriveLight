@@ -17,6 +17,12 @@ public class UploadFileCommandHandlerTests
     private readonly Mock<IChangeLogRepository> _changeLogRepository = new(MockBehavior.Strict);
     private readonly Mock<IUnitOfWork> _unitOfWork = new(MockBehavior.Strict);
 
+    public UploadFileCommandHandlerTests()
+    {
+        _fileRepository.Setup(r => r.GetUsedBytesForUserAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0L);
+    }
+
     [Fact]
     public async Task Handle_WhenTargetFolderNotFound_ReturnsFailure()
     {
@@ -198,7 +204,9 @@ public class UploadFileCommandHandlerTests
     }
 
     private UploadFileCommandHandler CreateHandler() =>
-        new(_fileRepository.Object, _folderRepository.Object, _fileTypeRepository.Object, _fileStorageService.Object, _changeLogRepository.Object, _unitOfWork.Object);
+        new(_fileRepository.Object, _folderRepository.Object, _fileTypeRepository.Object, _fileStorageService.Object,
+            _changeLogRepository.Object, TestUserWriteTransaction.Configure(_unitOfWork),
+            new GDriveLight.Application.Storage.DefaultStorageQuotaPolicy());
 
 
     private static FileType CreateFileType(int id, string extension = ".txt")

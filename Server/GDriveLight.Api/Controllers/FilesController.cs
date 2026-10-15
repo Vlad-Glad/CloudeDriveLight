@@ -27,7 +27,8 @@ public class FilesController : ControllerBase
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadFile(
         IFormFile file,
-        [FromForm] Guid? folderId)
+        [FromForm] Guid? folderId,
+        CancellationToken cancellationToken)
     {
         if (file == null)
         {
@@ -39,7 +40,7 @@ public class FilesController : ControllerBase
         using var stream = file.OpenReadStream();
         var command = new UploadFileCommand(file.FileName, stream, userId, folderId, _currentUserService.DeviceId);
         
-        var result = await _mediator.Send(command);
+        var result = await _mediator.Send(command, cancellationToken);
 
         if (result.IsFailure)
         {
@@ -160,7 +161,7 @@ public class FilesController : ControllerBase
 
     [HttpPut("{id}/content")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> UpdateContent(Guid id, IFormFile file)
+    public async Task<IActionResult> UpdateContent(Guid id, IFormFile file, CancellationToken cancellationToken)
     {
         if (file == null)
         {
@@ -172,7 +173,7 @@ public class FilesController : ControllerBase
         using var stream = file.OpenReadStream();
         var command = new UpdateFileContentCommand(id, stream, userId, _currentUserService.DeviceId);
 
-        var result = await _mediator.Send(command);
+        var result = await _mediator.Send(command, cancellationToken);
 
         if (result.IsFailure)
         {

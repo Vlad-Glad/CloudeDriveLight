@@ -22,10 +22,19 @@ public class LocalFileStorageService : IFileStorageService
         var uniqueFileName = $"{Guid.NewGuid()}_{fileName}";
         var filePath = Path.Combine(_storageDirectory, uniqueFileName);
 
-        using var fileStreamToWrite = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true);
-        await fileStream.CopyToAsync(fileStreamToWrite, cancellationToken);
-
-        return uniqueFileName;
+        var created = false;
+        try
+        {
+            await using var fileStreamToWrite = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, useAsync: true);
+            created = true;
+            await fileStream.CopyToAsync(fileStreamToWrite, cancellationToken);
+            return uniqueFileName;
+        }
+        catch
+        {
+            if (created) File.Delete(filePath);
+            throw;
+        }
     }
 
     public Task DeleteAsync(string fileUrl, CancellationToken cancellationToken = default)

@@ -10,6 +10,10 @@ using GDriveLight.Api.Services;
 using GDriveLight.Application.Abstractions.Services;
 using GDriveLight.Application.Common.Models;
 using GDriveLight.Application.Files.Queries;
+using GDriveLight.Application.Files.Commands;
+using GDriveLight.Application.Storage;
+using GDriveLight.Application.Common.Exceptions;
+using GDriveLight.Api.Middleware;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
@@ -30,6 +34,12 @@ public sealed class FileRoutesTests
         var fileId = Guid.NewGuid();
         var file = new FileQuery(fileId, "photo.png", 12, "hash", 10, null, userId, DateTime.UtcNow, null, "storage/file");
         var mediator = new Mock<IMediator>(MockBehavior.Strict);
+        mediator.Setup(service => service.Send(new GetStorageUsageQuery(userId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StorageUsage(DefaultStorageQuotaPolicy.LimitBytes, 1024));
+        mediator.Setup(service => service.Send(It.Is<UploadFileCommand>(command => command.UserId == userId), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new StorageQuotaExceededException(DefaultStorageQuotaPolicy.LimitBytes, DefaultStorageQuotaPolicy.LimitBytes, 1));
+        mediator.Setup(service => service.Send(It.Is<UpdateFileContentCommand>(command => command.UserId == userId), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new StorageQuotaExceededException(DefaultStorageQuotaPolicy.LimitBytes, DefaultStorageQuotaPolicy.LimitBytes, 1));
         mediator.Setup(service => service.Send(It.IsAny<GetFileTypesQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<IEnumerable<FileTypeQuery>>.Success(new[] { new FileTypeQuery(12, "PNG", ".png", "image/png", "image") }));
         mediator.Setup(service => service.Send(new GetFileByIdQuery(fileId, userId), It.IsAny<CancellationToken>()))
@@ -72,6 +82,7 @@ public sealed class FileRoutesTests
         });
         builder.Services.AddAuthorization();
         await using var app = builder.Build();
+        app.UseMiddleware<ExceptionHandlingMiddleware>();
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapControllers();
@@ -81,6 +92,9 @@ public sealed class FileRoutesTests
         using var anonymous = await client.GetAsync("/api/files/types");
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
         mediator.Verify(service => service.Send(It.IsAny<GetFileTypesQuery>(), It.IsAny<CancellationToken>()), Times.Never);
+        using var anonymousUsage = await client.GetAsync("/api/storage/usage");
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousUsage.StatusCode);
+        mediator.Verify(service => service.Send(It.IsAny<GetStorageUsageQuery>(), It.IsAny<CancellationToken>()), Times.Never);
 
         using var anonymousPreview = await client.GetAsync($"/api/files/{fileId}/preview");
         Assert.Equal(HttpStatusCode.Unauthorized, anonymousPreview.StatusCode);
@@ -89,6 +103,29 @@ public sealed class FileRoutesTests
         var token = new JwtSecurityToken(claims: new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) },
             expires: DateTime.UtcNow.AddMinutes(5), signingCredentials: new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256));
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", new JwtSecurityTokenHandler().WriteToken(token));
+        using var usageResponse = await client.GetAsync($"/api/storage/usage?userId={Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.OK, usageResponse.StatusCode);
+        Assert.True(usageResponse.Headers.CacheControl!.NoStore);
+        Assert.True(usageResponse.Headers.CacheControl.Private);
+        var usage = await usageResponse.Content.ReadFromJsonAsync<StorageUsage>();
+        Assert.Equal(2147483648L, usage!.QuotaBytes);
+        Assert.Equal(1024, usage.UsedBytes);
+        Assert.Equal(2147482624L, usage.AvailableBytes);
+
+        foreach (var method in new[] { HttpMethod.Post, HttpMethod.Put })
+        {
+            using var multipart = new MultipartFormDataContent();
+            multipart.Add(new ByteArrayContent(new byte[1]), "file", "full.txt");
+            using var request = new HttpRequestMessage(method,
+                method == HttpMethod.Post ? "/api/files" : $"/api/files/{fileId}/content") { Content = multipart };
+            using var deniedUpload = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.Conflict, deniedUpload.StatusCode);
+            var body = await deniedUpload.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+            Assert.Equal("storage_quota_exceeded", body.GetProperty("code").GetString());
+            Assert.Contains("storage space", body.GetProperty("error").GetString());
+            Assert.Equal(2147483648L, body.GetProperty("quotaBytes").GetInt64());
+            Assert.Equal(1, body.GetProperty("requiredBytes").GetInt64());
+        }
 
         var types = await client.GetFromJsonAsync<FileTypeResponse[]>("/api/files/types");
         Assert.Equal(".png", Assert.Single(types!).Extension);
