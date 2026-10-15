@@ -269,11 +269,3 @@
   outline-offset: -2px;
   border-radius: 6px;
 }
-.moveHint {
-  margin-top: 16px;
-  padding: 12px 16px;
-  border-radius: 10px;
-  background: var(--hover);
-  color: var(--accent);
-  overflow-wrap: anywhere;
-}

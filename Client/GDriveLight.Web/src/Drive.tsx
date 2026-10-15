@@ -667,12 +667,6 @@ export default function Drive() {
             </table>
           </div>
         )}
-        {cloudMove.dragged && (
-          <div className={styles.moveHint} role="status">
-            Move “{cloudMove.dragged.name}” into a folder, a parent in the path,
-            or Home.
-          </div>
-        )}
         {!error && !loading && (
           <div className={styles.dropHint}>
             <Upload size={16} />

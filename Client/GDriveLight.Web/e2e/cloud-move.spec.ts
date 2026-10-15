@@ -120,7 +120,7 @@ test("drop highlight identifies the destination and leaves when the drag ends", 
     "data-move-active",
     "true",
   );
-  await expect(page.getByText(/Move “Notes.txt” into a folder/)).toBeVisible();
+  await expect(page.getByText(/Move “Notes.txt” into a folder/)).toHaveCount(0);
   await expect(page.getByText(/Drop files to upload to/)).toHaveCount(0);
   await page.screenshot({
     path: test.info().outputPath("move-cloud-file.png"),
