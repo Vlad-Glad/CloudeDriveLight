@@ -23,6 +23,7 @@ import {
   FolderInput,
   Trash2,
   MoreVertical,
+  Eye,
 } from "lucide-react";
 import { Profile, Shell } from "./Layout";
 import { FileIcon } from "./FileIcon";
@@ -42,9 +43,10 @@ import { downloadItem } from "./operations-api";
 import { useUploads } from "./useUploads";
 import { UploadQueue } from "./UploadQueue";
 import { ActivityPopups } from "./ActivityPopups";
+import { PreviewDialog } from "./PreviewDialog";
 import { useFileDrop } from "./useFileDrop";
 import { useCloudMove } from "./useCloudMove";
-import type { DriveItem } from "./drive-api";
+import type { DriveFile, DriveItem } from "./drive-api";
 import { useFileSelection } from "./useFileSelection";
 import { useMarquee } from "./useMarquee";
 import { batchError, runItemBatch } from "./batch";
@@ -61,6 +63,11 @@ export default function Drive() {
   const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
   const client = useQueryClient();
   const [operation, setOperation] = useState<Operation | null>(null);
+  const [preview, setPreview] = useState<{
+    files: DriveFile[];
+    initialId: string;
+  } | null>(null);
+  const previewFocus = useRef<HTMLElement | null>(null);
   const [notice, setNotice] = useState("");
   const [actionError, setActionError] = useState("");
   const [downloading, setDownloading] = useState(false);
@@ -126,7 +133,21 @@ export default function Drive() {
   useEffect(() => {
     selection.clear();
     setActionMenuId(null);
+    setPreview(null);
   }, [folderId, search, selection.clear]);
+  function openPreview(item: DriveFile) {
+    const focused = document.activeElement as HTMLElement | null;
+    previewFocus.current =
+      focused?.getAttribute("role") === "menuitem"
+        ? menuTrigger.current
+        : focused;
+    setPreview({
+      files: items.filter(
+        (item): item is DriveFile & { kind: "file" } => item.kind === "file",
+      ),
+      initialId: item.id,
+    });
+  }
   function selectedOperation(
     mode: "move" | "delete",
     targets = selection.items,
@@ -137,7 +158,9 @@ export default function Drive() {
   function keyDown(event: React.KeyboardEvent<HTMLElement>) {
     if (
       event.target instanceof Element &&
-      event.target.closest('input, textarea, select, [role="menuitem"]')
+      event.target.closest(
+        'input, textarea, select, button, a, [role="menuitem"]',
+      )
     )
       return;
     if (event.key === "a" && (event.ctrlKey || event.metaKey)) {
@@ -168,6 +191,9 @@ export default function Drive() {
       if (item?.kind === "folder") {
         event.preventDefault();
         navigate(folderUrl(item.id));
+      } else if (item?.kind === "file") {
+        event.preventDefault();
+        openPreview(item);
       }
       return;
     }
@@ -235,7 +261,7 @@ export default function Drive() {
     </button>
   );
   const cloudMove = useCloudMove(
-    !error && !loading && !operation,
+    !error && !loading && !operation && !preview,
     (moved) => {
       setNotice(
         moved.length === 1
@@ -254,7 +280,7 @@ export default function Drive() {
   const currentDrop = cloudMove.targetProps(folderId);
   const currentName = path.data?.at(-1)?.name || "Home";
   const drop = useFileDrop(
-    !error && !loading && !operation,
+    !error && !loading && !operation && !preview,
     (files, foldersSkipped) => {
       if (files.length) uploads.enqueue(files, folderId, currentName);
       if (foldersSkipped)
@@ -292,11 +318,20 @@ export default function Drive() {
         <Menu.Portal>
           <Menu.Content
             onCloseAutoFocus={(event) => {
-              if (operation) event.preventDefault();
+              if (operation || preview) event.preventDefault();
             }}
             className="menu"
             align="end"
           >
+            {targets.length === 1 && item.kind === "file" && (
+              <Menu.Item
+                className="menuItem"
+                onSelect={() => openPreview(item)}
+              >
+                <Eye size={16} />
+                Preview
+              </Menu.Item>
+            )}
             {targets.every((item) => item.kind === "file") && (
               <Menu.Item
                 className="menuItem"
@@ -732,6 +767,21 @@ export default function Drive() {
                         event.currentTarget.querySelector("button");
                       setActionMenuId(item.id);
                     }}
+                    onDoubleClick={(event) => {
+                      if (
+                        item.kind !== "file" ||
+                        event.shiftKey ||
+                        event.ctrlKey ||
+                        event.metaKey ||
+                        (event.target instanceof Element &&
+                          event.target.closest(
+                            "a, button, input, select, textarea",
+                          ))
+                      )
+                        return;
+                      window.getSelection()?.removeAllRanges();
+                      openPreview(item);
+                    }}
                     onClick={(event) => {
                       if (
                         event.target instanceof Element &&
@@ -822,6 +872,18 @@ export default function Drive() {
           />
         )}
       </div>
+      {preview && (
+        <PreviewDialog
+          {...preview}
+          close={() => setPreview(null)}
+          restoreFocus={() => {
+            const target = previewFocus.current?.isConnected
+              ? previewFocus.current
+              : rowRefs.current.get(preview.initialId) || newButton.current;
+            target?.focus({ preventScroll: true });
+          }}
+        />
+      )}
       <ActivityPopups
         notice={notice}
         error={actionError}

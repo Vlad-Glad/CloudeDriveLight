@@ -57,8 +57,20 @@ export async function mockApi(
       return json({ error: "Unauthorized" }, 401);
     if (path === "/api/files/types")
       return json([
-        { id: 1, name: "Text", extension: ".txt" },
-        { id: 2, name: "PDF", extension: ".pdf" },
+        {
+          id: 1,
+          name: "Text",
+          extension: ".txt",
+          mimeType: "text/plain",
+          previewKind: "text",
+        },
+        {
+          id: 2,
+          name: "PDF",
+          extension: ".pdf",
+          mimeType: "application/pdf",
+          previewKind: "pdf",
+        },
       ]);
     if (path.endsWith("/download"))
       return route.fulfill({

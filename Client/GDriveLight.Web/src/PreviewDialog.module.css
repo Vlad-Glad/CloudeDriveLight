@@ -1,0 +1,128 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #1f1f1f;
+}
+.viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 51;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  color: #f1f3f4;
+  background: #1f1f1f;
+  outline: none;
+}
+.viewer button {
+  flex-shrink: 0;
+  color: inherit;
+}
+.viewer button:hover:not(:disabled) {
+  background: #ffffff1f;
+}
+.viewer :global(.secondary) {
+  background: transparent;
+  border-color: #5f6368;
+  margin-top: 12px;
+}
+.viewer button:focus-visible {
+  outline-color: #a8c7fa;
+}
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #ffffff1f;
+  flex-shrink: 0;
+}
+.header > svg {
+  flex-shrink: 0;
+}
+.title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0;
+}
+.content {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 56px;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  flex: 1;
+  min-height: 0;
+}
+.body {
+  min-width: 0;
+  max-height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  text-align: center;
+}
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 8px;
+  overflow-wrap: anywhere;
+}
+.placeholder > svg {
+  color: #bdc1c6;
+}
+.placeholder h2 {
+  font-size: 20px;
+  margin: 24px 0 8px;
+}
+.placeholder p {
+  margin: 4px 0;
+}
+.details {
+  color: #bdc1c6;
+  font-size: 13px;
+}
+.error {
+  background: #5f2525;
+  border-radius: 10px;
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+.footer {
+  padding: 12px 16px max(16px, env(safe-area-inset-bottom));
+  color: #bdc1c6;
+  text-align: center;
+  flex-shrink: 0;
+}
+@media (max-width: 720px) {
+  .header {
+    padding: max(8px, env(safe-area-inset-top)) 8px 8px;
+    gap: 10px;
+  }
+  .content {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 12px;
+  }
+  .body {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .previous {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+  }
+  .next {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+  }
+}

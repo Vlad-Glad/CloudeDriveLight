@@ -21,6 +21,8 @@ export interface FileType {
   id: number;
   name: string;
   extension: string;
+  mimeType?: string;
+  previewKind?: "text" | "image" | "pdf" | "none";
 }
 export type DriveItem =
   | (DriveFolder & { kind: "folder" })
