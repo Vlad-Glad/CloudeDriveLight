@@ -24,7 +24,19 @@ test("browse, search and filter without horizontal page overflow", async ({
     path: test.info().outputPath("file-browser.png"),
     fullPage: true,
   });
-  await page.getByRole("link", { name: "Documents", exact: true }).click();
+  await page
+    .getByRole("checkbox", { name: "Select Documents", exact: true })
+    .check();
+  await expect(page).toHaveURL("/");
+  await expect(
+    page.getByRole("checkbox", { name: "Select Documents", exact: true }),
+  ).toBeChecked();
+  const folderRow = page
+    .getByRole("row")
+    .filter({
+      has: page.getByRole("link", { name: "Documents", exact: true }),
+    });
+  await folderRow.locator("td").nth(1).locator("svg").click();
   await expect(
     page.getByRole("heading", { name: "This folder is empty" }),
   ).toBeVisible();

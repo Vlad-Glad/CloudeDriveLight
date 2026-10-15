@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronRight,
@@ -40,6 +45,7 @@ import { useFileDrop } from "./useFileDrop";
 import type { DriveItem } from "./drive-api";
 export default function Drive() {
   const { folderId: routeId } = useParams();
+  const navigate = useNavigate();
   const folderId = routeId || null;
   const [params, setParams] = useSearchParams();
   const search = params.get("q")?.trim() || "";
@@ -547,8 +553,21 @@ export default function Drive() {
                 {items.map((item) => (
                   <tr
                     key={item.id}
-                    className={selected?.id === item.id ? styles.selected : ""}
-                    onClick={() => setSelectedId(item.id)}
+                    className={[
+                      selected?.id === item.id ? styles.selected : "",
+                      item.kind === "folder" ? styles.folderRow : "",
+                    ].join(" ")}
+                    onClick={(event) => {
+                      if (
+                        event.target instanceof Element &&
+                        event.target.closest(
+                          'a, button, input, select, textarea, [role="menuitem"]',
+                        )
+                      )
+                        return;
+                      if (item.kind === "folder") navigate(folderUrl(item.id));
+                      else setSelectedId(item.id);
+                    }}
                   >
                     <td>
                       <input

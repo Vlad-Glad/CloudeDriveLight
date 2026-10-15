@@ -253,3 +253,6 @@
   color: var(--secondary);
   font-size: 13px;
 }
+.folderRow {
+  cursor: pointer;
+}
