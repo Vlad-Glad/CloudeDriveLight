@@ -1,16 +1,18 @@
 import { request } from "./api";
 
-export interface StorageUsage {
+export interface StorageUsageResponse {
   quotaBytes: number;
   usedBytes: number;
   availableBytes: number;
   isOverQuota: boolean;
 }
 
+export type StorageUsage = StorageUsageResponse;
+
 export const storageUsageQuery = (userId: string | undefined) => ({
   queryKey: ["drive", "storage", "usage", userId],
   queryFn: ({ signal }: { signal: AbortSignal }) =>
-    request<StorageUsage>("storage/usage", { signal }),
+    request<StorageUsageResponse>("storage/usage", { signal }),
   enabled: !!userId,
   staleTime: 15_000,
   refetchOnWindowFocus: "always" as const,

@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
 using GDriveLight.Api.Contracts.Files;
+using GDriveLight.Api.Contracts.Storage;
 using GDriveLight.Api.Controllers;
 using GDriveLight.Api.Services;
 using GDriveLight.Application.Abstractions.Services;
@@ -107,7 +108,7 @@ public sealed class FileRoutesTests
         Assert.Equal(HttpStatusCode.OK, usageResponse.StatusCode);
         Assert.True(usageResponse.Headers.CacheControl!.NoStore);
         Assert.True(usageResponse.Headers.CacheControl.Private);
-        var usage = await usageResponse.Content.ReadFromJsonAsync<StorageUsage>();
+        var usage = await usageResponse.Content.ReadFromJsonAsync<StorageUsageResponse>();
         Assert.Equal(2147483648L, usage!.QuotaBytes);
         Assert.Equal(1024, usage.UsedBytes);
         Assert.Equal(2147482624L, usage.AvailableBytes);
