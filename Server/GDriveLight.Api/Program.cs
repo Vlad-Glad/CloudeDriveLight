@@ -3,8 +3,6 @@ using GDriveLight.Api.Services;
 using GDriveLight.Application;
 using GDriveLight.Application.Abstractions.Services;
 using GDriveLight.Infrastructure;
-using GDriveLight.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -68,9 +66,7 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    await using var scope = app.Services.CreateAsyncScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
+    await app.ApplyMigrationsAsync();
 }
 
 // Configure the HTTP request pipeline.
