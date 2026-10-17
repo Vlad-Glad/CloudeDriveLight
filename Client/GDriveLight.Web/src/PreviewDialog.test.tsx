@@ -376,4 +376,128 @@ describe("PreviewDialog", () => {
       expect(screen.getByText("DOCX")).toBeInTheDocument();
     });
   });
+
+  it("does not pass docx preview url to pdf viewer when navigating from docx to pdf", async () => {
+    const user = userEvent.setup();
+    let urlCounter = 0;
+    URL.createObjectURL = vi.fn((_blob: Blob) => {
+      urlCounter++;
+      return `blob:preview-${urlCounter}`;
+    });
+
+    const mixedFiles: DriveFile[] = [
+      {
+        id: "file-docx-1",
+        name: "Document.docx",
+        fileTypeId: 5,
+        sizeBytes: 2048,
+        contentHash: "hash5",
+        folderId: null,
+        ownerId: "user-1",
+        uploadedAtUtc: "2026-10-10T12:00:00Z",
+        editedAtUtc: null,
+        fileUrl: "",
+      },
+      {
+        id: "file-pdf-2",
+        name: "Paper.pdf",
+        fileTypeId: 4,
+        sizeBytes: 1024,
+        contentHash: "hash4",
+        folderId: null,
+        ownerId: "user-1",
+        uploadedAtUtc: "2026-10-10T12:05:00Z",
+        editedAtUtc: null,
+        fileUrl: "",
+      },
+    ];
+
+    const typesWithBoth = [
+      ...catalogTypes,
+      {
+        id: 4,
+        name: "PDF",
+        extension: ".pdf",
+        mimeType: "application/pdf",
+        previewKind: "pdf",
+      },
+      {
+        id: 5,
+        name: "DOCX",
+        extension: ".docx",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        previewKind: "docx",
+      },
+    ];
+
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("files/types")) {
+        return Promise.resolve(
+          new Response(JSON.stringify(typesWithBoth), { status: 200 }),
+        );
+      }
+      if (url.includes("file-docx-1")) {
+        return Promise.resolve(
+          new Response(
+            new Blob(["PK...mock"], {
+              type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type":
+                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              },
+            },
+          ),
+        );
+      }
+      return Promise.resolve(
+        new Response(new Blob(["%PDF-1.7"], { type: "application/pdf" }), {
+          status: 200,
+          headers: { "Content-Type": "application/pdf" },
+        }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderWithClient(
+      <PreviewDialog
+        files={mixedFiles}
+        initialId="file-docx-1"
+        close={vi.fn()}
+        restoreFocus={vi.fn()}
+      />,
+    );
+
+    // Initial state: DOCX is rendered
+    await waitFor(() => {
+      expect(screen.getAllByText("Document.docx").length).toBeGreaterThan(0);
+      expect(screen.getByText("DOCX")).toBeInTheDocument();
+    });
+
+    const nextBtn = screen.getByRole("button", { name: "Next file" });
+    await user.click(nextBtn);
+
+    // After clicking next, we are now on Paper.pdf
+    await waitFor(() => {
+      expect(screen.getAllByText("Paper.pdf").length).toBeGreaterThan(0);
+    });
+
+    // Verify that NO iframe with the first (docx) blob url exists in the DOM
+    const iframes = document.querySelectorAll("iframe");
+    iframes.forEach((frame) => {
+      expect(frame.getAttribute("src")).not.toBe("blob:preview-1");
+    });
+
+    // Wait for PDF to load properly
+    await waitFor(() => {
+      expect(screen.getByText("Open in new tab")).toBeInTheDocument();
+    });
+
+    const pdfFrame = document.querySelector("iframe");
+    expect(pdfFrame).toBeInTheDocument();
+    expect(pdfFrame?.getAttribute("src")).toBe("blob:preview-2");
+  });
 });

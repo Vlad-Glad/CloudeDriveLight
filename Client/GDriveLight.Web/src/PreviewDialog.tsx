@@ -178,9 +178,15 @@ export function PreviewDialog({
               className={styles.body}
               data-preview-kind={kind}
               aria-label="Preview content"
-              aria-busy={types.isPending || previewContent.status === "loading"}
+              aria-busy={
+                types.isPending ||
+                previewContent.status === "loading" ||
+                (previewContent.status === "ready" &&
+                  previewContent.fileId !== file.id)
+              }
             >
               <PreviewBody
+                key={file.id}
                 kind={kind}
                 file={file}
                 typeName={type?.name}
@@ -261,9 +267,15 @@ function PreviewBody({
     );
   }
 
+  const isCurrentFileReady =
+    previewContent.status === "ready" && previewContent.fileId === file.id;
+  const isLoading =
+    previewContent.status === "loading" ||
+    (previewContent.status === "ready" && previewContent.fileId !== file.id);
+
   return (
     <>
-      {previewContent.status === "loading" && (
+      {isLoading && (
         <div className={styles.placeholder} role="status">
           <LoaderCircle className="spin" size={36} />
           <p>Loading preview…</p>
@@ -297,7 +309,7 @@ function PreviewBody({
           </button>
         </div>
       )}
-      {previewContent.status === "ready" && kind === "image" && (
+      {isCurrentFileReady && kind === "image" && (
         <Suspense
           fallback={
             <div className={styles.placeholder} role="status">
@@ -308,7 +320,7 @@ function PreviewBody({
           <ImageViewer url={previewContent.url} alt={file.name} />
         </Suspense>
       )}
-      {previewContent.status === "ready" &&
+      {isCurrentFileReady &&
         kind === "text" &&
         previewContent.text !== null && (
           <Suspense
@@ -324,7 +336,7 @@ function PreviewBody({
             />
           </Suspense>
         )}
-      {previewContent.status === "ready" && kind === "pdf" && (
+      {isCurrentFileReady && kind === "pdf" && (
         <Suspense
           fallback={
             <div className={styles.placeholder} role="status">
@@ -335,7 +347,7 @@ function PreviewBody({
           <PdfViewer url={previewContent.url} title={file.name} />
         </Suspense>
       )}
-      {previewContent.status === "ready" && kind === "docx" && (
+      {isCurrentFileReady && kind === "docx" && (
         <Suspense
           fallback={
             <div className={styles.placeholder} role="status">

@@ -18,19 +18,43 @@ export type PreviewState =
   | { status: "loading" }
   | { status: "tooLarge"; sizeBytes: number }
   | { status: "error"; kind: PreviewErrorKind; message: string }
-  | { status: "ready"; url: string; text: string | null; mimeType: string; blob?: Blob };
+  | { status: "ready"; fileId: string; url: string; text: string | null; mimeType: string; blob?: Blob };
+
+function getInitialState(
+  fileId: string,
+  kind: string,
+  sizeBytes: number,
+): PreviewState {
+  if (!fileId || kind === "none") {
+    return { status: "idle" };
+  }
+  if (sizeBytes > MAX_PREVIEW_BYTES) {
+    return { status: "tooLarge", sizeBytes };
+  }
+  return { status: "loading" };
+}
 
 export function usePreviewContent(
   fileId: string,
   kind: string,
   sizeBytes: number,
 ): PreviewState {
-  const [state, setState] = useState<PreviewState>({ status: "idle" });
+  const [paramsKey, setParamsKey] = useState(() => `${fileId}:${kind}:${sizeBytes}`);
+  const [state, setState] = useState<PreviewState>(() =>
+    getInitialState(fileId, kind, sizeBytes),
+  );
   const activeUrlRef = useRef<string | null>(null);
+
+  const currentKey = `${fileId}:${kind}:${sizeBytes}`;
+  if (currentKey !== paramsKey) {
+    setParamsKey(currentKey);
+    const nextState = getInitialState(fileId, kind, sizeBytes);
+    setState(nextState);
+  }
 
   useEffect(() => {
     // Only fetch for supported kinds.
-    if (kind === "none") {
+    if (!fileId || kind === "none") {
       setState({ status: "idle" });
       return;
     }
@@ -68,7 +92,7 @@ export function usePreviewContent(
         const url = URL.createObjectURL(blob);
         activeUrlRef.current = url;
 
-        setState({ status: "ready", url, text, mimeType: contentType, blob });
+        setState({ status: "ready", fileId, url, text, mimeType: contentType, blob });
       } catch (err) {
         if (controller.signal.aborted) return;
 
@@ -106,5 +130,7 @@ export function usePreviewContent(
     };
   }, [fileId, kind, sizeBytes]);
 
-  return state;
+  return currentKey !== paramsKey
+    ? getInitialState(fileId, kind, sizeBytes)
+    : state;
 }

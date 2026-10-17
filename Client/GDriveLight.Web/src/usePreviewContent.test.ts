@@ -213,4 +213,54 @@ describe("usePreviewContent", () => {
 
     expect(revokedUrls).toContain("blob:mock-1");
   });
+
+  it("transitions immediately to loading state and clears stale state when fileId changes", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("file-1")) {
+        return Promise.resolve(
+          new Response("Content 1", {
+            status: 200,
+            headers: { "Content-Type": "text/plain" },
+          }),
+        );
+      }
+      return Promise.resolve(
+        new Response("Content 2", {
+          status: 200,
+          headers: { "Content-Type": "text/plain" },
+        }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result, rerender } = renderHook(
+      ({ fileId, kind, sizeBytes }: { fileId: string; kind: string; sizeBytes: number }) =>
+        usePreviewContent(fileId, kind, sizeBytes),
+      {
+        initialProps: { fileId: "file-1", kind: "text", sizeBytes: 100 },
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("ready");
+    });
+    if (result.current.status === "ready") {
+      expect(result.current.fileId).toBe("file-1");
+      expect(result.current.text).toBe("Content 1");
+    }
+
+    // Change fileId to file-2
+    rerender({ fileId: "file-2", kind: "text", sizeBytes: 100 });
+
+    // Immediately upon re-render, status must NOT be ready with file-1 data
+    expect(result.current.status).toBe("loading");
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("ready");
+    });
+    if (result.current.status === "ready") {
+      expect(result.current.fileId).toBe("file-2");
+      expect(result.current.text).toBe("Content 2");
+    }
+  });
 });

@@ -27,12 +27,14 @@ export function PdfViewer({
         </a>
       </div>
       <div className={styles.frameContainer}>
-        <iframe
-          src={url}
-          title={title}
-          className={styles.pdfFrame}
-          aria-label={`PDF document: ${title}`}
-        />
+        {url ? (
+          <iframe
+            src={url}
+            title={title}
+            className={styles.pdfFrame}
+            aria-label={`PDF document: ${title}`}
+          />
+        ) : null}
       </div>
     </div>
   );
