@@ -35,11 +35,6 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(
             configuration.GetSection(JwtOptions.SectionName));
 
-        services.AddOptions<LocalFileStorageOptions>()
-            .Bind(configuration.GetSection(LocalFileStorageOptions.SectionName))
-            .Validate(options => !string.IsNullOrWhiteSpace(options.Path), "Storage:Path must not be empty.")
-            .ValidateOnStart();
-
         services.AddOptions<StorageQuotaOptions>()
             .Bind(configuration.GetSection(StorageQuotaOptions.SectionName))
             .Validate(options => options.DefaultQuotaBytes >= 0, "Storage:DefaultQuotaBytes must not be negative.")
@@ -67,13 +62,7 @@ public static class DependencyInjection
         services.AddScoped<ISyncFolderRepository, SyncFolderRepository>();
         services.AddScoped<IChangeLogRepository, ChangeLogRepository>();
 
-        var provider = configuration["Storage:Provider"] ?? "Local";
-        if (!string.Equals(provider, "Local", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new NotSupportedException($"Storage provider '{provider}' is not supported. Only 'Local' is available.");
-        }
-
-        services.AddSingleton<IFileStorageService, LocalFileStorageService>();
+        services.AddFileStorage(configuration);
 
         return services;
     }

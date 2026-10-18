@@ -81,7 +81,6 @@ public sealed class StorageConfigurationTests : IDisposable
     }
 
     [Theory]
-    [InlineData("S3")]
     [InlineData("S33")]
     [InlineData("")]
     [InlineData(" ")]
@@ -93,7 +92,7 @@ public sealed class StorageConfigurationTests : IDisposable
         var exception = Assert.Throws<NotSupportedException>(() =>
             services.AddInfrastructure(configuration));
 
-        Assert.Contains("Only 'Local' is available", exception.Message);
+        Assert.Contains("Supported providers are 'Local' and 'S3'", exception.Message);
     }
 
     [Theory]
