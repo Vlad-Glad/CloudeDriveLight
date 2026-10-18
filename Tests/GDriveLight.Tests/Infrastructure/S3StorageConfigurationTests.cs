@@ -13,6 +13,31 @@ namespace GDriveLight.Tests.Infrastructure;
 
 public sealed class S3StorageConfigurationTests
 {
+    [Fact]
+    public void AwsSectionSuppliesNamedProfileAndRegionWithoutS3SpecificRegion()
+    {
+        var services = new ServiceCollection();
+        services.AddInfrastructure(Configuration(("Storage:S3:Region", null), ("Storage:S3:AccessKey", ""),
+            ("Storage:S3:SecretKey", ""), ("AWS:Region", "eu-north-1"), ("AWS:Profile", "development-profile")));
+        using var provider = services.BuildServiceProvider();
+
+        var options = provider.GetRequiredService<AWSOptions>();
+
+        Assert.Equal("development-profile", options.Profile);
+        Assert.Equal("eu-north-1", options.Region.SystemName);
+        Assert.Null(options.Credentials);
+    }
+
+    [Fact]
+    public void ExplicitS3RegionOverridesSharedAwsRegion()
+    {
+        var services = new ServiceCollection();
+        services.AddInfrastructure(Configuration(("AWS:Region", "eu-north-1")));
+        using var provider = services.BuildServiceProvider();
+
+        Assert.Equal("us-east-1", provider.GetRequiredService<AWSOptions>().Region.SystemName);
+    }
+
     [Theory]
     [InlineData("S3")]
     [InlineData("s3")]

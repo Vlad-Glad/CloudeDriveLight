@@ -12,10 +12,14 @@ using Microsoft.Extensions.Logging;
 
 namespace GDriveLight.Tests.Infrastructure;
 
-public sealed class S3StorageHttpTests
+public sealed class S3StorageHttpTests : IDisposable
 {
-    [Fact]
-    public async Task RealSdkSavesDownloadsAndDeletesThroughConfiguredEndpoint()
+    private readonly string _credentialsPath = Path.Combine(Path.GetTempPath(), $"gdrivelight-aws-{Guid.NewGuid():N}.ini");
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RealSdkSavesDownloadsAndDeletesThroughConfiguredEndpoint(bool useProfile)
     {
         var objects = new ConcurrentDictionary<string, byte[]>();
         var builder = WebApplication.CreateBuilder();
@@ -25,6 +29,7 @@ public sealed class S3StorageHttpTests
         app.Run(async context =>
         {
             Assert.StartsWith("AWS4-HMAC-SHA256 ", context.Request.Headers.Authorization.ToString());
+            Assert.Contains($"Credential={(useProfile ? "profile-access-key" : "test-access-key")}/", context.Request.Headers.Authorization.ToString());
             var path = context.Request.Path.Value!;
             Assert.StartsWith("/private-test-files/", path);
             if (HttpMethods.IsPut(context.Request.Method))
@@ -53,16 +58,20 @@ public sealed class S3StorageHttpTests
             }
         });
         await app.StartAsync();
+        if (useProfile)
+            await File.WriteAllTextAsync(_credentialsPath, "[test-profile]\naws_access_key_id = profile-access-key\naws_secret_access_key = profile-secret-key\n");
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=unused",
             ["Storage:Provider"] = "S3",
             ["Storage:S3:BucketName"] = "private-test-files",
-            ["Storage:S3:Region"] = "us-east-1",
+            ["AWS:Region"] = "us-east-1",
+            ["AWS:Profile"] = useProfile ? "test-profile" : null,
+            ["AWS:ProfilesLocation"] = useProfile ? _credentialsPath : null,
             ["Storage:S3:ServiceUrl"] = app.Urls.Single(),
             ["Storage:S3:ForcePathStyle"] = "true",
-            ["Storage:S3:AccessKey"] = "test-access-key",
-            ["Storage:S3:SecretKey"] = "test-secret-key"
+            ["Storage:S3:AccessKey"] = useProfile ? "" : "test-access-key",
+            ["Storage:S3:SecretKey"] = useProfile ? "" : "test-secret-key"
         }).Build();
         var services = new ServiceCollection();
         services.AddLogging();
@@ -87,5 +96,10 @@ public sealed class S3StorageHttpTests
         Assert.Empty(objects);
         await Assert.ThrowsAsync<FileNotFoundException>(() => storage.GetAsync(key));
         await app.StopAsync();
+    }
+
+    public void Dispose()
+    {
+        if (File.Exists(_credentialsPath)) File.Delete(_credentialsPath);
     }
 }

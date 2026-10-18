@@ -9,27 +9,16 @@ namespace GDriveLight.Tests.Infrastructure.Persistence;
 
 public class PostgreSqlConfigurationTests
 {
-    [Fact]
-    public void DesignTimeFactory_UsesCommandLineConnectionOverride()
+    [Theory]
+    [InlineData("Development")]
+    [InlineData("Production")]
+    public void DesignTimeFactory_UsesCommandLineConnectionOverride(string environment)
     {
         const string connectionString = "Host=design-time;Database=unused;Username=test";
         using var context = new AppDbContextFactory().CreateDbContext(
-            ["--environment", "Production", "--ConnectionStrings:DefaultConnection", connectionString]);
+            ["--environment", environment, "--ConnectionStrings:DefaultConnection", connectionString]);
 
         Assert.Equal(connectionString, context.Database.GetConnectionString());
-    }
-
-    [Fact]
-    public void DesignTimeFactory_UsesDevelopmentSettingsFromApiOutput()
-    {
-        using var context = new AppDbContextFactory().CreateDbContext(["--environment", "Development"]);
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(AppContext.BaseDirectory)
-            .AddJsonFile("appsettings.Development.json")
-            .AddEnvironmentVariables()
-            .Build();
-
-        Assert.Equal(configuration.GetConnectionString("DefaultConnection"), context.Database.GetConnectionString());
     }
 
     [Fact]
