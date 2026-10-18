@@ -25,6 +25,21 @@ public class ExceptionHandlingMiddleware
         {
             await _next(context);
         }
+        catch (FileSizeLimitExceededException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+            await context.Response.WriteAsJsonAsync(new
+            {
+                error = ex.Message,
+                code = "file_size_limit_exceeded",
+                maxFileSizeBytes = ex.MaxFileSizeBytes
+            });
+        }
+        catch (BadHttpRequestException ex)
+        {
+            context.Response.StatusCode = ex.StatusCode;
+            await context.Response.WriteAsJsonAsync(new { error = ex.Message });
+        }
         catch (StorageQuotaExceededException ex)
         {
             context.Response.ContentType = "application/json";

@@ -165,6 +165,49 @@ public sealed class StorageQuotaTests : IDisposable
         Assert.Equal(DefaultStorageQuotaPolicy.LimitBytes - 7, (await Usage()).UsedBytes);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FileAtConfiguredLimitIsAccepted(bool update)
+    {
+        var file = update ? SeedFile(1) : null;
+        using var input = new MemoryStream(new byte[3]);
+
+        if (update)
+            Assert.True((await Update(3).Handle(new(file!.Id, input, _user), CancellationToken.None)).IsSuccess);
+        else
+            Assert.True((await Upload(3).Handle(new("bounded.txt", input, _user, null), CancellationToken.None)).IsSuccess);
+
+        Assert.Equal(3, (await _db.DriveFiles.SingleAsync()).SizeBytes);
+        Assert.Single(_storage.Files);
+        Assert.Single(await _db.ChangeLogs.ToListAsync());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FileAboveConfiguredLimitNeverPersistsContentOrChangesMetadata(bool update)
+    {
+        var file = update ? SeedFile(1) : null;
+        using var input = new MemoryStream(new byte[4]);
+
+        if (update)
+            await Assert.ThrowsAsync<FileSizeLimitExceededException>(() => Update(3).Handle(new(file!.Id, input, _user), CancellationToken.None));
+        else
+            await Assert.ThrowsAsync<FileSizeLimitExceededException>(() => Upload(3).Handle(new("bounded.txt", input, _user, null), CancellationToken.None));
+
+        Assert.Empty(_storage.Files);
+        Assert.Empty(await _db.ChangeLogs.ToListAsync());
+        if (update)
+        {
+            var unchanged = await _db.DriveFiles.SingleAsync();
+            Assert.Equal(file!.FileUrl, unchanged.FileUrl);
+            Assert.Equal(1, unchanged.SizeBytes);
+        }
+        else
+            Assert.Empty(await _db.DriveFiles.ToListAsync());
+    }
+
     private DriveFileEntity SeedFile(long bytes)
     {
         var file = new DriveFileEntity
@@ -182,11 +225,11 @@ public sealed class StorageQuotaTests : IDisposable
     private Task<StorageUsage> Usage() => new GetStorageUsageQueryHandler(new DriveFileRepository(_db), new DefaultStorageQuotaPolicy())
         .Handle(new(_user), CancellationToken.None);
 
-    private UploadFileCommandHandler Upload() => new(new DriveFileRepository(_db), new DriveFolderRepository(_db),
-        new FileTypeRepository(_db), _storage, new ChangeLogRepository(_db), new UnitOfWork(_db), new DefaultStorageQuotaPolicy());
+    private UploadFileCommandHandler Upload(long? maxFileSizeBytes = null) => new(new DriveFileRepository(_db), new DriveFolderRepository(_db),
+        new FileTypeRepository(_db), _storage, new ChangeLogRepository(_db), new UnitOfWork(_db), new DefaultStorageQuotaPolicy(), TestFileContentPreparer.Create(maxFileSizeBytes));
 
-    private UpdateFileContentCommandHandler Update() => new(new DriveFileRepository(_db), _storage,
-        new ChangeLogRepository(_db), new UnitOfWork(_db), new DefaultStorageQuotaPolicy(), NullLogger<UpdateFileContentCommandHandler>.Instance);
+    private UpdateFileContentCommandHandler Update(long? maxFileSizeBytes = null) => new(new DriveFileRepository(_db), _storage,
+        new ChangeLogRepository(_db), new UnitOfWork(_db), new DefaultStorageQuotaPolicy(), NullLogger<UpdateFileContentCommandHandler>.Instance, TestFileContentPreparer.Create(maxFileSizeBytes));
 
     public void Dispose()
     {

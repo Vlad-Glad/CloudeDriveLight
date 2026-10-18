@@ -17,6 +17,7 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
     private readonly IChangeLogRepository _changeLogRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IStorageQuotaPolicy _quotaPolicy;
+    private readonly IFileContentPreparer _contentPreparer;
 
     public UploadFileCommandHandler(
         IDriveFileRepository fileRepository,
@@ -25,7 +26,8 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
         IFileStorageService fileStorageService,
         IChangeLogRepository changeLogRepository,
         IUnitOfWork unitOfWork,
-        IStorageQuotaPolicy quotaPolicy)
+        IStorageQuotaPolicy quotaPolicy,
+        IFileContentPreparer contentPreparer)
     {
         _fileRepository = fileRepository;
         _folderRepository = folderRepository;
@@ -34,6 +36,7 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
         _changeLogRepository = changeLogRepository;
         _unitOfWork = unitOfWork;
         _quotaPolicy = quotaPolicy;
+        _contentPreparer = contentPreparer;
     }
 
     public async Task<Result<Guid>> Handle(UploadFileCommand request, CancellationToken cancellationToken)
@@ -69,7 +72,7 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
         }
 
 
-        await using var content = await PreparedFileContent.CreateAsync(request.FileStream, cancellationToken);
+        await using var content = await _contentPreparer.PrepareAsync(request.FileStream, cancellationToken);
         var fileUrl = await _fileStorageService.SaveAsync(content.Stream, request.FileName, cancellationToken);
         var committed = false;
         try

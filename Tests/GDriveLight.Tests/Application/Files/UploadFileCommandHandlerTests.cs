@@ -236,7 +236,7 @@ public class UploadFileCommandHandlerTests
     private UploadFileCommandHandler CreateHandler() =>
         new(_fileRepository.Object, _folderRepository.Object, _fileTypeRepository.Object, _fileStorageService.Object,
             _changeLogRepository.Object, TestUserWriteTransaction.Configure(_unitOfWork),
-            new GDriveLight.Application.Storage.DefaultStorageQuotaPolicy());
+            new GDriveLight.Application.Storage.DefaultStorageQuotaPolicy(), TestFileContentPreparer.Create());
 
 
     private static FileType CreateFileType(int id, string extension = ".txt")

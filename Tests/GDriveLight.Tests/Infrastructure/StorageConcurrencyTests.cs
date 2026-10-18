@@ -52,7 +52,7 @@ public sealed class StorageConcurrencyTests : IAsyncLifetime
 
         var storage = new TestStorage();
         var upload = new UploadFileCommandHandler(new DriveFileRepository(second), new DriveFolderRepository(second),
-            new FileTypeRepository(second), storage, new ChangeLogRepository(second), new UnitOfWork(second), new DefaultStorageQuotaPolicy());
+            new FileTypeRepository(second), storage, new ChangeLogRepository(second), new UnitOfWork(second), new DefaultStorageQuotaPolicy(), TestFileContentPreparer.Create());
         using var content = new MemoryStream(new byte[1]);
         var competing = upload.Handle(new("competing.txt", content, _user, null), timeout.Token);
         await Task.Delay(150, timeout.Token);

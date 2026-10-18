@@ -179,6 +179,6 @@ public class UpdateFileContentCommandHandlerTests
     private UpdateFileContentCommandHandler CreateHandler() =>
         new(_fileRepository.Object, _fileStorageService.Object, _changeLogRepository.Object,
             TestUserWriteTransaction.Configure(_unitOfWork), new GDriveLight.Application.Storage.DefaultStorageQuotaPolicy(),
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<UpdateFileContentCommandHandler>.Instance);
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<UpdateFileContentCommandHandler>.Instance, TestFileContentPreparer.Create());
 }
 

@@ -1,4 +1,5 @@
 using GDriveLight.Api.Middleware;
+using GDriveLight.Api.Configuration;
 using GDriveLight.Api.Services;
 using GDriveLight.Application;
 using GDriveLight.Application.Abstractions.Services;
@@ -8,6 +9,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.ConfigureHttp();
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -77,6 +80,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+app.UseCors();
 
 app.UseAuthentication();
 app.UseAuthorization();

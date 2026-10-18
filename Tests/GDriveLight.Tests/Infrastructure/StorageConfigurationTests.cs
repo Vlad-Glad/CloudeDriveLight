@@ -125,6 +125,10 @@ public sealed class StorageConfigurationTests : IDisposable
     [InlineData("Storage:DefaultQuotaBytes", "-1")]
     [InlineData("Storage:Path", "")]
     [InlineData("Storage:Path", " ")]
+    [InlineData("Storage:MaxFileSizeBytes", "0")]
+    [InlineData("Storage:MaxFileSizeBytes", "-1")]
+    [InlineData("Storage:MaxFileSizeBytes", "9223372036854775807")]
+    [InlineData("Storage:TemporaryPath", " ")]
     public async Task AddInfrastructure_RejectsInvalidStorageConfigurationAtStartup(string key, string value)
     {
         using var host = new HostBuilder()

@@ -17,6 +17,7 @@ public class UpdateFileContentCommandHandler : IRequestHandler<UpdateFileContent
     private readonly IUnitOfWork _unitOfWork;
     private readonly IStorageQuotaPolicy _quotaPolicy;
     private readonly ILogger<UpdateFileContentCommandHandler> _logger;
+    private readonly IFileContentPreparer _contentPreparer;
 
     public UpdateFileContentCommandHandler(
         IDriveFileRepository fileRepository,
@@ -24,7 +25,8 @@ public class UpdateFileContentCommandHandler : IRequestHandler<UpdateFileContent
         IChangeLogRepository changeLogRepository,
         IUnitOfWork unitOfWork,
         IStorageQuotaPolicy quotaPolicy,
-        ILogger<UpdateFileContentCommandHandler> logger)
+        ILogger<UpdateFileContentCommandHandler> logger,
+        IFileContentPreparer contentPreparer)
     {
         _fileRepository = fileRepository;
         _fileStorageService = fileStorageService;
@@ -32,6 +34,7 @@ public class UpdateFileContentCommandHandler : IRequestHandler<UpdateFileContent
         _unitOfWork = unitOfWork;
         _quotaPolicy = quotaPolicy;
         _logger = logger;
+        _contentPreparer = contentPreparer;
     }
 
     public async Task<Result> Handle(UpdateFileContentCommand request, CancellationToken cancellationToken)
@@ -47,7 +50,7 @@ public class UpdateFileContentCommandHandler : IRequestHandler<UpdateFileContent
             return Result.Failure("You do not have permission to update this file.");
         }
 
-        await using var content = await PreparedFileContent.CreateAsync(request.FileStream, cancellationToken);
+        await using var content = await _contentPreparer.PrepareAsync(request.FileStream, cancellationToken);
         var newFileUrl = await _fileStorageService.SaveAsync(content.Stream, file.Name, cancellationToken);
         var committed = false;
         string? oldFileUrl = null;

@@ -48,6 +48,14 @@ public static class DependencyInjection
         services.AddSingleton<IStorageQuotaPolicy>(serviceProvider => new DefaultStorageQuotaPolicy(
             serviceProvider.GetRequiredService<IOptions<StorageQuotaOptions>>().Value.DefaultQuotaBytes));
 
+        services.AddOptions<FileContentPreparationOptions>()
+            .Bind(configuration.GetSection(FileContentPreparationOptions.SectionName))
+            .Validate(options => options.MaxFileSizeBytes > 0 && options.MaxFileSizeBytes < long.MaxValue,
+                "Storage:MaxFileSizeBytes must be positive and less than Int64.MaxValue.")
+            .Validate(options => !string.IsNullOrWhiteSpace(options.TemporaryPath), "Storage:TemporaryPath must not be empty.")
+            .ValidateOnStart();
+        services.AddSingleton<IFileContentPreparer, FileContentPreparer>();
+
         services.AddScoped<IIdentityService, IdentityService>();
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();

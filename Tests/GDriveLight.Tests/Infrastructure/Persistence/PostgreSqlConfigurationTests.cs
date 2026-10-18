@@ -1,4 +1,5 @@
 using GDriveLight.Infrastructure;
+using GDriveLight.Api.Persistence;
 using GDriveLight.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -8,6 +9,38 @@ namespace GDriveLight.Tests.Infrastructure.Persistence;
 
 public class PostgreSqlConfigurationTests
 {
+    [Fact]
+    public void DesignTimeFactory_UsesCommandLineConnectionOverride()
+    {
+        const string connectionString = "Host=design-time;Database=unused;Username=test";
+        using var context = new AppDbContextFactory().CreateDbContext(
+            ["--environment", "Production", "--ConnectionStrings:DefaultConnection", connectionString]);
+
+        Assert.Equal(connectionString, context.Database.GetConnectionString());
+    }
+
+    [Fact]
+    public void DesignTimeFactory_UsesDevelopmentSettingsFromApiOutput()
+    {
+        using var context = new AppDbContextFactory().CreateDbContext(["--environment", "Development"]);
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.Development.json")
+            .AddEnvironmentVariables()
+            .Build();
+
+        Assert.Equal(configuration.GetConnectionString("DefaultConnection"), context.Database.GetConnectionString());
+    }
+
+    [Fact]
+    public void DesignTimeFactory_RejectsMissingConnectionInsteadOfFallingBackToLocalDatabase()
+    {
+        var error = Assert.Throws<InvalidOperationException>(() => new AppDbContextFactory().CreateDbContext(
+            ["--environment", "Production", "--ConnectionStrings:DefaultConnection", ""]));
+
+        Assert.Contains("DefaultConnection", error.Message);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
