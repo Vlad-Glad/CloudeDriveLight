@@ -1,4 +1,6 @@
 using GDriveLight.Application.Abstractions.Services;
+using GDriveLight.Infrastructure.Storage;
+using Microsoft.Extensions.Options;
 
 namespace GDriveLight.Infrastructure.Services;
 
@@ -6,10 +8,13 @@ public class LocalFileStorageService : IFileStorageService
 {
     private readonly string _storageDirectory;
 
-    public LocalFileStorageService()
+    public LocalFileStorageService(IOptions<LocalFileStorageOptions> options)
     {
-        // For development, we store files in an 'uploads' directory relative to the current working directory
-        _storageDirectory = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+        var directory = options.Value.Path;
+
+        _storageDirectory = Path.IsPathRooted(directory)
+            ? directory
+            : Path.Combine(Directory.GetCurrentDirectory(), directory);
 
         if (!Directory.Exists(_storageDirectory))
         {
@@ -19,7 +24,8 @@ public class LocalFileStorageService : IFileStorageService
 
     public async Task<string> SaveAsync(Stream fileStream, string fileName, CancellationToken cancellationToken = default)
     {
-        var uniqueFileName = $"{Guid.NewGuid()}_{fileName}";
+        var safeFileName = Path.GetFileName(fileName);
+        var uniqueFileName = $"{Guid.NewGuid()}_{safeFileName}";
         var filePath = Path.Combine(_storageDirectory, uniqueFileName);
 
         var created = false;
@@ -39,7 +45,8 @@ public class LocalFileStorageService : IFileStorageService
 
     public Task DeleteAsync(string fileUrl, CancellationToken cancellationToken = default)
     {
-        var filePath = Path.Combine(_storageDirectory, fileUrl);
+        var safeFileName = Path.GetFileName(fileUrl);
+        var filePath = Path.Combine(_storageDirectory, safeFileName);
 
         if (File.Exists(filePath))
         {
@@ -51,7 +58,8 @@ public class LocalFileStorageService : IFileStorageService
 
     public Task<Stream> GetAsync(string fileUrl, CancellationToken cancellationToken = default)
     {
-        var filePath = Path.Combine(_storageDirectory, fileUrl);
+        var safeFileName = Path.GetFileName(fileUrl);
+        var filePath = Path.Combine(_storageDirectory, safeFileName);
 
         if (!File.Exists(filePath))
         {
