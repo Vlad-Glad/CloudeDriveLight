@@ -16,24 +16,42 @@ export function ImageViewer({
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [zoom, setZoom] = useState<number | null>(null); // null = fit mode
+  const [fitZoom, setFitZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const dragging = useRef(false);
   const dragStart = useRef({ mx: 0, my: 0, px: 0, py: 0 });
 
-  // Reset on new image.
+  // Recalculate fit after decoding the image and whenever the canvas resizes.
   useEffect(() => {
     setZoom(null);
     setPan({ x: 0, y: 0 });
+    const img = imgRef.current;
+    const container = containerRef.current;
+    if (!img || !container) return;
+
+    function updateFitZoom() {
+      if (!img || !container || !img.complete || !img.naturalWidth || !img.naturalHeight
+        || !container.clientWidth || !container.clientHeight) return;
+      setFitZoom(Math.min(
+        container.clientWidth / img.naturalWidth,
+        container.clientHeight / img.naturalHeight,
+        1,
+      ));
+    }
+
+    img.addEventListener("load", updateFitZoom);
+    const observer = new ResizeObserver(updateFitZoom);
+    observer.observe(container);
+    updateFitZoom();
+
+    return () => {
+      img.removeEventListener("load", updateFitZoom);
+      observer.disconnect();
+    };
   }, [url]);
 
   function effectiveZoom(): number {
-    if (zoom !== null) return zoom;
-    const img = imgRef.current;
-    const container = containerRef.current;
-    if (!img || !container) return 1;
-    const scaleX = container.clientWidth / img.naturalWidth;
-    const scaleY = container.clientHeight / img.naturalHeight;
-    return Math.min(scaleX, scaleY, 1);
+    return zoom ?? fitZoom;
   }
 
   function zoomBy(delta: number, cx?: number, cy?: number) {

@@ -16,6 +16,7 @@
   user-select: none;
 }
 .image {
+  flex-shrink: 0;
   max-width: none;
   max-height: none;
   transform-origin: center center;

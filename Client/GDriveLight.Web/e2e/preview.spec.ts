@@ -8,6 +8,46 @@ const row = (page: Page, name: string) =>
     .filter({ has: page.getByText(name, { exact: true }) });
 const viewer = (page: Page) => page.getByRole("dialog");
 
+test("photo preview fits on load and resize, with optional original size", async ({ page }) => {
+  await mockApi(page, true, ["Photo.svg"]);
+  await page.route("**/api/files/types", (route) => route.fulfill({
+    json: [{ id: 1, name: "Image", extension: ".svg", mimeType: "image/svg+xml", previewKind: "image" }],
+  }));
+  await page.route("**/api/files/*/preview", (route) => route.fulfill({
+    contentType: "image/svg+xml",
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1600"><rect width="2400" height="1600" fill="skyblue"/><circle cx="1200" cy="800" r="600" fill="coral"/></svg>',
+  }));
+  await page.goto("/");
+  await openActions(page, "Photo.svg", "Preview");
+  const image = viewer(page).getByRole("img", { name: "Photo.svg" });
+  const fit = viewer(page).getByRole("button", { name: "Fit to window" });
+
+  async function expectFit() {
+    await expect(fit).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(() => image.evaluate((img: HTMLImageElement) => {
+      const canvas = img.parentElement!;
+      const bounds = img.getBoundingClientRect();
+      const frame = canvas.getBoundingClientRect();
+      const scale = Math.min(canvas.clientWidth / img.naturalWidth, canvas.clientHeight / img.naturalHeight, 1);
+      return img.naturalWidth > 0
+        && Math.abs(bounds.width - img.naturalWidth * scale) < 1
+        && Math.abs(bounds.height - img.naturalHeight * scale) < 1
+        && bounds.left >= frame.left - 1 && bounds.right <= frame.right + 1
+        && bounds.top >= frame.top - 1 && bounds.bottom <= frame.bottom + 1;
+    })).toBe(true);
+  }
+
+  await expectFit();
+  await page.setViewportSize({ width: 600, height: 500 });
+  await expectFit();
+  await viewer(page).getByRole("button", { name: "Original size" }).click();
+  await expect(viewer(page).getByText("100%", { exact: true })).toBeVisible();
+  await expect.poll(async () => (await image.boundingBox())?.width).toBe(2400);
+  await fit.click();
+  await expectFit();
+  await page.screenshot({ path: test.info().outputPath("photo-fit.png") });
+});
+
 test("single click selects; double-click opens a full-screen preview without downloading", async ({
   page,
 }) => {
