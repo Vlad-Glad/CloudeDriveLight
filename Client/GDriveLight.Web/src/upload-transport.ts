@@ -1,4 +1,4 @@
-import { ApiError, errorMessage } from "./api";
+import { ApiError, errorMessage, buildApiUrl } from "./api";
 import { expireSession, getSession } from "./session";
 
 // XHR exposes upload progress; completion still waits for the API response.
@@ -25,7 +25,7 @@ export function uploadWithProgress(
       cleanup();
       reject(error);
     };
-    xhr.open("POST", "/api/files");
+    xhr.open("POST", buildApiUrl("files"));
     xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     xhr.timeout = 15 * 60 * 1000;
     xhr.upload.onprogress = (event) => {

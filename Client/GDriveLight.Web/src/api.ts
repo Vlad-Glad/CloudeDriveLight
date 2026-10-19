@@ -23,6 +23,19 @@ export async function errorMessage(response: Response): Promise<string> {
       : `Request failed (${response.status}). Please try again.`;
   }
 }
+export function buildApiUrl(path: string): string {
+  const rawBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
+  const cleanPath = path.replace(/^\/+/, "");
+  if (!rawBase) {
+    return `/api/${cleanPath}`;
+  }
+  const baseWithoutTrailingSlash = rawBase.replace(/\/+$/, "");
+  if (baseWithoutTrailingSlash.endsWith("/api")) {
+    return `${baseWithoutTrailingSlash}/${cleanPath}`;
+  }
+  return `${baseWithoutTrailingSlash}/api/${cleanPath}`;
+}
+
 export async function apiResponse(
   path: string,
   options: RequestInit = {},
@@ -35,7 +48,7 @@ export async function apiResponse(
     headers.set("Content-Type", "application/json");
   let response: Response;
   try {
-    response = await fetch(`/api/${path}`, { ...options, headers });
+    response = await fetch(buildApiUrl(path), { ...options, headers });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw error;
     throw new ApiError(
