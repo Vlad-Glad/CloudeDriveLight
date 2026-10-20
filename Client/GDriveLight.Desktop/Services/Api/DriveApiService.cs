@@ -15,7 +15,7 @@ public sealed class DriveApiService : IDriveApiService
     private readonly HttpClient _httpClient;
     private readonly IDeviceIdentifierService _deviceIdentifierService;
     private readonly object _sessionLock = new();
-    private Uri _serverUri = new("https://localhost:7220/");
+    private readonly Uri _serverUri = new("https://gdrive-vlad.duckdns.org/");
     private string? _authToken;
 
     public DriveApiService(HttpClient httpClient, IDeviceIdentifierService? deviceIdentifierService = null)
