@@ -7,6 +7,13 @@ const row = (page: Page, name: string) =>
     .getByRole("row")
     .filter({ has: page.getByText(name, { exact: true }) });
 const viewer = (page: Page) => page.getByRole("dialog");
+const previewText = "Content loaded from the file preview endpoint.";
+
+async function mockTextPreview(page: Page) {
+  await page.route("**/api/files/*/preview", (route) =>
+    route.fulfill({ contentType: "text/plain", body: previewText }),
+  );
+}
 
 test("photo preview fits on load and resize, with optional original size", async ({ page }) => {
   await mockApi(page, true, ["Photo.svg"]);
@@ -52,6 +59,7 @@ test("single click selects; double-click opens a full-screen preview without dow
   page,
 }) => {
   await mockApi(page);
+  await mockTextPreview(page);
   const downloads: string[] = [];
   page.on("request", (request) => {
     if (request.url().endsWith("/download")) downloads.push(request.url());
@@ -62,9 +70,7 @@ test("single click selects; double-click opens a full-screen preview without dow
   await expect(row(page, "Notes.txt")).toHaveAttribute("aria-selected", "true");
   await row(page, "Notes.txt").dblclick();
   await expect(viewer(page)).toHaveAccessibleName("Notes.txt");
-  await expect(
-    viewer(page).getByRole("heading", { name: "No preview available" }),
-  ).toBeVisible();
+  await expect(viewer(page).locator("pre")).toHaveText(previewText);
   await expect(
     viewer(page).getByRole("main", { name: "Preview content" }),
   ).toHaveAttribute("data-preview-kind", "text");
@@ -83,6 +89,14 @@ test("single click selects; double-click opens a full-screen preview without dow
     viewer(page).getByRole("button", { name: "Close preview" }),
   ).toBeFocused();
   await page.keyboard.press("Shift+Tab");
+  await expect(
+    viewer(page).getByRole("button", { name: "Copy to clipboard" }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    viewer(page).getByRole("button", { name: "Close preview" }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
   await expect(
     viewer(page).getByRole("button", { name: "Download file" }),
   ).toBeFocused();
@@ -207,6 +221,7 @@ test("preview capability comes from fileTypeId, with safe fallback for missing c
   page,
 }) => {
   await mockApi(page, true, ["Renamed.png"]);
+  await mockTextPreview(page);
   await page.route("**/api/files/types", (route) =>
     route.fulfill({
       json: [
@@ -226,7 +241,7 @@ test("preview capability comes from fileTypeId, with safe fallback for missing c
     "data-preview-kind",
     "text",
   );
-  await expect(viewer(page)).toContainText("Custom source");
+  await expect(viewer(page).locator("pre")).toHaveText(previewText);
   await page.keyboard.press("Escape");
   await page.route("**/api/files/types", (route) =>
     route.fulfill({ json: [] }),
@@ -247,6 +262,7 @@ test("catalog loading, errors and retry stay inside the viewer", async ({
   page,
 }) => {
   await mockApi(page);
+  await mockTextPreview(page);
   let release = () => {};
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -258,12 +274,15 @@ test("catalog loading, errors and retry stay inside the viewer", async ({
       ? route.fulfill({ status: 503, json: { error: "Catalog unavailable" } })
       : route.fallback();
   });
-  await page.goto("/");
-  await row(page, "Notes.txt").dblclick();
-  await expect(viewer(page).getByRole("status")).toContainText(
-    "Loading preview information",
-  );
-  release();
+  try {
+    await page.goto("/");
+    await row(page, "Notes.txt").dblclick();
+    await expect(viewer(page).getByRole("status")).toContainText(
+      "Loading preview information",
+    );
+  } finally {
+    release();
+  }
   await expect(viewer(page).getByRole("alert")).toContainText(
     "Catalog unavailable",
   );
@@ -272,9 +291,7 @@ test("catalog loading, errors and retry stay inside the viewer", async ({
   await viewer(page)
     .getByRole("button", { name: "Retry", exact: true })
     .click();
-  await expect(
-    viewer(page).getByRole("heading", { name: "No preview available" }),
-  ).toBeVisible();
+  await expect(viewer(page).locator("pre")).toHaveText(previewText);
 });
 
 test("downloads require an explicit viewer action and failures remain visible", async ({

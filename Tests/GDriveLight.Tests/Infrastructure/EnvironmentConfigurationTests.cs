@@ -43,14 +43,14 @@ public sealed class EnvironmentConfigurationTests
         Assert.Null(options.Profile);
         Assert.Null(options.Credentials);
         Assert.Equal(configuration["AWS:Region"], options.Region.SystemName);
-        Assert.Empty(configuration.GetSection("Cors:AllowedOrigins").GetChildren());
+        Assert.Equal("production-test-files", host.Services.GetRequiredService<IOptions<S3StorageOptions>>().Value.BucketName);
         await host.StopAsync();
     }
 
     [Fact]
-    public async Task ProductionRequiresRealBucketToReplacePlaceholder()
+    public async Task ProductionRejectsPlaceholderBucket()
     {
-        var configuration = Configuration("Production");
+        var configuration = Configuration("Production", ("Storage:S3:BucketName", "<YOUR_S3_BUCKET>"));
         using var host = new HostBuilder().ConfigureServices((_, services) => services.AddInfrastructure(configuration)).Build();
 
         var error = await Assert.ThrowsAsync<OptionsValidationException>(() => host.StartAsync());

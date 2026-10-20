@@ -35,15 +35,20 @@ test("drop multiple files, keep the queue destination while browsing and recover
     }
     return route.fallback();
   });
-  await page.goto("/");
-  await page.getByRole("link", { name: "Documents", exact: true }).click();
-  await dropFiles(page, ["First.txt", "Second.txt"]);
-  await expect(page.getByRole("progressbar")).toBeVisible();
-  await page
-    .getByRole("navigation", { name: "Folder path" })
-    .getByRole("link", { name: "Home", exact: true })
-    .click();
-  release();
+  try {
+    await page.goto("/");
+    await page.getByRole("link", { name: "Documents", exact: true }).click();
+    await dropFiles(page, ["First.txt", "Second.txt"]);
+    await expect(
+      page.getByRole("progressbar", { name: "Upload progress for First.txt" }),
+    ).toBeVisible();
+    await page
+      .getByRole("navigation", { name: "Folder path" })
+      .getByRole("link", { name: "Home", exact: true })
+      .click();
+  } finally {
+    release();
+  }
   const queue = page.getByRole("region", { name: "Uploads" });
   await expect(queue).toContainText("Temporary upload failure");
   await expect(queue).toContainText("To Documents · Complete");
@@ -52,6 +57,8 @@ test("drop multiple files, keep the queue destination while browsing and recover
   await expect(
     page.getByRole("table").getByText("First.txt", { exact: true }),
   ).toHaveCount(0);
+  await queue.getByRole("button", { name: "Clear finished" }).click();
+  await expect(queue).toHaveCount(0);
   await page.getByRole("link", { name: "Documents", exact: true }).click();
   await expect(
     page.getByRole("table").getByText("First.txt", { exact: true }),
