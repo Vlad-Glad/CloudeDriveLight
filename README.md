@@ -38,4 +38,9 @@ Client/
 Tests/
   GDriveLight.Tests/            Backend tests
   GDriveLight.Desktop.Tests/    Desktop tests
+UML_Diagrams/                  UML diagrams and design documentation
 ```
+
+## UML documentation
+
+Explore the [UML diagrams](UML_Diagrams/README.md) for use cases, class relationships, workflows, object interactions, synchronization states, and the system architecture.

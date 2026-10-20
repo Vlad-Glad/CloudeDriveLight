@@ -365,7 +365,10 @@ FodyWeavers.xsd
 # Розробницька документація
 документи розробки/
 
-UML_Diagrams/
+# Publish the UML gallery; keep local originals and the report untracked.
+/UML_Diagrams/*
+!/UML_Diagrams/README.md
+!/UML_Diagrams/diagrams/
 
 Server/GDriveLight.Api/uploads/
 # Local environment settings
