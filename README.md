@@ -2,8 +2,6 @@
 
 A lightweight cloud file manager with a Windows desktop client, a web client, and a shared REST API.
 
-[Open the web app](https://main.dkcw78ex1z70g.amplifyapp.com/)
-
 ## Features
 
 - User registration, sign-in, and personal file storage.
