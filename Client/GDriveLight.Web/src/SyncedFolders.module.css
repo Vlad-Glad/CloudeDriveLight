@@ -1,0 +1,51 @@
+.title {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.025em;
+}
+.description {
+  color: var(--secondary);
+  margin: 0 0 20px;
+}
+.folders {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.folder {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+.folder:hover {
+  background: var(--selected);
+  border-color: var(--accent-border);
+}
+.folder > svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.details {
+  min-width: 0;
+  flex: 1;
+}
+.details strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.details span {
+  display: block;
+  margin-top: 8px;
+  color: var(--secondary);
+  overflow-wrap: anywhere;
+}

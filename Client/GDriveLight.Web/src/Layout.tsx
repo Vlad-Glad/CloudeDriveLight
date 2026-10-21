@@ -1,6 +1,6 @@
 import * as Menu from "@radix-ui/react-dropdown-menu";
-import { Cloud, Home, LogOut } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Cloud, Home, LogOut, FolderSync } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import { type ReactNode, type HTMLAttributes } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "./auth";
@@ -46,6 +46,7 @@ export function Shell({
   actions?: ReactNode;
   homeDropProps?: HTMLAttributes<HTMLAnchorElement>;
 }) {
+  const synced = useLocation().pathname.startsWith("/synced");
   return (
     <>
       <a className="skipLink" href="#main">
@@ -59,9 +60,22 @@ export function Shell({
           </Link>
           {actions}
           <nav aria-label="Main navigation">
-            <Link className={styles.navItem} to="/" {...homeDropProps}>
+            <Link
+              className={styles.navItem}
+              to="/"
+              aria-current={!synced ? "page" : undefined}
+              {...homeDropProps}
+            >
               <Home size={20} />
               Home
+            </Link>
+            <Link
+              className={styles.navItem}
+              to="/synced"
+              aria-current={synced ? "page" : undefined}
+            >
+              <FolderSync size={20} />
+              Synced folders
             </Link>
           </nav>
           <StorageUsage />

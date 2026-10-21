@@ -42,11 +42,18 @@
   gap: 12px;
   border-radius: 999px;
   padding: 11px 16px;
-  background: var(--selected);
-  color: var(--navy);
+  color: var(--secondary);
   font-weight: 600;
 }
+.navItem:hover,
+.navItem[aria-current="page"] {
+  background: var(--selected);
+  color: var(--navy);
+}
 .sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin-bottom: 24px;
 }
 .surface {
@@ -102,7 +109,8 @@
     padding: 16px;
   }
   .sidebar nav {
-    max-width: 160px;
+    flex-direction: row;
+    flex-wrap: wrap;
     margin-bottom: 0;
   }
 }

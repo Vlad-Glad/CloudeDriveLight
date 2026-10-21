@@ -55,10 +55,14 @@ import {
   useVisibleColumns,
   type VisibleColumns,
 } from "./ColumnsMenu";
-export default function Drive() {
+export default function Drive({ synced = false }: { synced?: boolean }) {
   const { folderId: routeId } = useParams();
   const navigate = useNavigate();
   const folderId = routeId || null;
+  const sectionUrl = synced ? "/synced" : "/";
+  const sectionName = synced ? "Synced folders" : "Home";
+  const itemFolderUrl = (id: string) =>
+    synced ? `/synced${folderUrl(id)}` : folderUrl(id);
   const [params, setParams] = useSearchParams();
   const search = params.get("q")?.trim() || "";
   const type = params.get("type") || "";
@@ -139,8 +143,8 @@ export default function Drive() {
   const path = useQuery(pathQuery(folderId));
   const types = useQuery(typesQuery);
   const content = useQuery({
-    queryKey: ["drive", "content", folderId, search],
-    queryFn: ({ signal }) => loadItems(folderId, search, signal),
+    queryKey: ["drive", "content", folderId, search, synced],
+    queryFn: ({ signal }) => loadItems(folderId, search, signal, synced),
   });
   const items = sortItems(content.data || [], sort, descending, type);
   const selection = useFileSelection(items);
@@ -207,7 +211,7 @@ export default function Drive() {
       const item = items.find((item) => item.id === current);
       if (item?.kind === "folder") {
         event.preventDefault();
-        navigate(folderUrl(item.id));
+        navigate(itemFolderUrl(item.id));
       } else if (item?.kind === "file") {
         event.preventDefault();
         openPreview(item);
@@ -494,15 +498,18 @@ export default function Drive() {
         )}
         <header className={styles.header}>
           <nav aria-label="Folder path" className={styles.breadcrumb}>
-            <Link to="/" {...cloudMove.targetProps(null)}>
-              Home
+            <Link
+              to={sectionUrl}
+              {...(!synced ? cloudMove.targetProps(null) : {})}
+            >
+              {sectionName}
             </Link>
             {path.data?.map((folder) => (
               <span key={folder.id}>
                 <ChevronRight size={18} />
                 <Link
                   {...cloudMove.targetProps(folder.id)}
-                  to={folderUrl(folder.id)}
+                  to={itemFolderUrl(folder.id)}
                   aria-current={folder.id === folderId ? "page" : undefined}
                 >
                   {folder.name}
@@ -582,7 +589,8 @@ export default function Drive() {
           </label>
           {search && (
             <span className={styles.count}>
-              Results for “{search}” across your cloud
+              Results for “{search}”{" "}
+              {synced ? "in this synced folder" : "across your cloud"}
             </span>
           )}
           {!!selection.items.length && (
@@ -679,7 +687,7 @@ export default function Drive() {
             >
               Try again
             </button>
-            <Link to="/">Go to Home</Link>
+            <Link to={sectionUrl}>Go to {sectionName}</Link>
           </div>
         ) : loading ? (
           <div className={styles.empty} role="status">
@@ -847,7 +855,7 @@ export default function Drive() {
                         !event.ctrlKey &&
                         !event.metaKey
                       )
-                        navigate(folderUrl(item.id));
+                        navigate(itemFolderUrl(item.id));
                       else selection.select(item.id, event);
                     }}
                   >
@@ -871,7 +879,7 @@ export default function Drive() {
                                 rowRefs.current.get(item.id)?.focus();
                               }
                             }}
-                            to={folderUrl(item.id)}
+                            to={itemFolderUrl(item.id)}
                             title={item.name}
                           >
                             {item.name}

@@ -56,7 +56,26 @@ export async function loadItems(
   folderId: string | null,
   search: string,
   signal: AbortSignal,
+  synced = false,
 ): Promise<DriveItem[]> {
+  if (synced && search && folderId) {
+    // Global search excludes sync trees, so search only this folder's descendants.
+    const results: DriveItem[] = [];
+    const pending = [folderId];
+    const visited = new Set<string>();
+    const name = search.toLocaleLowerCase();
+    while (pending.length) {
+      const id = pending.pop()!;
+      if (visited.has(id)) continue;
+      visited.add(id);
+      const children = await loadItems(id, "", signal);
+      for (const item of children) {
+        if (item.name.toLocaleLowerCase().includes(name)) results.push(item);
+        if (item.kind === "folder") pending.push(item.id);
+      }
+    }
+    return results;
+  }
   const query = search ? `search?name=${encodeURIComponent(search)}` : "";
   const [folders, files] = await Promise.all([
     request<DriveFolder[]>(

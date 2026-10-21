@@ -1,12 +1,14 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Login from "./Login";
 import Drive from "./Drive";
+import SyncedFolders from "./SyncedFolders";
+import type { ReactNode } from "react";
 import { SessionLifecycle, useSession } from "./auth";
-function Protected() {
+function Protected({ children = <Drive /> }: { children?: ReactNode }) {
   const session = useSession();
   const location = useLocation();
   return session ? (
-    <Drive />
+    children
   ) : (
     <Navigate
       to="/login"
@@ -27,6 +29,14 @@ export default function App() {
         />
         <Route path="/" element={<Protected />} />
         <Route path="/folders/:folderId" element={<Protected />} />
+        <Route
+          path="/synced"
+          element={<Protected><SyncedFolders /></Protected>}
+        />
+        <Route
+          path="/synced/folders/:folderId"
+          element={<Protected><Drive synced /></Protected>}
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
